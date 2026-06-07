@@ -1,0 +1,226 @@
+// LawBite Database Schema
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Users ──────────────────────────────────────────────────────────────────────
+
+model User {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  name       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  conversations Conversation[]
+  savedCases    SavedCase[]
+
+  emailVerified Boolean   @default(false)
+  image         String?
+  sessions      Session[]
+  accounts      Account[]
+
+  @@map("user")
+}
+
+// ─── Conversations ──────────────────────────────────────────────────────────────
+
+model Conversation {
+  id        String   @id @default(cuid())
+  title     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  messages Message[]
+
+  @@index([userId, createdAt])
+}
+
+// ─── Messages ───────────────────────────────────────────────────────────────────
+
+model Message {
+  id      String @id @default(cuid())
+  role    String // user | assistant
+  content String
+
+  createdAt DateTime @default(now())
+
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+}
+
+// ─── Legal Cases ────────────────────────────────────────────────────────────────
+
+model Case {
+  id               String    @id @default(cuid())
+  title            String
+  court            String? // e.g. "Supreme Court of India"
+  bench            String? // e.g. "Constitution Bench"
+  citation         String? // e.g. "AIR 1954 SC 383"
+  dateOfJudgment   DateTime?
+  judgementSummary String?
+  rawText          String? // full case text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tags           String[] // tags for categorization
+  fullTextSearch String?  @db.Text
+
+  savedCases SavedCase[]
+
+  @@index([court, dateOfJudgment])
+  @@index([citation])
+}
+
+// ─── Saved Cases (User bookmarks) ───────────────────────────────────────────────
+
+model SavedCase {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  notes String?
+
+  @@unique([userId, caseId])
+  @@index([userId])
+}
+
+// ─── Constitutional Articles ────────────────────────────────────────────────────
+
+model Article {
+  id            String  @id @default(cuid())
+  articleNumber String  @unique // e.g. "14", "21", "32"
+  title         String // e.g. "Equality before law"
+  part          String? // e.g. "Part III - Fundamental Rights"
+  text          String  @db.Text
+  isActive      Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  amendments Amendment[]
+
+  @@index([articleNumber])
+  @@index([part])
+}
+
+// ─── Constitutional Amendments ──────────────────────────────────────────────────
+
+model Amendment {
+  id               String   @id @default(cuid())
+  amendmentNumber  Int // e.g. 42, 44, 73, 86
+  year             Int // e.g. 1976, 1978, 1992
+  description      String?  @db.Text
+  affectedArticles String[]
+
+  createdAt DateTime @default(now())
+
+  articleId String
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([amendmentNumber])
+  @@index([year])
+}
+
+// ─── Acts & Statutes ────────────────────────────────────────────────────────────
+
+model Act {
+  id        String  @id @default(cuid())
+  title     String // e.g. "Indian Penal Code, 1860"
+  actNumber String? // e.g. "Act No. 45 of 1860"
+  year      Int? // 1860
+  category  String? // e.g. "Criminal", "Civil", "Constitutional"
+  fullText  String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sections Section[]
+
+  @@index([category])
+  @@index([year])
+}
+
+// ─── Sections within Acts ───────────────────────────────────────────────────────
+
+model Section {
+  id            String  @id @default(cuid())
+  sectionNumber String // e.g. "302", "376", "498A"
+  title         String? // e.g. "Punishment for murder"
+  text          String  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  actId String
+  act   Act    @relation(fields: [actId], references: [id], onDelete: Cascade)
+
+  @@unique([actId, sectionNumber])
+  @@index([actId])
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}

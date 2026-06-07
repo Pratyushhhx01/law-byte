@@ -1,5 +1,8 @@
 "use client";
 
+import Link from "next/link";
+import { legalPages } from "../legal/_data";
+
 const columns: { title: string; links: { label: string; href: string }[] }[] = [
   {
     title: "Product",
@@ -30,12 +33,7 @@ const columns: { title: string; links: { label: string; href: string }[] }[] = [
   },
   {
     title: "Legal",
-    links: [
-      { label: "Privacy", href: "#" },
-      { label: "Terms", href: "#" },
-      { label: "Security", href: "#" },
-      { label: "Cookies", href: "#" },
-    ],
+    links: legalPages.map((p) => ({ label: p.label, href: p.href })),
   },
 ];
 
@@ -94,19 +92,30 @@ export default function Footer() {
                   {col.title}
                 </h4>
                 <ul className="mt-5 space-y-3 text-sm">
-                  {col.links.map((link) => (
-                    <li key={link.label}>
-                      <a
-                        href={link.href}
-                        className="group inline-flex items-center gap-1.5 text-white/70 transition-colors duration-300 hover:text-white"
-                      >
-                        <span className="relative">
-                          {link.label}
-                          <span className="absolute -bottom-0.5 left-0 h-px w-0 bg-white transition-all duration-500 group-hover:w-full" />
-                        </span>
-                      </a>
-                    </li>
-                  ))}
+                  {col.links.map((link) => {
+                    const isInternal = link.href.startsWith("/");
+                    const anchorClass =
+                      "group inline-flex items-center gap-1.5 text-white/70 transition-colors duration-300 hover:text-white";
+                    const inner = (
+                      <span className="relative">
+                        {link.label}
+                        <span className="absolute -bottom-0.5 left-0 h-px w-0 bg-white transition-all duration-500 group-hover:w-full" />
+                      </span>
+                    );
+                    return (
+                      <li key={link.label}>
+                        {isInternal ? (
+                          <Link href={link.href} className={anchorClass}>
+                            {inner}
+                          </Link>
+                        ) : (
+                          <a href={link.href} className={anchorClass}>
+                            {inner}
+                          </a>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             ))}
