@@ -30,6 +30,6 @@ export const auth = betterAuth({
   },
   trustedOrigins: [
     "http://localhost:3000",
-    "https://lawbite-db.c7wq82ogo5ds.ap-south-1.rds.amazonaws.com",
+    "http://lawbite-alb-1096330116.ap-south-1.elb.amazonaws.com",
   ],
 });
