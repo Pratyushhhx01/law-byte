@@ -29,16 +29,17 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Fetch secrets from AWS Secrets Manager
-        id: secrets
+      - name: Fetch secrets for build
+        id: fetch-secrets
         run: |
-          SECRET_ARN=$(aws secretsmanager list-secrets --query "SecretList[?starts_with(Name,'lawbite/')].ARN" --output text --region ${{ env.AWS_REGION }})
-          for arn in $SECRET_ARN; do
-            NAME=$(aws secretsmanager describe-secret --secret-id $arn --query 'Name' --output text --region ${{ env.AWS_REGION }})
-            VALUE=$(aws secretsmanager get-secret-value --secret-id $arn --query 'SecretString' --output text --region ${{ env.AWS_REGION }})
-            KEY=$(echo $NAME | sed 's|lawbite/||')
-            echo "${KEY}=${VALUE}" >> $GITHUB_ENV
-          done
+          echo "DATABASE_URL=$(aws secretsmanager get-secret-value --secret-id lawbite/DATABASE_URL --query 'SecretString' --output text)" >> $GITHUB_ENV
+          echo "BETTER_AUTH_SECRET=$(aws secretsmanager get-secret-value --secret-id lawbite/BETTER_AUTH_SECRET --query 'SecretString' --output text)" >> $GITHUB_ENV
+          echo "BETTER_AUTH_URL=http://localhost:3000" >> $GITHUB_ENV
+          echo "NEXT_PUBLIC_APP_URL=http://localhost:3000" >> $GITHUB_ENV
+          echo "GOOGLE_CLIENT_ID=$(aws secretsmanager get-secret-value --secret-id lawbite/GOOGLE_CLIENT_ID --query 'SecretString' --output text)" >> $GITHUB_ENV
+          echo "GOOGLE_CLIENT_SECRET=$(aws secretsmanager get-secret-value --secret-id lawbite/GOOGLE_CLIENT_SECRET --query 'SecretString' --output text)" >> $GITHUB_ENV
+          echo "GITHUB_CLIENT_ID=$(aws secretsmanager get-secret-value --secret-id lawbite/GITHUB_CLIENT_ID --query 'SecretString' --output text)" >> $GITHUB_ENV
+          echo "GITHUB_CLIENT_SECRET=$(aws secretsmanager get-secret-value --secret-id lawbite/GITHUB_CLIENT_SECRET --query 'SecretString' --output text)" >> $GITHUB_ENV
 
       - name: Build, tag, and push image
         id: build-image
@@ -62,7 +63,6 @@ jobs:
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
       - name: Download task definition
-        id: task-def
         run: |
           aws ecs describe-task-definition --task-definition lawbite-task --region ${{ secrets.AWS_REGION }} --query 'taskDefinition.{containerDefinitions:containerDefinitions,family:family,networkMode:networkMode,volumes:volumes,placementConstraints:placementConstraints,requiresCompatibilities:requiresCompatibilities,cpu:cpu,memory:memory,executionRoleArn:executionRoleArn,taskRoleArn:taskRoleArn}' > task-definition.json
 
