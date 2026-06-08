@@ -9,7 +9,6 @@ export async function proxy(request: NextRequest) {
 
   const isAuthPage =
     request.nextUrl.pathname === "/signin" ||
-    request.nextUrl.pathname === "/api/auth/callback/github" ||
     request.nextUrl.pathname === "/api/auth/callback/google";
 
   if (!session) {
