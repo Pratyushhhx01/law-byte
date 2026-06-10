@@ -154,7 +154,7 @@ export default function ChatApp({ user }: ChatAppProps) {
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
-  const [confirmAction, setConfirmAction] = useState<{ type: "clearHistory" } | { type: "deleteConversation"; id: string } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ type: "clearHistory"; section?: ConversationType } | { type: "deleteConversation"; id: string } | null>(null);
 
   const active = conversations.find((c) => c.id === activeId) ?? conversations[0];
 
@@ -229,13 +229,15 @@ export default function ChatApp({ user }: ChatAppProps) {
     setSidebarOpen(false);
   }
 
-  function sendMessage(text: string) {
+  async function sendMessage(text: string) {
     const trimmed = text.trim();
     if (!trimmed || isThinking) return;
 
     const userMsg: Message = { id: newId("u"), role: "user", content: trimmed };
-    setConversations((prev) =>
-      prev.map((c) =>
+    const assistantId = newId("a");
+
+    setConversations((prev) => {
+      const updated = prev.map((c) =>
         c.id === activeId
           ? {
               ...c,
@@ -247,27 +249,101 @@ export default function ChatApp({ user }: ChatAppProps) {
               messages: [...c.messages, userMsg],
             }
           : c,
-      ),
-    );
+      );
+      return updated;
+    });
     setDraft("");
     setIsThinking(true);
 
-    setTimeout(() => {
-      const reply: Message = {
-        id: newId("a"),
-        role: "assistant",
-        content:
-          "Thanks — I have logged that. I will prepare a draft response and surface the relevant clauses, risks, and next steps shortly.",
-      };
+    const currentConversations = conversations;
+    const activeConversation = currentConversations.find((c) => c.id === activeId);
+    const conversationMessages = [
+      ...(activeConversation?.messages ?? []).map((m) => ({ role: m.role, content: m.content })),
+      { role: "user" as const, content: trimmed },
+    ];
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            { role: "system", content: "You are Lawbite AI, a helpful assistant. Answer in exactly two lines with only basic information. Be very concise. No extra details." },
+            ...conversationMessages,
+          ],
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to fetch");
+
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("No reader");
+
+      const decoder = new TextDecoder();
+      let assistantContent = "";
+
       setConversations((prev) =>
         prev.map((c) =>
           c.id === activeId
-            ? { ...c, messages: [...c.messages, reply] }
+            ? { ...c, messages: [...c.messages, { id: assistantId, role: "assistant", content: "" }] }
             : c,
         ),
       );
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6).trim();
+            if (data === "[DONE]") continue;
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.content) {
+                assistantContent += parsed.content;
+                const content = assistantContent;
+                setConversations((prev) =>
+                  prev.map((c) =>
+                    c.id === activeId
+                      ? {
+                          ...c,
+                          messages: c.messages.map((m) =>
+                            m.id === assistantId ? { ...m, content } : m,
+                          ),
+                        }
+                      : c,
+                  ),
+                );
+              }
+            } catch {
+              // skip malformed JSON
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Chat error:", error);
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === activeId
+            ? {
+                ...c,
+                messages: c.messages.map((m) =>
+                  m.id === assistantId
+                    ? { ...m, content: "Sorry, I encountered an error. Please try again." }
+                    : m,
+                ),
+              }
+            : c,
+        ),
+      );
+    } finally {
       setIsThinking(false);
-    }, 700);
+    }
   }
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -327,11 +403,13 @@ export default function ChatApp({ user }: ChatAppProps) {
     setEditingTitle("");
   }
 
-  function clearHistory() {
-    setConversations((prev) => prev.filter((c) => c.type === "chat"));
+  function clearHistory(section?: ConversationType) {
+    const clearType = section ?? active?.type ?? "chat";
+    setConversations((prev) => prev.filter((c) => c.type !== clearType));
     setActiveId((prev) => {
-      const first = conversations.find((c) => c.type === "chat" && c.id === prev);
-      return first?.id ?? conversations.find((c) => c.type === "chat")?.id ?? "";
+      const current = conversations.find((c) => c.id === prev);
+      if (current && current.type !== clearType) return prev;
+      return conversations.find((c) => c.type !== clearType)?.id ?? "";
     });
     setContextMenuId(null);
   }
@@ -628,7 +706,7 @@ export default function ChatApp({ user }: ChatAppProps) {
               ))}
               <button
                 type="button"
-                onClick={() => setConfirmAction({ type: "clearHistory" })}
+                onClick={() => setConfirmAction({ type: "clearHistory", section: "chat" })}
                 className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
               >
                 <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -657,7 +735,7 @@ export default function ChatApp({ user }: ChatAppProps) {
               ))}
               <button
                 type="button"
-                onClick={() => setConfirmAction({ type: "clearHistory" })}
+                onClick={() => setConfirmAction({ type: "clearHistory", section: "analysis" })}
                 className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
               >
                 <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -686,7 +764,7 @@ export default function ChatApp({ user }: ChatAppProps) {
               ))}
               <button
                 type="button"
-                onClick={() => setConfirmAction({ type: "clearHistory" })}
+                onClick={() => setConfirmAction({ type: "clearHistory", section: "talk-to-ai" })}
                 className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
               >
                 <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1035,7 +1113,7 @@ export default function ChatApp({ user }: ChatAppProps) {
               if (e.key === "Enter") {
                 e.preventDefault();
                 if (confirmAction.type === "clearHistory") {
-                  clearHistory();
+                  clearHistory(confirmAction.section);
                 } else {
                   deleteConversation(confirmAction.id);
                 }
@@ -1047,11 +1125,11 @@ export default function ChatApp({ user }: ChatAppProps) {
             }}
           >
             <h3 className="text-base font-semibold text-white">
-              {confirmAction.type === "clearHistory" ? "Clear All History" : "Delete Chat"}
+              {confirmAction.type === "clearHistory" ? "Clear History" : "Delete Chat"}
             </h3>
             <p className="mt-2 text-sm text-white/55">
               {confirmAction.type === "clearHistory"
-                ? "This will permanently delete all In-depth Analysis and Talk to AI conversations. This action cannot be undone."
+                ? `This will permanently delete all ${confirmAction.section === "chat" ? "Chat" : confirmAction.section === "analysis" ? "In-depth Analysis" : "Talk to AI"} conversations. This action cannot be undone.`
                 : "This will permanently delete this conversation. This action cannot be undone."}
             </p>
             <div className="mt-5 flex justify-end gap-2">
@@ -1067,7 +1145,7 @@ export default function ChatApp({ user }: ChatAppProps) {
                 autoFocus
                 onClick={() => {
                   if (confirmAction.type === "clearHistory") {
-                    clearHistory();
+                    clearHistory(confirmAction.section);
                   } else {
                     deleteConversation(confirmAction.id);
                   }
@@ -1192,7 +1270,7 @@ export default function ChatApp({ user }: ChatAppProps) {
               <button
                 type="button"
                 onClick={() => {
-                  setConfirmAction({ type: "clearHistory" });
+                  setConfirmAction({ type: "clearHistory", section: active?.type });
                   setSettingsOpen(false);
                 }}
                 className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm text-amber-400 transition-colors hover:bg-amber-500/10"
