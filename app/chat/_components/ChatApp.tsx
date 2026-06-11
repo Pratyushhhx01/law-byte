@@ -137,11 +137,21 @@ function newId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+const freshConversation: Conversation = {
+  id: newId("c"),
+  title: "New conversation",
+  preview: "Just started",
+  type: "chat",
+  createdAt: Date.now(),
+  messages: [],
+};
+
 export default function ChatApp({ user }: ChatAppProps) {
-  const [conversations, setConversations] = useState<Conversation[]>(
-    initialConversations,
-  );
-  const [activeId, setActiveId] = useState<string>(initialConversations[0].id);
+  const [conversations, setConversations] = useState<Conversation[]>([
+    freshConversation,
+    ...initialConversations,
+  ]);
+  const [activeId, setActiveId] = useState<string>(freshConversation.id);
   const [draft, setDraft] = useState("");
   const [isThinking, setIsThinking] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -151,9 +161,15 @@ export default function ChatApp({ user }: ChatAppProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [contextMenuId, setContextMenuId] = useState<string | null>(null);
   const [myCasesOpen, setMyCasesOpen] = useState(false);
+  const [showSuggestion, setShowSuggestion] = useState(false);
+  const [blinkAnalysis, setBlinkAnalysis] = useState(false);
+  const wasThinkingRef = useRef(false);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const escCountRef = useRef(0);
+  const escTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ type: "clearHistory"; section?: ConversationType } | { type: "deleteConversation"; id: string } | null>(null);
 
   const active = conversations.find((c) => c.id === activeId) ?? conversations[0];
@@ -161,6 +177,24 @@ export default function ChatApp({ user }: ChatAppProps) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [active?.messages.length, isThinking]);
+
+  useEffect(() => {
+    if (wasThinkingRef.current && !isThinking && active?.type !== "analysis") {
+      const lastMsg = active?.messages[active.messages.length - 1];
+      const userMsgs = (active?.messages ?? []).filter((m) => m.role === "user");
+      const lastUserMsg = userMsgs[userMsgs.length - 1];
+      const content = lastUserMsg?.content?.toLowerCase().trim() ?? "";
+      const isGreeting = /^(hi|hello|hey|namaste|good\s*(morning|afternoon|evening|night)|yo|sup|hola|howdy|greetings)/.test(content);
+      const isCompliment = /(thank|thanks|thx|good\s*(job|work|bot|ai)|great|awesome|nice|amazing|perfect|excellent|well\s*done|bravo|superb|fantastic|love\s*you)/.test(content);
+      const isOffTopic = lastMsg?.content?.toLowerCase().includes("please ask a question related to indian law");
+      if (lastMsg && lastMsg.role === "assistant" && lastMsg.content && !isOffTopic && !isGreeting && !isCompliment) {
+        setShowSuggestion(true);
+        setBlinkAnalysis(true);
+        setTimeout(() => setBlinkAnalysis(false), 2000);
+      }
+    }
+    wasThinkingRef.current = isThinking;
+  }, [isThinking, active]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -176,6 +210,22 @@ export default function ChatApp({ user }: ChatAppProps) {
     }
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [contextMenuId]);
+
+  useEffect(() => {
+    function handleKeyDown(e: globalThis.KeyboardEvent) {
+      if (e.key !== "Escape" || !isThinking) return;
+      escCountRef.current += 1;
+      if (escTimerRef.current) clearTimeout(escTimerRef.current);
+      escTimerRef.current = setTimeout(() => { escCountRef.current = 0; }, 1500);
+      if (escCountRef.current >= 3) {
+        escCountRef.current = 0;
+        if (escTimerRef.current) clearTimeout(escTimerRef.current);
+        abortRef.current?.abort();
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isThinking]);
 
   function selectConversation(id: string) {
     setActiveId(id);
@@ -233,6 +283,10 @@ export default function ChatApp({ user }: ChatAppProps) {
     const trimmed = text.trim();
     if (!trimmed || isThinking) return;
 
+    setShowSuggestion(false);
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     const userMsg: Message = { id: newId("u"), role: "user", content: trimmed };
     const assistantId = newId("a");
 
@@ -266,9 +320,10 @@ export default function ChatApp({ user }: ChatAppProps) {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           messages: [
-            { role: "system", content: "You are Lawbite AI, a helpful assistant. Answer in exactly two lines with only basic information. Be very concise. No extra details." },
+            { role: "system", content: "You are Lawbite AI, an Indian legal assistant. You ONLY answer questions about Indian law, the Constitution of India, and Indian legal matters. You never answer questions about the laws of any other country. If the user greets you, greet back briefly. If the user compliments you, respond graciously as if it's a pleasure. For all other questions, only answer if they relate to Indian law, the Indian Constitution, or Indian legal matters such as acts, amendments, codes (IPC, CrPC, BNS, BNSS, etc.), court rulings, legal procedures, or legislation. If a question is not about Indian law or legal topics, respond ONLY with: Please ask a question related to Indian law or legal matters. Do not repeat this message. Never reference, cite, or explain laws from any other country. For legal questions, answer in exactly two lines with only basic information. Be very concise. No extra details. Always interpret legal terms and abbreviations in the Indian context. When explaining multiple concepts or terms, put each on a separate line with a blank line between them so the user can clearly distinguish each explanation." },
             ...conversationMessages,
           ],
         }),
@@ -326,22 +381,27 @@ export default function ChatApp({ user }: ChatAppProps) {
         }
       }
     } catch (error) {
-      console.error("Chat error:", error);
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === activeId
-            ? {
-                ...c,
-                messages: c.messages.map((m) =>
-                  m.id === assistantId
-                    ? { ...m, content: "Sorry, I encountered an error. Please try again." }
-                    : m,
-                ),
-              }
-            : c,
-        ),
-      );
+      if (error instanceof DOMException && error.name === "AbortError") {
+        // User pressed Esc 3 times — keep whatever was streamed so far
+      } else {
+        console.error("Chat error:", error);
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === activeId
+              ? {
+                  ...c,
+                  messages: c.messages.map((m) =>
+                    m.id === assistantId
+                      ? { ...m, content: "Sorry, I encountered an error. Please try again." }
+                      : m,
+                  ),
+                }
+              : c,
+          ),
+        );
+      }
     } finally {
+      abortRef.current = null;
       setIsThinking(false);
     }
   }
@@ -405,12 +465,17 @@ export default function ChatApp({ user }: ChatAppProps) {
 
   function clearHistory(section?: ConversationType) {
     const clearType = section ?? active?.type ?? "chat";
-    setConversations((prev) => prev.filter((c) => c.type !== clearType));
-    setActiveId((prev) => {
-      const current = conversations.find((c) => c.id === prev);
-      if (current && current.type !== clearType) return prev;
-      return conversations.find((c) => c.type !== clearType)?.id ?? "";
-    });
+    const prefix = clearType === "analysis" ? "a" : clearType === "talk-to-ai" ? "t" : "c";
+    const fresh: Conversation = {
+      id: newId(prefix),
+      title: "New conversation",
+      preview: "Just started",
+      type: clearType,
+      createdAt: Date.now(),
+      messages: [],
+    };
+    setConversations((prev) => [fresh, ...prev.filter((c) => c.type !== clearType)]);
+    setActiveId(fresh.id);
     setContextMenuId(null);
   }
 
@@ -941,6 +1006,36 @@ export default function ChatApp({ user }: ChatAppProps) {
                   </div>
                 </li>
               ) : null}
+              {showSuggestion && !isThinking && (
+                <li className="flex justify-start">
+                  <div className="max-w-[85%] rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm leading-relaxed text-white/85 sm:text-[15px]">
+                    <p>
+                      {(() => {
+                        const userMsgs = (active?.messages ?? []).filter((m) => m.role === "user");
+                        const raw = userMsgs[userMsgs.length - 1]?.content ?? "";
+                        const fillers = ["what","who","when","where","why","how","can","is","are","do","does","did","tell","explain","define","describe","the","a","an","me","about","it","its","this","that","these","those","by","in","on","of","to","for","with","under","between","from","please","i","want","to","know","like"];
+                        const words = raw.replace(/[?.,!]+$/, "").trim().split(/\s+/);
+                        const keywords = words.filter((w) => !fillers.includes(w.toLowerCase())).slice(0, 5).join(" ");
+                        return <>To know more about &quot;{keywords || raw.slice(0, 40)}&quot;</>;
+                      })()}
+                      , try the{" "}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowSuggestion(false);
+                          const existing = conversations.find((c) => c.type === "analysis");
+                          if (existing) setActiveId(existing.id);
+                          else startAnalysisChat();
+                        }}
+                        className="font-semibold text-white underline decoration-white/40 underline-offset-2 hover:text-white/80"
+                      >
+                        Deep Analysis
+                      </button>{" "}
+                      feature.
+                    </p>
+                  </div>
+                </li>
+              )}
               <div ref={messagesEndRef} />
             </ul>
           ) : (
@@ -1016,6 +1111,7 @@ export default function ChatApp({ user }: ChatAppProps) {
             <button
               type="button"
               onClick={() => {
+                setShowSuggestion(false);
                 if (active?.type === "analysis") {
                   const talkConv = conversations.find((c) => c.type === "talk-to-ai");
                   if (talkConv) setActiveId(talkConv.id);
@@ -1027,6 +1123,7 @@ export default function ChatApp({ user }: ChatAppProps) {
                 }
               }}
               aria-label={active?.type === "analysis" ? "Back to chat" : "In-depth analysis"}
+              style={blinkAnalysis ? { animation: "blink-icon 1s ease-in-out 2", color: "#ffffff" } : undefined}
               className={`mb-0.5 shrink-0 rounded-full p-2 transition-colors ${
                 active?.type === "analysis"
                   ? "text-amber-400/70 hover:bg-amber-400/10 hover:text-amber-400"

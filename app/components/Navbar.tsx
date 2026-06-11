@@ -260,13 +260,13 @@ export default function Navbar() {
                 </button>
               </div>
             ) : (
-              <a
-                onClick={() => setOpen(false)}
+              <Link
                 href="/signin"
+                onClick={() => setOpen(false)}
                 className="block rounded-xl bg-white px-3 py-2.5 text-center font-medium text-black"
               >
                 Sign In
-              </a>
+              </Link>
             )}
           </li>
         </ul>
