@@ -24,7 +24,7 @@ type ChatAppProps = {
   user: ChatUser;
 };
 
-type ConversationType = "chat" | "analysis" | "talk-to-ai";
+type ConversationType = "chat" | "analysis" | "talk-to-ai" | "research";
 
 type Conversation = {
   id: string;
@@ -295,6 +295,21 @@ export default function ChatApp({ user }: ChatAppProps) {
       title: "New AI conversation",
       preview: "Talk to AI",
       type: "talk-to-ai",
+      createdAt: Date.now(),
+      messages: [],
+    };
+    setConversations((prev) => [conv, ...prev]);
+    setActiveId(conv.id);
+    setDraft("");
+    setSidebarOpen(false);
+  }
+
+  function startResearchChat() {
+    const conv: Conversation = {
+      id: newId("r"),
+      title: "New research",
+      preview: "Deep Research",
+      type: "research",
       createdAt: Date.now(),
       messages: [],
     };
@@ -786,6 +801,26 @@ export default function ChatApp({ user }: ChatAppProps) {
             </svg>
             <span>My Cases</span>
           </button>
+          <button
+            type="button"
+            onClick={startResearchChat}
+            className="mt-2 flex w-full items-center gap-2 rounded-full border border-white/15 bg-white px-4 py-2 text-sm font-medium text-black transition-transform duration-300 hover:scale-[1.01]"
+          >
+            <svg
+              aria-hidden
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
+            </svg>
+            <span>Deep Research</span>
+          </button>
         </div>
 
         <nav
@@ -879,7 +914,36 @@ export default function ChatApp({ user }: ChatAppProps) {
             </div>
           )}
 
-          {groupConversations("chat").length === 0 && groupConversations("analysis").length === 0 && groupConversations("talk-to-ai").length === 0 && (
+          {groupConversations("research").length > 0 && (
+            <div className="mb-4">
+              <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-white/35">Deep Research</p>
+              {groupConversations("research").map((group) => (
+                <div key={group.label} className="mb-2">
+                  <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
+                  <ul className="space-y-0.5 text-sm">
+                    {group.items.map((conv) => (
+                      <li key={conv.id} className="relative" onMouseEnter={() => setHoveredId(conv.id)} onMouseLeave={() => setHoveredId(null)}>
+                        {renderConvItem(conv)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setConfirmAction({ type: "clearHistory", section: "research" })}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
+              >
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+                Clear history
+              </button>
+            </div>
+          )}
+
+          {groupConversations("chat").length === 0 && groupConversations("analysis").length === 0 && groupConversations("talk-to-ai").length === 0 && groupConversations("research").length === 0 && (
             <p className="px-3 py-8 text-center text-xs text-white/35">No conversations yet</p>
           )}
         </nav>
@@ -947,8 +1011,8 @@ export default function ChatApp({ user }: ChatAppProps) {
         </div>
       </aside>
 
-      <main className={`flex min-w-0 flex-1 flex-col ${(active?.type === "analysis" || active?.type === "talk-to-ai") ? "bg-black/80" : ""}`}>
-        <header className={`flex items-center justify-between border-b border-white/10 px-5 py-4 sm:px-8 ${(active?.type === "analysis" || active?.type === "talk-to-ai") ? "bg-black/50" : ""}`}>
+      <main className={`flex min-w-0 flex-1 flex-col ${(active?.type === "analysis" || active?.type === "talk-to-ai" || active?.type === "research") ? "bg-black/80" : ""}`}>
+        <header className={`flex items-center justify-between border-b border-white/10 px-5 py-4 sm:px-8 ${(active?.type === "analysis" || active?.type === "talk-to-ai" || active?.type === "research") ? "bg-black/50" : ""}`}>
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
@@ -974,7 +1038,7 @@ export default function ChatApp({ user }: ChatAppProps) {
                 {active?.title ?? "New conversation"}
               </h1>
               <p className="text-[11px] uppercase tracking-[0.2em] text-white/40">
-                {active?.type === "analysis" ? "In-depth Analysis" : active?.type === "talk-to-ai" ? "Talk to AI" : "Lawbite Assistant"}
+                {active?.type === "analysis" ? "In-depth Analysis" : active?.type === "talk-to-ai" ? "Talk to AI" : active?.type === "research" ? "Deep Research" : "Lawbite Assistant"}
               </p>
             </div>
           </div>
@@ -1156,6 +1220,34 @@ export default function ChatApp({ user }: ChatAppProps) {
                     get explanations, or explore ideas freely.
                   </p>
                 </>
+              ) : active?.type === "research" ? (
+                <>
+                  <div className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-1.5 text-xs uppercase tracking-[0.3em] text-white/40">
+                    Deep Research
+                  </div>
+                  <h2 className="mt-6 text-2xl font-semibold tracking-tight sm:text-3xl">
+                    In-depth legal research
+                  </h2>
+                  <p className="mt-3 max-w-md text-sm leading-relaxed text-white/55">
+                    Get comprehensive research on legal topics, current holders
+                    of positions, recent judgments, and latest developments in
+                    Indian law.
+                  </p>
+                  <div className="mt-8 flex flex-wrap justify-center gap-3">
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-white/50">
+                      Current office holders
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-white/50">
+                      Recent judgments
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-white/50">
+                      Legal developments
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-white/50">
+                      Law amendments
+                    </span>
+                  </div>
+                </>
               ) : (
                 <>
                   <div className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-1.5 text-xs uppercase tracking-[0.3em] text-white/40">
@@ -1175,7 +1267,7 @@ export default function ChatApp({ user }: ChatAppProps) {
           )}
         </div>
 
-        <div className={`border-t border-white/10 px-5 py-4 backdrop-blur-md sm:px-8 ${(active?.type === "analysis" || active?.type === "talk-to-ai") ? "bg-black/60" : "bg-black/40"}`}>
+        <div className={`border-t border-white/10 px-5 py-4 backdrop-blur-md sm:px-8 ${(active?.type === "analysis" || active?.type === "talk-to-ai" || active?.type === "research") ? "bg-black/60" : "bg-black/40"}`}>
           <form
             onSubmit={onSubmit}
             className="mx-auto flex max-w-3xl items-end gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-2 transition-colors duration-300 focus-within:border-white/30"
@@ -1186,7 +1278,6 @@ export default function ChatApp({ user }: ChatAppProps) {
             <button
               type="button"
               onClick={() => {
-                setShowSuggestion(false);
                 const currentType = active?.type;
                 if (currentType === "talk-to-ai") {
                   lastTalkIdRef.current = activeId;
