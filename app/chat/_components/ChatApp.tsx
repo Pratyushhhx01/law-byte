@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import type { FormEvent, KeyboardEvent } from "react";
+import type { FormEvent, KeyboardEvent, ReactNode } from "react";
 import { signOut } from "@/lib/auth-client";
 
 type Role = "user" | "assistant";
@@ -178,7 +178,7 @@ export default function ChatApp({ user }: ChatAppProps) {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [active?.messages.length, isThinking]);
+  }, [active?.messages.length, isThinking, showSuggestion]);
 
   useEffect(() => {
     if (wasThinkingRef.current && !isThinking && active?.type !== "analysis") {
@@ -188,11 +188,14 @@ export default function ChatApp({ user }: ChatAppProps) {
       const content = lastUserMsg?.content?.toLowerCase().trim() ?? "";
       const isGreeting = /^(hi|hello|hey|namaste|good\s*(morning|afternoon|evening|night)|yo|sup|hola|howdy|greetings)/.test(content);
       const isCompliment = /(thank|thanks|thx|good\s*(job|work|bot|ai)|great|awesome|nice|amazing|perfect|excellent|well\s*done|bravo|superb|fantastic|love\s*you)/.test(content);
-      const isOffTopic = lastMsg?.content?.trim().toLowerCase().startsWith("please ask a question") && lastMsg?.content?.toLowerCase().includes("indian law");
-      if (lastMsg && lastMsg.role === "assistant" && lastMsg.content && !isOffTopic && !isGreeting && !isCompliment) {
+      const isOffTopic = /only\s+provide\s+information.*indian\s+law/i.test(lastMsg?.content?.trim() ?? "");
+      const isAiGreeting = lastMsg?.content?.trim().toLowerCase().startsWith("hello") && lastMsg?.content?.toLowerCase().includes("how can i assist you");
+      if (lastMsg && lastMsg.role === "assistant" && lastMsg.content && !isOffTopic && !isGreeting && !isCompliment && !isAiGreeting) {
         setShowSuggestion(true);
         setBlinkAnalysis(true);
         setTimeout(() => setBlinkAnalysis(false), 3000);
+      } else {
+        setShowSuggestion(false);
       }
     }
     wasThinkingRef.current = isThinking;
@@ -228,6 +231,26 @@ export default function ChatApp({ user }: ChatAppProps) {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isThinking]);
+
+  function renderBold(text: string): ReactNode {
+    const parts = text.split(/(\*\*[^*]+\*\*)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return <strong key={i} className="font-semibold text-white">{part.slice(2, -2)}</strong>;
+      }
+      return part;
+    });
+  }
+
+  function extractTopic(text: string): string {
+    const stopWords = /^(what|who|when|where|why|how|is|are|do|does|did|can|could|would|should|will|shall|may|might|the|a|an|me|about|it|its|this|that|these|those|by|in|on|of|to|for|with|under|between|from|please|i|want|to|know|like|tell|explain|define|describe|give|me|some|info|information|detail|details|regarding|concerning|related|question|answer|something|anything|everything)$/i;
+    const cleaned = text.replace(/[?.,!]+$/, "").trim();
+    const words = cleaned.split(/\s+/);
+    const keywords = words.filter((w) => !stopWords.test(w));
+    if (keywords.length === 0) return cleaned.slice(0, 40);
+    const title = keywords.join(" ");
+    return title.charAt(0).toUpperCase() + title.slice(1);
+  }
 
   function selectConversation(id: string) {
     setActiveId(id);
@@ -299,7 +322,7 @@ export default function ChatApp({ user }: ChatAppProps) {
               ...c,
               title:
                 c.messages.length === 0
-                  ? trimmed.slice(0, 48) + (trimmed.length > 48 ? "…" : "")
+                  ? extractTopic(trimmed)
                   : c.title,
               preview: trimmed,
               messages: [...c.messages, userMsg],
@@ -769,7 +792,7 @@ export default function ChatApp({ user }: ChatAppProps) {
           aria-label="History"
           className="mt-4 flex-1 overflow-y-auto px-2 pb-4"
         >
-          {active?.type === "chat" && groupConversations("chat").length > 0 && (
+          {groupConversations("chat").length > 0 && (
             <div className="mb-4">
               <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-white/35">Chats</p>
               {groupConversations("chat").map((group) => (
@@ -798,7 +821,7 @@ export default function ChatApp({ user }: ChatAppProps) {
             </div>
           )}
 
-          {active?.type === "analysis" && groupConversations("analysis").length > 0 && (
+          {groupConversations("analysis").length > 0 && (
             <div className="mb-4">
               <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-white/35">In-depth Analysis</p>
               {groupConversations("analysis").map((group) => (
@@ -827,7 +850,7 @@ export default function ChatApp({ user }: ChatAppProps) {
             </div>
           )}
 
-          {active?.type === "talk-to-ai" && groupConversations("talk-to-ai").length > 0 && (
+          {groupConversations("talk-to-ai").length > 0 && (
             <div className="mb-4">
               <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-white/35">Talk to AI</p>
               {groupConversations("talk-to-ai").map((group) => (
@@ -999,7 +1022,44 @@ export default function ChatApp({ user }: ChatAppProps) {
                         : "border border-white/10 bg-white/[0.03] text-white/85"
                     }`}
                   >
-                    <p className="whitespace-pre-wrap">{message.content}</p>
+                    {message.role === "assistant" && active?.type === "analysis" ? (
+                      <div className="flex flex-col gap-4">
+                        {message.content.split(/\n+/).filter(Boolean).map((block, i) => {
+                          const numMatch = block.trim().match(/^(\d+)\.\s*/);
+                          if (numMatch) {
+                            const num = numMatch[1];
+                            const text = block.trim().replace(/^\d+\.\s*/, "");
+                            return (
+                              <div key={i} className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-4 py-3">
+                                <div className="flex gap-3">
+                                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-xs font-bold text-white/80">
+                                    {num}
+                                  </span>
+                                  <div className="whitespace-pre-wrap leading-relaxed">
+                                    {text.split(/\n\n+/).map((para, j) => (
+                                      <p key={j} className={j > 0 ? "mt-3" : ""}>{renderBold(para)}</p>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
+                          return (
+                            <div key={i} className="whitespace-pre-wrap leading-relaxed">
+                              {block.trim().split(/\n\n+/).map((para, j) => (
+                                <p key={j} className={j > 0 ? "mt-3" : ""}>{renderBold(para)}</p>
+                              ))}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="whitespace-pre-wrap leading-relaxed">
+                        {message.content.split(/\n\n+/).map((para, i) => (
+                          <p key={i} className={i > 0 ? "mt-3" : ""}>{renderBold(para)}</p>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </li>
               ))}
