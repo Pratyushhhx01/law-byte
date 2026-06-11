@@ -164,6 +164,8 @@ export default function ChatApp({ user }: ChatAppProps) {
   const [showSuggestion, setShowSuggestion] = useState(false);
   const [blinkAnalysis, setBlinkAnalysis] = useState(false);
   const wasThinkingRef = useRef(false);
+  const lastTalkIdRef = useRef<string | null>(null);
+  const lastAnalysisIdRef = useRef<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
@@ -186,11 +188,11 @@ export default function ChatApp({ user }: ChatAppProps) {
       const content = lastUserMsg?.content?.toLowerCase().trim() ?? "";
       const isGreeting = /^(hi|hello|hey|namaste|good\s*(morning|afternoon|evening|night)|yo|sup|hola|howdy|greetings)/.test(content);
       const isCompliment = /(thank|thanks|thx|good\s*(job|work|bot|ai)|great|awesome|nice|amazing|perfect|excellent|well\s*done|bravo|superb|fantastic|love\s*you)/.test(content);
-      const isOffTopic = lastMsg?.content?.toLowerCase().includes("please ask a question related to indian law");
+      const isOffTopic = lastMsg?.content?.trim().toLowerCase().startsWith("please ask a question") && lastMsg?.content?.toLowerCase().includes("indian law");
       if (lastMsg && lastMsg.role === "assistant" && lastMsg.content && !isOffTopic && !isGreeting && !isCompliment) {
         setShowSuggestion(true);
         setBlinkAnalysis(true);
-        setTimeout(() => setBlinkAnalysis(false), 2000);
+        setTimeout(() => setBlinkAnalysis(false), 3000);
       }
     }
     wasThinkingRef.current = isThinking;
@@ -322,10 +324,8 @@ export default function ChatApp({ user }: ChatAppProps) {
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
         body: JSON.stringify({
-          messages: [
-            { role: "system", content: "You are Lawbite AI, an Indian legal assistant. You ONLY answer questions about Indian law, the Constitution of India, and Indian legal matters. You never answer questions about the laws of any other country. If the user greets you, greet back briefly. If the user compliments you, respond graciously as if it's a pleasure. For all other questions, only answer if they relate to Indian law, the Indian Constitution, or Indian legal matters such as acts, amendments, codes (IPC, CrPC, BNS, BNSS, etc.), court rulings, legal procedures, or legislation. If a question is not about Indian law or legal topics, respond ONLY with: Please ask a question related to Indian law or legal matters. Do not repeat this message. Never reference, cite, or explain laws from any other country. For legal questions, answer in exactly two lines with only basic information. Be very concise. No extra details. Always interpret legal terms and abbreviations in the Indian context. When explaining multiple concepts or terms, put each on a separate line with a blank line between them so the user can clearly distinguish each explanation." },
-            ...conversationMessages,
-          ],
+          conversationType: activeConversation?.type ?? "chat",
+          messages: conversationMessages,
         }),
       });
 
@@ -464,6 +464,21 @@ export default function ChatApp({ user }: ChatAppProps) {
   }
 
   function clearHistory(section?: ConversationType) {
+    if (section === undefined) {
+      const types: ConversationType[] = ["chat", "analysis", "talk-to-ai"];
+      const freshConversations: Conversation[] = types.map((type) => ({
+        id: newId(type === "analysis" ? "a" : type === "talk-to-ai" ? "t" : "c"),
+        title: "New conversation",
+        preview: "Just started",
+        type,
+        createdAt: Date.now(),
+        messages: [],
+      }));
+      setConversations(freshConversations);
+      setActiveId(freshConversations[0].id);
+      setContextMenuId(null);
+      return;
+    }
     const clearType = section ?? active?.type ?? "chat";
     const prefix = clearType === "analysis" ? "a" : clearType === "talk-to-ai" ? "t" : "c";
     const fresh: Conversation = {
@@ -1112,18 +1127,35 @@ export default function ChatApp({ user }: ChatAppProps) {
               type="button"
               onClick={() => {
                 setShowSuggestion(false);
-                if (active?.type === "analysis") {
-                  const talkConv = conversations.find((c) => c.type === "talk-to-ai");
-                  if (talkConv) setActiveId(talkConv.id);
-                  else startTalkToAI();
+                const currentType = active?.type;
+                if (currentType === "talk-to-ai") {
+                  lastTalkIdRef.current = activeId;
+                  const target = conversations.find((c) => c.type === "analysis" && !c.pinned);
+                  if (target) {
+                    lastAnalysisIdRef.current = target.id;
+                    setActiveId(target.id);
+                  } else startAnalysisChat();
+                } else if (currentType === "analysis") {
+                  lastAnalysisIdRef.current = activeId;
+                  const savedId = lastTalkIdRef.current;
+                  if (savedId && conversations.find((c) => c.id === savedId)) {
+                    setActiveId(savedId);
+                  } else {
+                    const existing = conversations.find((c) => c.type === "talk-to-ai" && !c.pinned);
+                    if (existing) setActiveId(existing.id);
+                    else startTalkToAI();
+                  }
                 } else {
-                  const existingAnalysis = conversations.find((c) => c.type === "analysis");
-                  if (existingAnalysis) setActiveId(existingAnalysis.id);
-                  else startAnalysisChat();
+                  lastTalkIdRef.current = activeId;
+                  const target = conversations.find((c) => c.type === "analysis" && !c.pinned);
+                  if (target) {
+                    lastAnalysisIdRef.current = target.id;
+                    setActiveId(target.id);
+                  } else startAnalysisChat();
                 }
               }}
               aria-label={active?.type === "analysis" ? "Back to chat" : "In-depth analysis"}
-              style={blinkAnalysis ? { animation: "blink-icon 1s ease-in-out 2", color: "#ffffff" } : undefined}
+              style={blinkAnalysis ? { animation: "blink-icon 1s ease-in-out 3", color: "#ffffff" } : undefined}
               className={`mb-0.5 shrink-0 rounded-full p-2 transition-colors ${
                 active?.type === "analysis"
                   ? "text-amber-400/70 hover:bg-amber-400/10 hover:text-amber-400"
@@ -1226,7 +1258,7 @@ export default function ChatApp({ user }: ChatAppProps) {
             </h3>
             <p className="mt-2 text-sm text-white/55">
               {confirmAction.type === "clearHistory"
-                ? `This will permanently delete all ${confirmAction.section === "chat" ? "Chat" : confirmAction.section === "analysis" ? "In-depth Analysis" : "Talk to AI"} conversations. This action cannot be undone.`
+                ? `This will permanently delete all conversations across Chat, In-depth Analysis, and Talk to AI. This action cannot be undone.`
                 : "This will permanently delete this conversation. This action cannot be undone."}
             </p>
             <div className="mt-5 flex justify-end gap-2">
@@ -1367,7 +1399,7 @@ export default function ChatApp({ user }: ChatAppProps) {
               <button
                 type="button"
                 onClick={() => {
-                  setConfirmAction({ type: "clearHistory", section: active?.type });
+                  setConfirmAction({ type: "clearHistory" });
                   setSettingsOpen(false);
                 }}
                 className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm text-amber-400 transition-colors hover:bg-amber-500/10"
