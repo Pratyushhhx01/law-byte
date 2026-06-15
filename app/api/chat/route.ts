@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { tavily } from "@tavily/core";
+import { s3kb } from "@/lib/s3";
 
 const NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 
@@ -93,6 +94,190 @@ async function webSearch(query: string): Promise<string> {
   }
 }
 
+const SECTION_PATTERN = /(?:section|s\.|sec)\s*(\d+[A-Za-z]?)/gi;
+const ARTICLE_PATTERN = /(?:article|art\.)\s*(\d+[A-Za-z]?)/gi;
+
+async function getLegalKnowledge(query: string): Promise<string> {
+  try {
+    const parts: string[] = [];
+    const lower = query.toLowerCase();
+
+    const sectionMatches = [...query.matchAll(SECTION_PATTERN)];
+    const articleMatches = [...query.matchAll(ARTICLE_PATTERN)];
+    const actMap: Record<string, string> = {
+      ipc: "ipc", "penal code": "ipc", "indian penal code": "ipc",
+      bns: "bns", "nyaya sanhita": "bns", "bharatiya nyaya": "bns",
+      crpc: "crpc", "criminal procedure": "crpc",
+      bnss: "bnss", "nagarik suraksha": "bnss",
+      cpc: "cpc", "civil procedure": "cpc",
+      evidence: "evidence-act", "evidence act": "evidence-act",
+      bsa: "bsa", "sakshya adhiniyam": "bsa", "sakshya": "bsa",
+      constitution: "constitution",
+      "transfer of property": "transfer-of-property-act", "property act": "transfer-of-property-act", "tpa": "transfer-of-property-act",
+      contract: "indian-contract-act", "contract act": "indian-contract-act",
+      "consumer protection": "consumer-protection-act", "consumer act": "consumer-protection-act",
+      succession: "indian-succession-act", "succession act": "indian-succession-act",
+      "hindu succession": "hindu-succession-act",
+      "specific relief": "specific-relief-act",
+      "police act": "police-act-1861",
+      nia: "nia-act", "investigation agency": "nia-act",
+      "human rights": "protection-of-human-rights-act",
+      "domestic violence": "domestic-violence-act",
+      "industrial dispute": "industrial-disputes-act",
+      "payment of wages": "payment-of-wages-act",
+      cgst: "cgst-act", "gst": "cgst-act",
+      customs: "customs-act",
+      excise: "excise-act",
+      "trade union": "trade-unions-act",
+      arbitration: "arbitration-act", "conciliation": "arbitration-act",
+      "negotiable instrument": "negotiable-instruments-act", "cheque": "negotiable-instruments-act",
+      limitation: "limitation-act",
+      companies: "companies-act", "company act": "companies-act",
+      "right to information": "right-to-information-act", rti: "right-to-information-act",
+      "prevention of corruption": "prevention-of-corruption-act", corruption: "prevention-of-corruption-act",
+      "motor vehicles": "motor-vehicles-act", "traffic": "motor-vehicles-act",
+      "sale of goods": "sale-of-goods-act",
+      ndps: "ndps-act", narcotic: "ndps-act",
+      ibc: "ibc", "insolvency": "ibc", "bankruptcy": "ibc",
+      "banking regulation": "banking-regulation-act", "banking act": "banking-regulation-act",
+      copyright: "copyright-act", "copyright act": "copyright-act",
+      "information technology": "information-technology-act", "it act": "information-technology-act",
+      "juvenile justice": "juvenile-justice-act", "juvenile act": "juvenile-justice-act",
+      pocso: "pocso-act", "protection of children": "pocso-act",
+      registration: "registration-act", "registration act": "registration-act",
+      "indian stamp": "indian-stamp-act", "stamp act": "indian-stamp-act",
+      "indian partnership": "indian-partnership-act", "partnership act": "indian-partnership-act",
+      "sc st": "sc-st-act", "atrocities": "sc-st-act", "prevention of atrocities": "sc-st-act",
+      "environment protection": "environment-protection-act", "environment act": "environment-protection-act",
+      "trade marks": "trade-marks-act", "trademark": "trade-marks-act",
+      sarfaesi: "sarfaesi-act", "securitisation": "sarfaesi-act",
+    };
+
+    // Find which act is being referenced
+    let targetAct = "";
+    for (const [key, val] of Object.entries(actMap)) {
+      if (lower.includes(key)) { targetAct = val; break; }
+    }
+
+    const fullTextActs = new Set([
+      "bns", "bnss", "bsa", "transfer-of-property-act", "indian-contract-act",
+      "consumer-protection-act", "indian-succession-act", "hindu-succession-act",
+      "specific-relief-act", "police-act-1861", "nia-act", "protection-of-human-rights-act",
+      "domestic-violence-act", "industrial-disputes-act", "payment-of-wages-act",
+      "cgst-act", "customs-act", "excise-act", "trade-unions-act", "arbitration-act",
+      "negotiable-instruments-act", "limitation-act", "companies-act", "right-to-information-act",
+      "prevention-of-corruption-act", "motor-vehicles-act", "sale-of-goods-act", "ndps-act", "ibc",
+      "banking-regulation-act", "copyright-act", "information-technology-act",
+      "juvenile-justice-act", "pocso-act", "registration-act", "indian-stamp-act",
+      "indian-partnership-act", "sc-st-act", "environment-protection-act",
+      "trade-marks-act", "sarfaesi-act",
+    ]);
+
+    // Case 1: Specific act + section number → getSection
+    if (targetAct && sectionMatches.length > 0) {
+      for (const match of sectionMatches) {
+        const secNum = match[1];
+        const sec = await s3kb.getSection(targetAct, secNum);
+        if (sec) parts.push(`[${targetAct.toUpperCase()} Section ${sec.section}] ${sec.title}: ${sec.text}`);
+      }
+    }
+
+    // Case 1b: Section number but no act → search all acts for that section
+    if (!targetAct && sectionMatches.length > 0) {
+      const raw = await s3kb.getFullTextIndex();
+      if (raw) {
+        for (const entry of raw) {
+          const id = typeof entry === "string" ? entry : entry.id;
+          for (const match of sectionMatches) {
+            const sec = await s3kb.getSection(id, match[1]);
+            if (sec) {
+              parts.push(`[${id.toUpperCase()} Section ${sec.section}] ${sec.title}: ${sec.text}`);
+              break;
+            }
+          }
+          if (parts.length > 0) break;
+        }
+      }
+    }
+
+    // Case 1c: Constitution article
+    if (targetAct === "constitution" && articleMatches.length > 0) {
+      for (const match of articleMatches) {
+        const sec = await s3kb.getSection("constitution", match[1]);
+        if (sec) parts.push(`[Constitution Article ${sec.section}] ${sec.title}: ${sec.text}`);
+      }
+    }
+
+    // Case 2: Act name but no section → full text or search within act
+    if (targetAct && parts.length === 0) {
+      if (fullTextActs.has(targetAct)) {
+        const full = await s3kb.getFullText(targetAct);
+        if (full) parts.push(`[${targetAct.toUpperCase()} Full Text]\n${full.substring(0, 3000)}...`);
+      } else {
+        // Acts with individual section files (IPC, CrPC, etc.) - search their titles
+        const sections = await s3kb.getFullTextIndex();
+        if (sections) {
+          const secList = await s3kb.getSectionList(targetAct);
+          if (secList) {
+            const words = lower.replace(/[^a-z\s]/g, " ").split(/\s+/).filter(w => w.length > 3 && !["what", "the", "for", "and", "that", "this", "with", "under", "from", "about"].includes(w));
+            let bestMatch = null;
+            let bestScore = 0;
+            for (const s of secList) {
+              const titleLower = s.title.toLowerCase();
+              let score = 0;
+              for (const w of words) {
+                if (titleLower.includes(w)) score++;
+              }
+              if (score > bestScore) { bestScore = score; bestMatch = s; }
+            }
+            if (bestMatch && bestScore > 0) {
+              const sec = await s3kb.getSection(targetAct, bestMatch.section);
+              if (sec) parts.push(`[${targetAct.toUpperCase()} Section ${sec.section}] ${sec.title}: ${sec.text}`);
+            }
+          }
+        }
+      }
+    }
+
+    // Case 3: No act match → search across all acts
+    if (parts.length === 0) {
+      // Extract meaningful keywords from query
+      const keywords = lower.replace(/[^a-z\s]/g, " ").split(/\s+/)
+        .filter(w => w.length > 2 && !["the", "for", "and", "what", "can", "with", "are", "not", "under", "from", "about", "explain", "tell", "does", "say", "section", "article"].includes(w));
+      const searchQuery = keywords.join(" ");
+
+      const searchResults = await s3kb.searchActs(searchQuery);
+      if (searchResults.length > 0) {
+        for (const r of searchResults.slice(0, 5)) {
+          const sec = await s3kb.getSection(r.act, r.section);
+          const text = sec ? sec.text : "";
+          if (text) parts.push(`[${r.act.toUpperCase()} ${r.section}] ${r.title}: ${text}`);
+        }
+      }
+    }
+
+    // Fetch reference data if relevant
+    const refChecks: Array<{ keywords: string[]; key: string; label: string }> = [
+      { keywords: ["bail", "bailable", "non-bailable"], key: "bailable-offenses", label: "Bailable/Non-Bailable Offenses" },
+      { keywords: ["limitation", "time limit", "file a case", "file suit"], key: "limitation-periods", label: "Limitation Periods" },
+      { keywords: ["writ", "habeas", "mandamus", "certiorari", "quo warranto"], key: "writ-types", label: "Types of Writs" },
+      { keywords: ["court", "jurisdiction", "supreme court", "high court", "district court"], key: "court-hierarchy", label: "Court Hierarchy" },
+    ];
+
+    for (const ref of refChecks) {
+      if (ref.keywords.some(k => lower.includes(k))) {
+        const data = await s3kb.getReference<any>(ref.key);
+        if (data) parts.push(`\n[${ref.label}]:\n${JSON.stringify(data, null, 2)}`);
+      }
+    }
+
+    return parts.length > 0 ? `Legal Knowledge Base:\n${parts.join("\n\n")}` : "";
+  } catch (error) {
+    console.error("S3 knowledge error:", error);
+    return "";
+  }
+}
+
 export async function POST(request: NextRequest) {
   const { messages, conversationType } = await request.json();
 
@@ -115,9 +300,14 @@ export async function POST(request: NextRequest) {
     webSearchContext = await webSearch(userQuery);
   }
 
+  const legalContext = await getLegalKnowledge(userQuery);
+
   let finalSystemPrompt = systemPrompt;
-  if (webSearchContext) {
-    finalSystemPrompt = `${systemPrompt}\n\nIMPORTANT: Use the following research results to answer the user's question. Incorporate this real-time information into your response:\n\n${webSearchContext}`;
+  const contextParts: string[] = [];
+  if (webSearchContext) contextParts.push(webSearchContext);
+  if (legalContext) contextParts.push(legalContext);
+  if (contextParts.length > 0) {
+    finalSystemPrompt = `${systemPrompt}\n\nIMPORTANT: Use the following information to answer the user's question. Incorporate this into your response:\n\n${contextParts.join("\n\n")}`;
   }
 
   const messagesWithSystem = [
