@@ -11,6 +11,7 @@ type Message = {
   id: string;
   role: Role;
   content: string;
+  type?: ConversationType;
 };
 
 type ChatUser = {
@@ -24,7 +25,7 @@ type ChatAppProps = {
   user: ChatUser;
 };
 
-type ConversationType = "chat" | "analysis" | "talk-to-ai";
+type ConversationType = "chat" | "analysis" | "talk-to-ai" | "grill";
 
 type Conversation = {
   id: string;
@@ -35,6 +36,35 @@ type Conversation = {
   pinned?: boolean;
   createdAt?: number;
 };
+
+type SavedCase = {
+  id: string;
+  title: string;
+  summary: string;
+  problem: string;
+  state: string;
+  date: number;
+  conversationId: string;
+};
+
+const STORAGE_KEY = "lawbite-saved-cases";
+
+function loadSavedCases(): SavedCase[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveSavedCases(cases: SavedCase[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cases));
+  } catch {}
+}
 
 const initialConversations: Conversation[] = [
   {
@@ -161,11 +191,13 @@ export default function ChatApp({ user }: ChatAppProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [contextMenuId, setContextMenuId] = useState<string | null>(null);
   const [myCasesOpen, setMyCasesOpen] = useState(false);
+  const [savedCases, setSavedCases] = useState<SavedCase[]>([]);
   const [showSuggestion, setShowSuggestion] = useState(false);
   const [blinkAnalysis, setBlinkAnalysis] = useState(false);
   const wasThinkingRef = useRef(false);
   const lastTalkIdRef = useRef<string | null>(null);
   const lastAnalysisIdRef = useRef<string | null>(null);
+  const [mode, setMode] = useState<ConversationType>("chat");
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
@@ -181,7 +213,11 @@ export default function ChatApp({ user }: ChatAppProps) {
   }, [active?.messages.length, isThinking, showSuggestion]);
 
   useEffect(() => {
-    if (wasThinkingRef.current && !isThinking && active?.type !== "analysis") {
+    setSavedCases(loadSavedCases());
+  }, []);
+
+  useEffect(() => {
+    if (wasThinkingRef.current && !isThinking && mode !== "analysis") {
       const lastMsg = active?.messages[active.messages.length - 1];
       const userMsgs = (active?.messages ?? []).filter((m) => m.role === "user");
       const lastUserMsg = userMsgs[userMsgs.length - 1];
@@ -190,7 +226,7 @@ export default function ChatApp({ user }: ChatAppProps) {
       const isCompliment = /(thank|thanks|thx|good\s*(job|work|bot|ai)|great|awesome|nice|amazing|perfect|excellent|well\s*done|bravo|superb|fantastic|love\s*you)/.test(content);
       const isOffTopic = /only\s+provide\s+information.*indian\s+law/i.test(lastMsg?.content?.trim() ?? "");
       const isAiGreeting = lastMsg?.content?.trim().toLowerCase().startsWith("hello") && lastMsg?.content?.toLowerCase().includes("how can i assist you");
-      if (lastMsg && lastMsg.role === "assistant" && lastMsg.content && !isOffTopic && !isGreeting && !isCompliment && !isAiGreeting) {
+      if (lastMsg && lastMsg.role === "assistant" && lastMsg.content && !isOffTopic && !isGreeting && !isCompliment && !isAiGreeting && active?.type !== "grill") {
         setShowSuggestion(true);
         setBlinkAnalysis(true);
         setTimeout(() => setBlinkAnalysis(false), 3000);
@@ -253,13 +289,15 @@ export default function ChatApp({ user }: ChatAppProps) {
   }
 
   function selectConversation(id: string) {
+    const target = conversations.find((c) => c.id === id);
+    if (target) setMode(target.type);
     setActiveId(id);
     setSidebarOpen(false);
   }
 
   function startNewChat() {
-    const convType = active?.type ?? "chat";
-    const prefix = convType === "analysis" ? "a" : convType === "talk-to-ai" ? "t" : "c";
+    const convType = mode;
+    const prefix = "c";
     const conv: Conversation = {
       id: newId(prefix),
       title: "New conversation",
@@ -270,6 +308,7 @@ export default function ChatApp({ user }: ChatAppProps) {
     };
     setConversations((prev) => [conv, ...prev]);
     setActiveId(conv.id);
+    setMode(convType);
     setDraft("");
     setSidebarOpen(false);
   }
@@ -300,8 +339,26 @@ export default function ChatApp({ user }: ChatAppProps) {
     };
     setConversations((prev) => [conv, ...prev]);
     setActiveId(conv.id);
+    setMode("talk-to-ai");
     setDraft("");
     setSidebarOpen(false);
+  }
+
+  function startGrill() {
+    const conv: Conversation = {
+      id: newId("g"),
+      title: "New grill session",
+      preview: "Grill Me",
+      type: "grill",
+      createdAt: Date.now(),
+      messages: [],
+    };
+    setConversations((prev) => [conv, ...prev]);
+    setActiveId(conv.id);
+    setMode("grill");
+    setDraft("");
+    setSidebarOpen(false);
+    setMyCasesOpen(false);
   }
 
   async function sendMessage(text: string) {
@@ -312,7 +369,7 @@ export default function ChatApp({ user }: ChatAppProps) {
     const controller = new AbortController();
     abortRef.current = controller;
 
-    const userMsg: Message = { id: newId("u"), role: "user", content: trimmed };
+    const userMsg: Message = { id: newId("u"), role: "user", content: trimmed, type: mode };
     const assistantId = newId("a");
 
     setConversations((prev) => {
@@ -347,7 +404,7 @@ export default function ChatApp({ user }: ChatAppProps) {
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
         body: JSON.stringify({
-          conversationType: activeConversation?.type ?? "chat",
+          conversationType: mode,
           messages: conversationMessages,
         }),
       });
@@ -363,7 +420,7 @@ export default function ChatApp({ user }: ChatAppProps) {
       setConversations((prev) =>
         prev.map((c) =>
           c.id === activeId
-            ? { ...c, messages: [...c.messages, { id: assistantId, role: "assistant", content: "" }] }
+            ? { ...c, messages: [...c.messages, { id: assistantId, role: "assistant", content: "", type: mode }] }
             : c,
         ),
       );
@@ -426,6 +483,63 @@ export default function ChatApp({ user }: ChatAppProps) {
     } finally {
       abortRef.current = null;
       setIsThinking(false);
+
+      // Auto-save completed grill sessions
+      if (mode === "grill") {
+        setConversations((prev) => {
+          const conv = prev.find((c) => c.id === activeId);
+          if (!conv) return prev;
+          const lastMsg = conv.messages[conv.messages.length - 1];
+          if (!lastMsg || lastMsg.role !== "assistant") return prev;
+          if (!lastMsg.content.includes("[ADVICE_COMPLETE]")) return prev;
+
+          const summary = lastMsg.content.replace("[ADVICE_COMPLETE]", "").trim();
+          const firstUserMsg = conv.messages.find((m) => m.role === "user");
+          const problem = firstUserMsg?.content ?? "Legal problem";
+
+          // Extract state from conversation context
+          const stateMatch = conv.messages
+            .filter((m) => m.role === "user")
+            .slice(1)
+            .find((m) =>
+              /bihar|gujarat|up|delhi|mumbai|karnataka|tamil|kerala|rajasthan|maharashtra|west bengal|assam|odisha|telangana|andhra|punjab|haryana|madhya|jharkhand|chhattisgarh|goa|himachal|uttarakhand|sikkim|manipur|meghalaya|nagaland|mizoram|tripura|arunachal|lucknow|patna|ahmedabad|surat|vadodara|gandhinagar/i.test(m.content)
+            );
+          const state = stateMatch
+            ? stateMatch.content.replace(/.*?(bihar|gujarat|up|delhi|mumbai|karnataka|tamil|kerala|rajasthan|maharashtra|west bengal|assam|odisha|telangana|andhra|punjab|haryana|madhya|jharkhand|chhattisgarh|goa|himachal|uttarakhand|sikkim|manipur|meghalaya|nagaland|mizoram|tripura|arunachal|lucknow|patna|ahmedabad|surat|vadodara|gandhinagar).*/i, "$1").trim()
+            : "India";
+
+          const newCase: SavedCase = {
+            id: newId("sc"),
+            title: conv.title === "New grill session" ? extractTopic(problem) : conv.title,
+            summary,
+            problem,
+            state,
+            date: Date.now(),
+            conversationId: conv.id,
+          };
+
+          // Clean the marker from the stored message
+          const cleanedConv = {
+            ...conv,
+            messages: conv.messages.map((m) =>
+              m.id === lastMsg.id
+                ? { ...m, content: summary }
+                : m
+            ),
+          };
+          setConversations((prev) =>
+            prev.map((c) => (c.id === activeId ? cleanedConv : c))
+          );
+
+          setSavedCases((prev) => {
+            const updated = [newCase, ...prev.filter((sc) => sc.conversationId !== conv.id)];
+            saveSavedCases(updated);
+            return updated;
+          });
+
+          return prev;
+        });
+      }
     }
   }
 
@@ -488,9 +602,9 @@ export default function ChatApp({ user }: ChatAppProps) {
 
   function clearHistory(section?: ConversationType) {
     if (section === undefined) {
-      const types: ConversationType[] = ["chat", "analysis", "talk-to-ai"];
+      const types: ConversationType[] = ["chat", "analysis", "talk-to-ai", "grill"];
       const freshConversations: Conversation[] = types.map((type) => ({
-        id: newId(type === "analysis" ? "a" : type === "talk-to-ai" ? "t" : "c"),
+        id: newId(type === "analysis" ? "a" : type === "talk-to-ai" ? "t" : type === "grill" ? "g" : "c"),
         title: "New conversation",
         preview: "Just started",
         type,
@@ -503,7 +617,7 @@ export default function ChatApp({ user }: ChatAppProps) {
       return;
     }
     const clearType = section ?? active?.type ?? "chat";
-    const prefix = clearType === "analysis" ? "a" : clearType === "talk-to-ai" ? "t" : "c";
+    const prefix = clearType === "analysis" ? "a" : clearType === "talk-to-ai" ? "t" : clearType === "grill" ? "g" : "c";
     const fresh: Conversation = {
       id: newId(prefix),
       title: "New conversation",
@@ -579,6 +693,7 @@ export default function ChatApp({ user }: ChatAppProps) {
     const menuOpen = contextMenuId === conv.id;
     const isAnalysis = conv.type === "analysis";
     const isTalkToAI = conv.type === "talk-to-ai";
+    const isGrill = conv.type === "grill";
 
     if (isEditing) {
       return (
@@ -620,6 +735,10 @@ export default function ChatApp({ user }: ChatAppProps) {
             <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-white/30" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 2a4 4 0 0 1 4 4v2a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z" /><path d="M16 14h.01M8 14h.01M12 17v4M8 21h8" />
             </svg>
+          ) : isGrill ? (
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-amber-400/70" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /><path d="M11 8v6M8 11h6" /><path d="M9 2L7 5l2 3M15 2l2 3-2 3" />
+            </svg>
           ) : (
             <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-white/30" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -630,7 +749,7 @@ export default function ChatApp({ user }: ChatAppProps) {
               {conv.title}
             </span>
             <span className="block text-[10px] text-white/25">
-              {conv.type === "analysis" ? "In-depth Analysis" : conv.type === "talk-to-ai" ? "Talk to AI" : "Chat"}
+              {conv.type === "analysis" ? "In-depth Analysis" : conv.type === "talk-to-ai" ? "Talk to AI" : conv.type === "grill" ? "Grill Me" : "Chat"}
             </span>
           </div>
         </button>
@@ -879,7 +998,36 @@ export default function ChatApp({ user }: ChatAppProps) {
             </div>
           )}
 
-          {groupConversations("chat").length === 0 && groupConversations("analysis").length === 0 && groupConversations("talk-to-ai").length === 0 && (
+          {groupConversations("grill").length > 0 && (
+            <div className="mb-4">
+              <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-amber-400/60">Grill Me</p>
+              {groupConversations("grill").map((group) => (
+                <div key={group.label} className="mb-2">
+                  <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
+                  <ul className="space-y-0.5 text-sm">
+                    {group.items.map((conv) => (
+                      <li key={conv.id} className="relative" onMouseEnter={() => setHoveredId(conv.id)} onMouseLeave={() => setHoveredId(null)}>
+                        {renderConvItem(conv)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setConfirmAction({ type: "clearHistory", section: "grill" })}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
+              >
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+                Clear history
+              </button>
+            </div>
+          )}
+
+          {groupConversations("chat").length === 0 && groupConversations("analysis").length === 0 && groupConversations("talk-to-ai").length === 0 && groupConversations("grill").length === 0 && (
             <p className="px-3 py-8 text-center text-xs text-white/35">No conversations yet</p>
           )}
         </nav>
@@ -947,8 +1095,8 @@ export default function ChatApp({ user }: ChatAppProps) {
         </div>
       </aside>
 
-      <main className={`flex min-w-0 flex-1 flex-col ${(active?.type === "analysis" || active?.type === "talk-to-ai") ? "bg-black/80" : ""}`}>
-        <header className={`flex items-center justify-between border-b border-white/10 px-5 py-4 sm:px-8 ${(active?.type === "analysis" || active?.type === "talk-to-ai") ? "bg-black/50" : ""}`}>
+      <main className={`flex min-w-0 flex-1 flex-col ${(mode === "analysis" || mode === "talk-to-ai" || mode === "grill") ? "bg-black/80" : ""}`}>
+        <header className={`flex items-center justify-between border-b border-white/10 px-5 py-4 sm:px-8 ${(mode === "analysis" || mode === "talk-to-ai" || mode === "grill") ? "bg-black/50" : ""}`}>
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
@@ -974,7 +1122,7 @@ export default function ChatApp({ user }: ChatAppProps) {
                 {active?.title ?? "New conversation"}
               </h1>
               <p className="text-[11px] uppercase tracking-[0.2em] text-white/40">
-                {active?.type === "analysis" ? "In-depth Analysis" : active?.type === "talk-to-ai" ? "Talk to AI" : "Lawbite Assistant"}
+                {mode === "analysis" ? "In-depth Analysis" : mode === "talk-to-ai" ? "Talk to AI" : mode === "grill" ? "Grill Me — Interrogation Mode" : "Lawbite Assistant"}
               </p>
             </div>
           </div>
@@ -1022,9 +1170,9 @@ export default function ChatApp({ user }: ChatAppProps) {
                         : "border border-white/10 bg-white/[0.03] text-white/85"
                     }`}
                   >
-                    {message.role === "assistant" && active?.type === "analysis" ? (
+                    {message.role === "assistant" && (message.type ?? active?.type) === "analysis" ? (
                       <div className="flex flex-col gap-4">
-                        {message.content.split(/\n+/).filter(Boolean).map((block, i) => {
+                        {message.content.replace(/\[ADVICE_COMPLETE\]/g, "").split(/\n+/).filter(Boolean).map((block, i) => {
                           const numMatch = block.trim().match(/^(\d+)\.\s*/);
                           if (numMatch) {
                             const num = numMatch[1];
@@ -1055,7 +1203,7 @@ export default function ChatApp({ user }: ChatAppProps) {
                       </div>
                     ) : (
                       <div className="whitespace-pre-wrap leading-relaxed">
-                        {message.content.split(/\n\n+/).map((para, i) => (
+                        {message.content.replace(/\[ADVICE_COMPLETE\]/g, "").split(/\n\n+/).map((para, i) => (
                           <p key={i} className={i > 0 ? "mt-3" : ""}>{renderBold(para)}</p>
                         ))}
                       </div>
@@ -1098,9 +1246,7 @@ export default function ChatApp({ user }: ChatAppProps) {
                         type="button"
                         onClick={() => {
                           setShowSuggestion(false);
-                          const existing = conversations.find((c) => c.type === "analysis");
-                          if (existing) setActiveId(existing.id);
-                          else startAnalysisChat();
+                          setMode("analysis");
                         }}
                         className="font-semibold text-white underline decoration-white/40 underline-offset-2 hover:text-white/80"
                       >
@@ -1115,7 +1261,7 @@ export default function ChatApp({ user }: ChatAppProps) {
             </ul>
           ) : (
             <div className="mx-auto flex h-full max-w-3xl flex-col items-center justify-center text-center">
-              {active?.type === "analysis" ? (
+              {mode === "analysis" ? (
                 <>
                   <div className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-1.5 text-xs uppercase tracking-[0.3em] text-white/40">
                     In-depth Analysis
@@ -1143,7 +1289,7 @@ export default function ChatApp({ user }: ChatAppProps) {
                     </span>
                   </div>
                 </>
-              ) : active?.type === "talk-to-ai" ? (
+              ) : mode === "talk-to-ai" ? (
                 <>
                   <div className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-1.5 text-xs uppercase tracking-[0.3em] text-white/40">
                     Talk to AI
@@ -1152,9 +1298,38 @@ export default function ChatApp({ user }: ChatAppProps) {
                     Ask anything about the law
                   </h2>
                   <p className="mt-3 max-w-md text-sm leading-relaxed text-white/55">
-                    Have a conversation with the AI about legal topics,
+                    Have a conversation with the AI about legal questions,
                     get explanations, or explore ideas freely.
                   </p>
+                </>
+              ) : mode === "grill" ? (
+                <>
+                  <div className="rounded-full border border-amber-400/30 bg-amber-400/[0.06] px-4 py-1.5 text-xs uppercase tracking-[0.3em] text-amber-400/70">
+                    Grill Me
+                  </div>
+                  <h2 className="mt-6 text-2xl font-semibold tracking-tight sm:text-3xl">
+                    Interrogate an idea with sharp follow-up questions
+                  </h2>
+                  <p className="mt-3 max-w-md text-sm leading-relaxed text-white/55">
+                    Describe your legal situation and I will ask one question at a time
+                    to build a complete picture. Based on your state, age, and specific
+                    circumstances, I will provide tailored Indian legal advice with
+                    relevant sections and next steps.
+                  </p>
+                  <div className="mt-8 flex flex-wrap justify-center gap-3">
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-white/50">
+                      Step-by-step interrogation
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-white/50">
+                      State-specific laws
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-white/50">
+                      Practical next steps
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-white/50">
+                      Case archive
+                    </span>
+                  </div>
                 </>
               ) : (
                 <>
@@ -1175,7 +1350,7 @@ export default function ChatApp({ user }: ChatAppProps) {
           )}
         </div>
 
-        <div className={`border-t border-white/10 px-5 py-4 backdrop-blur-md sm:px-8 ${(active?.type === "analysis" || active?.type === "talk-to-ai") ? "bg-black/60" : "bg-black/40"}`}>
+        <div className={`border-t border-white/10 px-5 py-4 backdrop-blur-md sm:px-8 ${(mode === "analysis" || mode === "talk-to-ai") ? "bg-black/60" : "bg-black/40"}`}>
           <form
             onSubmit={onSubmit}
             className="mx-auto flex max-w-3xl items-end gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-2 transition-colors duration-300 focus-within:border-white/30"
@@ -1183,73 +1358,50 @@ export default function ChatApp({ user }: ChatAppProps) {
             <label htmlFor="chat-input" className="sr-only">
               Message
             </label>
-            <button
-              type="button"
-              onClick={() => {
-                const currentType = active?.type;
-                if (currentType === "talk-to-ai") {
-                  lastTalkIdRef.current = activeId;
-                  const target = conversations.find((c) => c.type === "analysis" && !c.pinned);
-                  if (target) {
-                    lastAnalysisIdRef.current = target.id;
-                    setActiveId(target.id);
-                  } else startAnalysisChat();
-                } else if (currentType === "analysis") {
-                  lastAnalysisIdRef.current = activeId;
-                  const savedId = lastTalkIdRef.current;
-                  if (savedId && conversations.find((c) => c.id === savedId)) {
-                    setActiveId(savedId);
-                  } else {
-                    const existing = conversations.find((c) => c.type === "talk-to-ai" && !c.pinned);
-                    if (existing) setActiveId(existing.id);
-                    else startTalkToAI();
-                  }
-                } else {
-                  lastTalkIdRef.current = activeId;
-                  const target = conversations.find((c) => c.type === "analysis" && !c.pinned);
-                  if (target) {
-                    lastAnalysisIdRef.current = target.id;
-                    setActiveId(target.id);
-                  } else startAnalysisChat();
-                }
-              }}
-              aria-label={active?.type === "analysis" ? "Back to chat" : "In-depth analysis"}
-              style={blinkAnalysis ? { animation: "blink-icon 1s ease-in-out 3", color: "#ffffff" } : undefined}
-              className={`mb-0.5 shrink-0 rounded-full p-2 transition-colors ${
-                active?.type === "analysis"
-                  ? "text-amber-400/70 hover:bg-amber-400/10 hover:text-amber-400"
-                  : "text-white/30 hover:bg-white/[0.06] hover:text-white/60"
-              }`}
-            >
-              {active?.type === "analysis" ? (
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                  <path d="M3 3v5h5" />
-                  <path d="M12 7v5l4 2" />
-                </svg>
-              ) : (
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7z" />
-                  <path d="M10 21h4M9 17h6" />
-                </svg>
-              )}
-            </button>
+            {mode !== "grill" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMode((prev) => prev === "analysis" ? "talk-to-ai" : "analysis");
+                }}
+                aria-label={mode === "analysis" ? "Switch to talk to AI" : "In-depth analysis"}
+                style={blinkAnalysis ? { animation: "blink-icon 1s ease-in-out 3", color: "#ffffff" } : undefined}
+                className={`mb-0.5 shrink-0 rounded-full p-2 transition-colors ${
+                  mode === "analysis"
+                    ? "text-amber-400/70 hover:bg-amber-400/10 hover:text-amber-400"
+                    : "text-white/30 hover:bg-white/[0.06] hover:text-white/60"
+                }`}
+              >
+                {mode === "analysis" ? (
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                    <path d="M12 7v5l4 2" />
+                  </svg>
+                ) : (
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7z" />
+                    <path d="M10 21h4M9 17h6" />
+                  </svg>
+                )}
+              </button>
+            )}
             <textarea
               id="chat-input"
               value={draft}
@@ -1317,7 +1469,7 @@ export default function ChatApp({ user }: ChatAppProps) {
             </h3>
             <p className="mt-2 text-sm text-white/55">
               {confirmAction.type === "clearHistory"
-                ? `This will permanently delete all conversations across Chat, In-depth Analysis, and Talk to AI. This action cannot be undone.`
+                ? `This will permanently delete all conversations across Chat, In-depth Analysis, Talk to AI, and Grill Me. This action cannot be undone.`
                 : "This will permanently delete this conversation. This action cannot be undone."}
             </p>
             <div className="mt-5 flex justify-end gap-2">
@@ -1509,7 +1661,7 @@ export default function ChatApp({ user }: ChatAppProps) {
           onClick={() => setMyCasesOpen(false)}
         >
           <div
-            className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
+            className="relative flex max-h-[80vh] w-full max-w-lg flex-col rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-6 flex items-center justify-between">
@@ -1526,52 +1678,94 @@ export default function ChatApp({ user }: ChatAppProps) {
               </button>
             </div>
 
-            <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); setMyCasesOpen(false); }}>
-              <div>
-                <label htmlFor="case-title" className="mb-1 block text-xs font-medium text-white/50">Case title</label>
-                <input
-                  id="case-title"
-                  type="text"
-                  required
-                  placeholder="e.g. Smith v. Johnson"
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none"
-                />
-              </div>
+            <button
+              type="button"
+              onClick={startGrill}
+              className="mb-5 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-400/90 px-4 py-3 text-sm font-semibold text-black transition-all hover:bg-amber-400"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /><path d="M11 8v6M8 11h6" /><path d="M9 2L7 5l2 3M15 2l2 3-2 3" />
+              </svg>
+              Start New Grill
+            </button>
 
-              <div>
-                <label htmlFor="case-type" className="mb-1 block text-xs font-medium text-white/50">Case type</label>
-                <select
-                  id="case-type"
-                  required
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white focus:border-white/20 focus:outline-none"
-                >
-                  <option value="" disabled className="bg-[#0a0a0a]">Select type</option>
-                  <option value="civil" className="bg-[#0a0a0a]">Civil</option>
-                  <option value="criminal" className="bg-[#0a0a0a]">Criminal</option>
-                  <option value="family" className="bg-[#0a0a0a]">Family</option>
-                  <option value="corporate" className="bg-[#0a0a0a]">Corporate</option>
-                  <option value="ip" className="bg-[#0a0a0a]">Intellectual Property</option>
-                  <option value="other" className="bg-[#0a0a0a]">Other</option>
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="case-desc" className="mb-1 block text-xs font-medium text-white/50">Description</label>
-                <textarea
-                  id="case-desc"
-                  rows={3}
-                  placeholder="Brief summary of the case…"
-                  className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-black transition-colors hover:bg-white/90"
-              >
-                Save case
-              </button>
-            </form>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {savedCases.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <svg viewBox="0 0 24 24" className="mb-3 h-10 w-10 text-white/20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                  </svg>
+                  <p className="text-sm text-white/40">No saved cases yet</p>
+                  <p className="mt-1 text-xs text-white/25">Complete a grill session to save it here</p>
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {savedCases.map((sc) => (
+                    <li
+                      key={sc.id}
+                      className="group rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5 transition-colors hover:border-white/20 hover:bg-white/[0.05]"
+                    >
+                      <button
+                        type="button"
+                        className="w-full text-left"
+                        onClick={() => {
+                          // Look for existing conversation or create a view from saved data
+                          const existing = conversations.find((c) => c.id === sc.conversationId);
+                          if (existing) {
+                            selectConversation(existing.id);
+                          } else {
+                            const restored: Conversation = {
+                              id: sc.conversationId,
+                              title: sc.title,
+                              preview: sc.problem,
+                              type: "grill",
+                              createdAt: sc.date,
+                              messages: [
+                                { id: newId("u"), role: "user", content: sc.problem },
+                                { id: newId("a"), role: "assistant", content: sc.summary, type: "grill" },
+                              ],
+                            };
+                            setConversations((prev) => [restored, ...prev]);
+                            setActiveId(restored.id);
+                            setMode("grill");
+                          }
+                          setMyCasesOpen(false);
+                        }}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-white">{sc.title}</p>
+                            <p className="mt-0.5 line-clamp-2 text-xs text-white/45">{sc.problem}</p>
+                          </div>
+                          <span className="shrink-0 rounded-md border border-amber-400/20 bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-400/80">
+                            {sc.state.slice(0, 10)}
+                          </span>
+                        </div>
+                        <div className="mt-2 flex items-center justify-between">
+                          <span className="text-[10px] text-white/25">
+                            {new Date(sc.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSavedCases((prev) => {
+                                const updated = prev.filter((c) => c.id !== sc.id);
+                                saveSavedCases(updated);
+                                return updated;
+                              });
+                            }}
+                            className="rounded px-1.5 py-0.5 text-[10px] text-white/25 opacity-0 transition-all hover:text-red-400 group-hover:opacity-100"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         </div>
       )}
