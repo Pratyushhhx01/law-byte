@@ -3,6 +3,7 @@ import { tavily } from "@tavily/core";
 import { s3kb } from "@/lib/s3";
 
 const NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
+const NVIDIA_MODEL = "meta/llama-3.1-8b-instruct";
 
 const tvly = tavily({ apiKey: process.env.TAVILY_API_KEY });
 
@@ -45,14 +46,17 @@ function getSystemPrompt(conversationType?: string) {
 
 async function classifyQuery(query: string, apiKey: string): Promise<boolean> {
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
     const response = await fetch(NVIDIA_API_URL, {
+      signal: controller.signal,
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "openai/gpt-oss-120b",
+        model: NVIDIA_MODEL,
         messages: [
           { role: "system", content: CLASSIFIER_PROMPT },
           { role: "user", content: query },
@@ -62,6 +66,7 @@ async function classifyQuery(query: string, apiKey: string): Promise<boolean> {
         stream: false,
       }),
     });
+    clearTimeout(timeout);
 
     if (!response.ok) return false;
 
@@ -317,7 +322,10 @@ export async function POST(request: NextRequest) {
 
   const maxTokens = conversationType === "analysis" ? 1024 : 256;
 
+  const chatController = new AbortController();
+  const chatTimeout = setTimeout(() => chatController.abort(), 30000);
   const response = await fetch(NVIDIA_API_URL, {
+    signal: chatController.signal,
     method: "POST",
     headers: {
       "Authorization": `Bearer ${apiKey}`,
@@ -325,7 +333,7 @@ export async function POST(request: NextRequest) {
       "Accept": "text/event-stream",
     },
     body: JSON.stringify({
-      model: "openai/gpt-oss-120b",
+      model: NVIDIA_MODEL,
       messages: messagesWithSystem,
       max_tokens: maxTokens,
       temperature: 1.0,
@@ -333,6 +341,7 @@ export async function POST(request: NextRequest) {
       stream: true,
     }),
   });
+  clearTimeout(chatTimeout);
 
   if (!response.ok) {
     const errorText = await response.text();
