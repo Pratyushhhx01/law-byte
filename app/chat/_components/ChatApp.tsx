@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent, ReactNode } from "react";
 import { signOut } from "@/lib/auth-client";
 
@@ -316,11 +316,12 @@ export default function ChatApp({ user }: ChatAppProps) {
   }
 
   function startNewChat() {
-    const convType: ConversationType = "talk-to-ai";
+    const prefix = mode === "analysis" ? "a" : mode === "grill" ? "g" : "t";
+    const convType: ConversationType = mode === "analysis" ? "analysis" : mode === "grill" ? "grill" : "talk-to-ai";
     const conv: Conversation = {
-      id: newId("t"),
-      title: "New conversation",
-      preview: "Just started",
+      id: newId(prefix),
+      title: mode === "analysis" ? "New analysis" : mode === "grill" ? "New grill session" : "New conversation",
+      preview: mode === "analysis" ? "In-depth analysis" : mode === "grill" ? "Grill Me" : "Just started",
       type: convType,
       createdAt: Date.now(),
       messages: [],
@@ -330,6 +331,8 @@ export default function ChatApp({ user }: ChatAppProps) {
     setMode(convType);
     setDraft("");
     setSidebarOpen(false);
+    lastTalkIdRef.current = null;
+    lastAnalysisIdRef.current = null;
   }
 
   function startAnalysisChat() {
@@ -346,6 +349,8 @@ export default function ChatApp({ user }: ChatAppProps) {
     setMode("analysis");
     setDraft("");
     setSidebarOpen(false);
+    lastTalkIdRef.current = null;
+    lastAnalysisIdRef.current = null;
   }
 
   function startTalkToAI() {
@@ -362,6 +367,8 @@ export default function ChatApp({ user }: ChatAppProps) {
     setMode("talk-to-ai");
     setDraft("");
     setSidebarOpen(false);
+    lastTalkIdRef.current = null;
+    lastAnalysisIdRef.current = null;
   }
 
   function startGrill() {
@@ -657,9 +664,9 @@ export default function ChatApp({ user }: ChatAppProps) {
 
   function clearHistory(section?: ConversationType) {
     if (section === undefined) {
-      const types: ConversationType[] = ["chat", "analysis", "talk-to-ai", "grill"];
+      const types: ConversationType[] = ["talk-to-ai", "analysis", "grill"];
       const freshConversations: Conversation[] = types.map((type) => ({
-        id: newId(type === "analysis" ? "a" : type === "talk-to-ai" ? "t" : type === "grill" ? "g" : "c"),
+        id: newId(type === "analysis" ? "a" : type === "talk-to-ai" ? "t" : "g"),
         title: "New conversation",
         preview: "Just started",
         type,
@@ -1184,7 +1191,67 @@ export default function ChatApp({ user }: ChatAppProps) {
         <div className="flex-1 overflow-y-auto px-5 py-8 sm:px-8">
           {active && active.messages.length > 0 ? (
             <ul className="mx-auto flex max-w-3xl flex-col gap-6">
-              {active.messages.map((message) => (
+              {active.messages.map((message) => {
+                const isGrillAssistant = message.role === "assistant" && (message.type ?? active?.type) === "grill";
+                const hasAdviceComplete = message.content.includes("[ADVICE_COMPLETE]");
+                const hasDelimiter = message.content.includes("---");
+
+                if (isGrillAssistant && !hasAdviceComplete) {
+                  const cleaned = message.content.replace(/\[ADVICE_COMPLETE\]/g, "").trim();
+                  let response = "";
+                  let question = "";
+
+                  if (hasDelimiter) {
+                    const parts = cleaned.split(/\n---\n/);
+                    response = parts[0]?.trim() ?? "";
+                    question = parts.slice(1).join("\n---\n").trim();
+                  } else {
+                    const paragraphs = cleaned.split(/\n\n+/);
+                    const lastIdx = paragraphs.length - 1;
+                    const lastPara = paragraphs[lastIdx]?.trim() ?? "";
+                    if (paragraphs.length > 1 && /\?\s*$/.test(lastPara)) {
+                      response = paragraphs.slice(0, lastIdx).join("\n\n").trim();
+                      question = lastPara;
+                    }
+                  }
+
+                  if (response || question) {
+                    return (
+                      <Fragment key={message.id}>
+                        {response && (
+                          <li className="flex justify-start">
+                            <div className="max-w-[85%] rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm leading-relaxed text-white/70 sm:text-[15px]">
+                              <div className="whitespace-pre-wrap leading-relaxed">
+                                {response.split(/\n\n+/).map((para, i) => (
+                                  <p key={i} className={i > 0 ? "mt-2" : ""}>{renderBold(para)}</p>
+                                ))}
+                              </div>
+                            </div>
+                          </li>
+                        )}
+                        {question && (
+                          <li className="flex justify-start">
+                            <div className="max-w-[85%] rounded-2xl border border-amber-400/20 bg-amber-400/[0.06] px-4 py-3 text-sm leading-relaxed sm:text-[15px]">
+                              <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-amber-400/70">
+                                <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7z" />
+                                  <path d="M10 21h4M9 17h6" />
+                                </svg>
+                                Next Question
+                              </div>
+                              <div className="whitespace-pre-wrap leading-relaxed text-white/90">
+                                {question.split(/\n\n+/).map((para, i) => (
+                                  <p key={i} className={i > 0 ? "mt-2" : ""}>{renderBold(para)}</p>
+                                ))}
+                              </div>
+                            </div>
+                          </li>
+                        )}
+                      </Fragment>
+                    );
+                  }
+                }
+                return (
                 <li
                   key={message.id}
                   className={`flex ${
@@ -1238,7 +1305,8 @@ export default function ChatApp({ user }: ChatAppProps) {
                     )}
                   </div>
                 </li>
-              ))}
+                );
+              })}
               {isThinking ? (
                 <li className="flex justify-start">
                   <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/70">
