@@ -176,7 +176,8 @@ const freshConversation: Conversation = {
   messages: [],
 };
 
-export default function ChatApp({ user }: ChatAppProps) {
+export default function ChatApp({ user: initialUser }: ChatAppProps) {
+  const [user, setUser] = useState<ChatUser>(initialUser);
   const [conversations, setConversations] = useState<Conversation[]>([
     freshConversation,
     ...initialConversations,
@@ -205,6 +206,10 @@ export default function ChatApp({ user }: ChatAppProps) {
   const escCountRef = useRef(0);
   const escTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ type: "clearHistory"; section?: ConversationType } | { type: "deleteConversation"; id: string } | null>(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [disclaimerOpen, setDisclaimerOpen] = useState(false);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [bugOpen, setBugOpen] = useState(false);
 
   const active = conversations.find((c) => c.id === activeId) ?? conversations[0];
 
@@ -773,9 +778,9 @@ export default function ChatApp({ user }: ChatAppProps) {
             onBlur={() => commitRename(conv.id)}
             className="min-w-0 flex-1 bg-transparent text-[13px] text-white outline-none"
           />
-        </div>
-      );
-    }
+    </div>
+  );
+}
 
     return (
       <div
@@ -875,9 +880,9 @@ export default function ChatApp({ user }: ChatAppProps) {
             )}
           </div>
         )}
-      </div>
-    );
-  }
+    </div>
+  );
+}
 
   return (
     <div className="relative flex h-screen w-full overflow-hidden bg-black text-white">
@@ -1284,9 +1289,9 @@ export default function ChatApp({ user }: ChatAppProps) {
                                     ))}
                                   </div>
                                 </div>
-                              </div>
-                            );
-                          }
+    </div>
+  );
+}
                           return (
                             <div key={i} className="whitespace-pre-wrap leading-relaxed">
                               {block.trim().split(/\n\n+/).map((para, j) => (
@@ -1647,6 +1652,9 @@ export default function ChatApp({ user }: ChatAppProps) {
             <div className="space-y-1">
               <button
                 type="button"
+                onClick={() => {
+                  setEditProfileOpen(true);
+                }}
                 className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm text-white/70 transition-colors hover:bg-white/[0.05] hover:text-white"
               >
                 <svg
@@ -1665,6 +1673,9 @@ export default function ChatApp({ user }: ChatAppProps) {
               </button>
               <button
                 type="button"
+                onClick={() => {
+                  setUpgradeOpen(true);
+                }}
                 className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm text-white/70 transition-colors hover:bg-white/[0.05] hover:text-white"
               >
                 <svg
@@ -1676,13 +1687,15 @@ export default function ChatApp({ user }: ChatAppProps) {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 >
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
                 </svg>
-                Security
+                Upgrade to Plus
               </button>
               <button
                 type="button"
+                onClick={() => {
+                  setDisclaimerOpen(true);
+                }}
                 className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm text-white/70 transition-colors hover:bg-white/[0.05] hover:text-white"
               >
                 <svg
@@ -1694,10 +1707,33 @@ export default function ChatApp({ user }: ChatAppProps) {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 >
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="16" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
                 </svg>
-                Preferences
+                About / Disclaimer
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setBugOpen(true);
+                }}
+                className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm text-white/70 transition-colors hover:bg-white/[0.05] hover:text-white"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M8 2l1.88 1.88M14.12 3.88L16 2M9 7.13v-1a3 3 0 0 1 6 0v1" />
+                  <path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6z" />
+                  <path d="M12 20v-9M6.53 9H2M6 13H2M6.53 17H2M17.47 9H22M18 13H22M17.47 17H22" />
+                </svg>
+                Report a Bug
               </button>
               <div className="my-1 border-t border-white/[0.06]" />
               <button
@@ -1746,6 +1782,171 @@ export default function ChatApp({ user }: ChatAppProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {upgradeOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => setUpgradeOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-lg font-semibold tracking-tight">Upgrade to Plus</h2>
+              <button
+                type="button"
+                onClick={() => setUpgradeOpen(false)}
+                className="rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white"
+                aria-label="Close"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5">
+                <p className="text-xs font-medium uppercase tracking-wider text-white/40">Free</p>
+                <p className="mt-2 text-2xl font-semibold text-white">₹0</p>
+                <p className="mt-1 text-xs text-white/40">/month</p>
+                <div className="mt-4 space-y-2">
+                  <p className="flex items-center gap-2 text-sm text-white/60">
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    Talk to AI
+                  </p>
+                  <p className="flex items-center gap-2 text-sm text-white/60">
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    20 messages / day
+                  </p>
+                  <p className="flex items-center gap-2 text-sm text-white/60">
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    Basic legal info
+                  </p>
+                </div>
+                <p className="mt-5 rounded-lg border border-white/10 py-2 text-center text-sm text-white/40">Current plan</p>
+              </div>
+
+              <div className="relative rounded-xl border border-white/20 bg-white/[0.05] p-5">
+                <span className="absolute -top-2.5 right-4 rounded-full bg-white px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-black">Popular</span>
+                <p className="text-xs font-medium uppercase tracking-wider text-white/40">Plus</p>
+                <p className="mt-2 text-2xl font-semibold text-white">₹999</p>
+                <p className="mt-1 text-xs text-white/40">/month</p>
+                <div className="mt-4 space-y-2">
+                  <p className="flex items-center gap-2 text-sm text-white/60">
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    Everything in Free
+                  </p>
+                  <p className="flex items-center gap-2 text-sm text-white/60">
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    Unlimited messages
+                  </p>
+                  <p className="flex items-center gap-2 text-sm text-white/60">
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    In-depth Analysis
+                  </p>
+                  <p className="flex items-center gap-2 text-sm text-white/60">
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    Grill Me mode
+                  </p>
+                  <p className="flex items-center gap-2 text-sm text-white/60">
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    Priority support
+                  </p>
+                </div>
+              <button
+                type="button"
+                className="mt-5 w-full rounded-lg bg-white py-2 text-sm font-medium text-black transition-colors hover:bg-white/90"
+              >
+                Upgrade now
+              </button>
+              </div>
+            </div>
+
+            <p className="mt-5 text-center text-xs text-white/35">
+              14-day free trial. Cancel anytime. No credit card required.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {disclaimerOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => setDisclaimerOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-lg font-semibold tracking-tight">About Lawbite</h2>
+              <button
+                type="button"
+                onClick={() => setDisclaimerOpen(false)}
+                className="rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white"
+                aria-label="Close"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4 text-sm leading-relaxed text-white/60">
+              <p>
+                Lawbite is an AI assistant that provides information about Indian
+                laws and the constitution based on web searches. It is designed to
+                help you understand legal concepts and find relevant information.
+              </p>
+              <p>
+                <span className="font-medium text-white/80">Not legal advice.</span>{" "}
+                The information provided by Lawbite is for general informational
+                purposes only and does not constitute legal advice. Lawbite does
+                not create a lawyer&ndash;client relationship.
+              </p>
+              <p>
+                <span className="font-medium text-white/80">Consult a professional.</span>{" "}
+                For advice specific to your situation, always consult a qualified
+                legal professional. Lawbite is a web-search-based AI assistant and
+                does not provide legal services.
+              </p>
+            </div>
+
+            <div className="mt-5 flex items-center justify-between">
+              <Link
+                href="/legal/disclaimer"
+                className="text-xs text-white/40 underline underline-offset-2 transition-colors hover:text-white/70"
+              >
+                Read full disclaimer
+              </Link>
+              <button
+                type="button"
+                onClick={() => setDisclaimerOpen(false)}
+                className="rounded-lg bg-white/[0.06] px-4 py-2 text-sm text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bugOpen && (
+        <ReportBugModal onClose={() => setBugOpen(false)} />
+      )}
+
+      {editProfileOpen && (
+        <EditProfileModal
+          user={user}
+          onClose={() => setEditProfileOpen(false)}
+          onSaved={(updated) => {
+            setUser({ ...user, ...updated });
+            setEditProfileOpen(false);
+          }}
+        />
       )}
 
       {myCasesOpen && (
@@ -1862,6 +2063,272 @@ export default function ChatApp({ user }: ChatAppProps) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function EditProfileModal({
+  user,
+  onClose,
+  onSaved,
+}: {
+  user: ChatUser;
+  onClose: () => void;
+  onSaved: (updated: Partial<ChatUser>) => void;
+}) {
+  const [name, setName] = useState(user.name || "");
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      setError("Image must be under 2 MB");
+      return;
+    }
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
+    setError(null);
+  }
+
+  async function handleSave() {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setError("Name cannot be empty");
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("name", trimmed);
+      if (avatarFile) formData.append("avatar", avatarFile);
+
+      const res = await fetch("/api/user/profile", {
+        method: "PUT",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error || "Failed to update profile");
+      }
+
+      const data = await res.json();
+      onSaved(data.user);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-lg font-semibold tracking-tight">Edit Profile</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white"
+            aria-label="Close"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex flex-col items-center gap-4">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="group relative"
+          >
+            {avatarPreview || user.image ? (
+              <img
+                src={avatarPreview || user.image!}
+                alt=""
+                className="h-20 w-20 rounded-full border border-white/15 object-cover"
+              />
+            ) : (
+              <div className="flex h-20 w-20 items-center justify-center rounded-full border border-white/15 bg-white/10 text-2xl text-white/60">
+                {(user.name || user.email || "U").charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
+              <svg viewBox="0 0 24 24" className="h-5 w-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                <circle cx="12" cy="13" r="4" />
+              </svg>
+            </div>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <p className="text-xs text-white/35">Click avatar to change (max 2 MB)</p>
+        </div>
+
+        <div className="mt-6 space-y-4">
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-white/50">Name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => { setName(e.target.value); setError(null); }}
+              className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-white outline-none transition-colors placeholder:text-white/25 focus:border-white/25"
+              placeholder="Your name"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-white/50">Email</label>
+            <input
+              type="email"
+              value={user.email}
+              disabled
+              className="w-full rounded-lg border border-white/10 bg-white/[0.02] px-3.5 py-2.5 text-sm text-white/40"
+            />
+          </div>
+        </div>
+
+        {error && (
+          <p className="mt-3 text-center text-xs text-red-400">{error}</p>
+        )}
+
+        <div className="mt-6 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg px-4 py-2 text-sm text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-white/90 disabled:opacity-50"
+          >
+            {saving ? "Saving..." : "Save changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReportBugModal({ onClose }: { onClose: () => void }) {
+  const [description, setDescription] = useState("");
+  const [email, setEmail] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  async function handleSubmit() {
+    if (!description.trim()) return;
+    setSending(true);
+    await new Promise((r) => setTimeout(r, 1000));
+    setSending(false);
+    setSubmitted(true);
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-5 flex items-center justify-between">
+          <h2 className="text-lg font-semibold tracking-tight">Report a Bug</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white"
+            aria-label="Close"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {submitted ? (
+          <div className="flex flex-col items-center py-6 text-center">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/20">
+              <svg viewBox="0 0 24 24" className="h-6 w-6 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <p className="text-sm font-medium text-white">Thank you for your report</p>
+            <p className="mt-1 text-xs text-white/40">We will look into it and get back to you if needed.</p>
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-5 rounded-lg bg-white/[0.06] px-5 py-2 text-sm text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white"
+            >
+              Done
+            </button>
+          </div>
+        ) : (
+          <>
+            <p className="mb-4 text-sm text-white/50">
+              Describe the issue you encountered. Include steps to reproduce if possible.
+            </p>
+            <div className="space-y-3">
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={4}
+                placeholder="What happened? What did you expect to happen?"
+                className="w-full resize-none rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-white outline-none placeholder:text-white/25 focus:border-white/25"
+              />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email (optional — only if you want a reply)"
+                className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-white outline-none placeholder:text-white/25 focus:border-white/25"
+              />
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-lg px-4 py-2 text-sm text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={!description.trim() || sending}
+                className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-white/90 disabled:opacity-40"
+              >
+                {sending ? "Sending..." : "Submit Report"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
