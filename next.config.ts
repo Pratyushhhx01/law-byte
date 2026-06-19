@@ -4,10 +4,8 @@ const nextConfig: NextConfig = {
   output: "standalone",
   serverExternalPackages: [
     "kysely",
-    "@better-auth/kysely-adapter",
-    "@prisma/adapter-pg",
+    "pg",
     "better-auth",
-    "better-auth/kysely-adapter",
   ],
 };
 
