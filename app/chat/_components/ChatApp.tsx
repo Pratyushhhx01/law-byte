@@ -238,6 +238,26 @@ export default function ChatApp({ user }: ChatAppProps) {
   }, [isThinking, active]);
 
   useEffect(() => {
+    if (mode === "analysis" || mode === "grill" || !active || active.messages.length === 0) {
+      setShowSuggestion(false);
+      return;
+    }
+    const lastMsg = active.messages[active.messages.length - 1];
+    const userMsgs = active.messages.filter((m) => m.role === "user");
+    const lastUserMsg = userMsgs[userMsgs.length - 1];
+    const content = lastUserMsg?.content?.toLowerCase().trim() ?? "";
+    const isGreeting = /^(hi|hello|hey|namaste|good\s*(morning|afternoon|evening|night)|yo|sup|hola|howdy|greetings)/.test(content);
+    const isCompliment = /(thank|thanks|thx|good\s*(job|work|bot|ai)|great|awesome|nice|amazing|perfect|excellent|well\s*done|bravo|superb|fantastic|love\s*you)/.test(content);
+    const isOffTopic = /only\s+provide\s+information.*indian\s+law/i.test(lastMsg?.content?.trim() ?? "");
+    const isAiGreeting = lastMsg?.content?.trim().toLowerCase().startsWith("hello") && lastMsg?.content?.toLowerCase().includes("how can i assist you");
+    if (lastMsg && lastMsg.role === "assistant" && lastMsg.content && !isOffTopic && !isGreeting && !isCompliment && !isAiGreeting) {
+      setShowSuggestion(true);
+    } else {
+      setShowSuggestion(false);
+    }
+  }, [activeId, mode]);
+
+  useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (
         contextMenuRef.current &&
@@ -296,10 +316,9 @@ export default function ChatApp({ user }: ChatAppProps) {
   }
 
   function startNewChat() {
-    const convType = mode;
-    const prefix = "c";
+    const convType: ConversationType = "talk-to-ai";
     const conv: Conversation = {
-      id: newId(prefix),
+      id: newId("t"),
       title: "New conversation",
       preview: "Just started",
       type: convType,
@@ -324,6 +343,7 @@ export default function ChatApp({ user }: ChatAppProps) {
     };
     setConversations((prev) => [conv, ...prev]);
     setActiveId(conv.id);
+    setMode("analysis");
     setDraft("");
     setSidebarOpen(false);
   }
@@ -359,6 +379,41 @@ export default function ChatApp({ user }: ChatAppProps) {
     setDraft("");
     setSidebarOpen(false);
     setMyCasesOpen(false);
+  }
+
+  function switchMode(newMode: ConversationType) {
+    const target = newMode === "chat" ? "talk-to-ai" : newMode;
+    if (target === "grill") return;
+
+    // Save current conversation ID for the mode we're leaving
+    if (mode === "talk-to-ai" || mode === "chat") {
+      lastTalkIdRef.current = activeId;
+    } else if (mode === "analysis") {
+      lastAnalysisIdRef.current = activeId;
+    }
+
+    setMode(target);
+
+    // Restore the last conversation for the target mode
+    const savedId = target === "analysis" ? lastAnalysisIdRef.current : lastTalkIdRef.current;
+    const existing = savedId ? conversations.find((c) => c.id === savedId) : null;
+
+    if (existing) {
+      setActiveId(existing.id);
+    } else {
+      const prefix = target === "analysis" ? "a" : "t";
+      const conv: Conversation = {
+        id: newId(prefix),
+        title: "New conversation",
+        preview: "Just started",
+        type: target,
+        createdAt: Date.now(),
+        messages: [],
+      };
+      setConversations((prev) => [conv, ...prev]);
+      setActiveId(conv.id);
+    }
+    setDraft("");
   }
 
   async function sendMessage(text: string) {
@@ -616,17 +671,17 @@ export default function ChatApp({ user }: ChatAppProps) {
       setContextMenuId(null);
       return;
     }
-    const clearType = section ?? active?.type ?? "chat";
+    const clearType = section ?? active?.type ?? "talk-to-ai";
     const prefix = clearType === "analysis" ? "a" : clearType === "talk-to-ai" ? "t" : clearType === "grill" ? "g" : "c";
     const fresh: Conversation = {
       id: newId(prefix),
       title: "New conversation",
       preview: "Just started",
-      type: clearType,
+      type: clearType === "chat" ? "talk-to-ai" : clearType,
       createdAt: Date.now(),
       messages: [],
     };
-    setConversations((prev) => [fresh, ...prev.filter((c) => c.type !== clearType)]);
+    setConversations((prev) => [fresh, ...prev.filter((c) => c.type !== clearType && !(clearType === "talk-to-ai" && c.type === "chat"))]);
     setActiveId(fresh.id);
     setContextMenuId(null);
   }
@@ -657,7 +712,9 @@ export default function ChatApp({ user }: ChatAppProps) {
     const now = Date.now();
     const DAY = 1000 * 60 * 60 * 24;
 
-    const filtered = conversations.filter((c) => c.type === type);
+    const filtered = type === "talk-to-ai"
+      ? conversations.filter((c) => c.type === "talk-to-ai" || c.type === "chat")
+      : conversations.filter((c) => c.type === type);
     const pinned = filtered.filter((c) => c.pinned);
     const unpinned = filtered.filter((c) => !c.pinned);
 
@@ -911,10 +968,10 @@ export default function ChatApp({ user }: ChatAppProps) {
           aria-label="History"
           className="mt-4 flex-1 overflow-y-auto px-2 pb-4"
         >
-          {groupConversations("chat").length > 0 && (
+          {groupConversations("talk-to-ai").length > 0 && (
             <div className="mb-4">
-              <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-white/35">Chats</p>
-              {groupConversations("chat").map((group) => (
+              <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-white/35">Talk to AI</p>
+              {groupConversations("talk-to-ai").map((group) => (
                 <div key={group.label} className="mb-2">
                   <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
                   <ul className="space-y-0.5 text-sm">
@@ -928,7 +985,7 @@ export default function ChatApp({ user }: ChatAppProps) {
               ))}
               <button
                 type="button"
-                onClick={() => setConfirmAction({ type: "clearHistory", section: "chat" })}
+                onClick={() => setConfirmAction({ type: "clearHistory", section: "talk-to-ai" })}
                 className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
               >
                 <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -969,35 +1026,6 @@ export default function ChatApp({ user }: ChatAppProps) {
             </div>
           )}
 
-          {groupConversations("talk-to-ai").length > 0 && (
-            <div className="mb-4">
-              <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-white/35">Talk to AI</p>
-              {groupConversations("talk-to-ai").map((group) => (
-                <div key={group.label} className="mb-2">
-                  <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
-                  <ul className="space-y-0.5 text-sm">
-                    {group.items.map((conv) => (
-                      <li key={conv.id} className="relative" onMouseEnter={() => setHoveredId(conv.id)} onMouseLeave={() => setHoveredId(null)}>
-                        {renderConvItem(conv)}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={() => setConfirmAction({ type: "clearHistory", section: "talk-to-ai" })}
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
-              >
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                </svg>
-                Clear history
-              </button>
-            </div>
-          )}
-
           {groupConversations("grill").length > 0 && (
             <div className="mb-4">
               <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-amber-400/60">Grill Me</p>
@@ -1027,7 +1055,7 @@ export default function ChatApp({ user }: ChatAppProps) {
             </div>
           )}
 
-          {groupConversations("chat").length === 0 && groupConversations("analysis").length === 0 && groupConversations("talk-to-ai").length === 0 && groupConversations("grill").length === 0 && (
+          {groupConversations("analysis").length === 0 && groupConversations("talk-to-ai").length === 0 && groupConversations("grill").length === 0 && (
             <p className="px-3 py-8 text-center text-xs text-white/35">No conversations yet</p>
           )}
         </nav>
@@ -1122,7 +1150,7 @@ export default function ChatApp({ user }: ChatAppProps) {
                 {active?.title ?? "New conversation"}
               </h1>
               <p className="text-[11px] uppercase tracking-[0.2em] text-white/40">
-                {mode === "analysis" ? "In-depth Analysis" : mode === "talk-to-ai" ? "Talk to AI" : mode === "grill" ? "Grill Me — Interrogation Mode" : "Lawbite Assistant"}
+                {mode === "analysis" ? "In-depth Analysis" : mode === "talk-to-ai" || mode === "chat" ? "Talk to AI" : mode === "grill" ? "Grill Me — Interrogation Mode" : "Talk to AI"}
               </p>
             </div>
           </div>
@@ -1245,8 +1273,7 @@ export default function ChatApp({ user }: ChatAppProps) {
                       <button
                         type="button"
                         onClick={() => {
-                          setShowSuggestion(false);
-                          setMode("analysis");
+                          switchMode("analysis");
                         }}
                         className="font-semibold text-white underline decoration-white/40 underline-offset-2 hover:text-white/80"
                       >
@@ -1289,7 +1316,7 @@ export default function ChatApp({ user }: ChatAppProps) {
                     </span>
                   </div>
                 </>
-              ) : mode === "talk-to-ai" ? (
+              ) : mode === "talk-to-ai" || mode === "chat" ? (
                 <>
                   <div className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-1.5 text-xs uppercase tracking-[0.3em] text-white/40">
                     Talk to AI
@@ -1361,10 +1388,8 @@ export default function ChatApp({ user }: ChatAppProps) {
             {mode !== "grill" && (
               <button
                 type="button"
-                onClick={() => {
-                  setMode((prev) => prev === "analysis" ? "talk-to-ai" : "analysis");
-                }}
-                aria-label={mode === "analysis" ? "Switch to talk to AI" : "In-depth analysis"}
+                onClick={() => switchMode(mode === "analysis" ? "talk-to-ai" : "analysis")}
+                aria-label={mode === "analysis" ? "Switch to Talk to AI" : "Switch to In-depth Analysis"}
                 style={blinkAnalysis ? { animation: "blink-icon 1s ease-in-out 3", color: "#ffffff" } : undefined}
                 className={`mb-0.5 shrink-0 rounded-full p-2 transition-colors ${
                   mode === "analysis"
@@ -1469,7 +1494,7 @@ export default function ChatApp({ user }: ChatAppProps) {
             </h3>
             <p className="mt-2 text-sm text-white/55">
               {confirmAction.type === "clearHistory"
-                ? `This will permanently delete all conversations across Chat, In-depth Analysis, Talk to AI, and Grill Me. This action cannot be undone.`
+                ? `This will permanently delete all conversations across Talk to AI, In-depth Analysis, and Grill Me. This action cannot be undone.`
                 : "This will permanently delete this conversation. This action cannot be undone."}
             </p>
             <div className="mt-5 flex justify-end gap-2">
