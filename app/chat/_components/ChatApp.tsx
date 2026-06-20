@@ -26,7 +26,7 @@ type ChatAppProps = {
   user: ChatUser;
 };
 
-type ConversationType = "chat" | "analysis" | "talk-to-ai" | "grill";
+type ConversationType = "chat" | "analysis" | "talk-to-ai" | "grill" | "draft";
 
 type Conversation = {
   id: string;
@@ -211,6 +211,9 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const [disclaimerOpen, setDisclaimerOpen] = useState(false);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [bugOpen, setBugOpen] = useState(false);
+  const [selectedDocType, setSelectedDocType] = useState<string | null>(null);
+  const [formData, setFormData] = useState<Record<string, string>>({});
+  const [lastDraftIdRef, setLastDraftIdRef] = useState<string | null>(null);
 
   const active = conversations.find((c) => c.id === activeId) ?? conversations[0];
 
@@ -232,7 +235,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       const isCompliment = /(thank|thanks|thx|good\s*(job|work|bot|ai)|great|awesome|nice|amazing|perfect|excellent|well\s*done|bravo|superb|fantastic|love\s*you)/.test(content);
       const isOffTopic = /only\s+provide\s+information.*indian\s+law/i.test(lastMsg?.content?.trim() ?? "");
       const isAiGreeting = lastMsg?.content?.trim().toLowerCase().startsWith("hello") && lastMsg?.content?.toLowerCase().includes("how can i assist you");
-      if (lastMsg && lastMsg.role === "assistant" && lastMsg.content && !isOffTopic && !isGreeting && !isCompliment && !isAiGreeting && active?.type !== "grill") {
+      if (lastMsg && lastMsg.role === "assistant" && lastMsg.content && !isOffTopic && !isGreeting && !isCompliment && !isAiGreeting && active?.type !== "grill" && active?.type !== "draft") {
         setShowSuggestion(true);
         setBlinkAnalysis(true);
         setTimeout(() => setBlinkAnalysis(false), 3000);
@@ -244,7 +247,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   }, [isThinking, active]);
 
   useEffect(() => {
-    if (mode === "analysis" || mode === "grill" || !active || active.messages.length === 0) {
+    if (mode === "analysis" || mode === "grill" || mode === "draft" || !active || active.messages.length === 0) {
       setShowSuggestion(false);
       return;
     }
@@ -322,12 +325,12 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   }
 
   function startNewChat() {
-    const prefix = mode === "analysis" ? "a" : mode === "grill" ? "g" : "t";
-    const convType: ConversationType = mode === "analysis" ? "analysis" : mode === "grill" ? "grill" : "talk-to-ai";
+    const prefix = mode === "analysis" ? "a" : mode === "grill" ? "g" : mode === "draft" ? "d" : "t";
+    const convType: ConversationType = mode === "analysis" ? "analysis" : mode === "grill" ? "grill" : mode === "draft" ? "draft" : "talk-to-ai";
     const conv: Conversation = {
       id: newId(prefix),
-      title: mode === "analysis" ? "New analysis" : mode === "grill" ? "New case" : "New conversation",
-      preview: mode === "analysis" ? "In-depth analysis" : mode === "grill" ? "Case intake" : "Just started",
+      title: mode === "analysis" ? "New analysis" : mode === "grill" ? "New case" : mode === "draft" ? "New draft" : "New conversation",
+      preview: mode === "analysis" ? "In-depth analysis" : mode === "grill" ? "Case intake" : mode === "draft" ? "Document drafting" : "Just started",
       type: convType,
       createdAt: Date.now(),
       messages: [],
@@ -339,6 +342,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     setSidebarOpen(false);
     lastTalkIdRef.current = null;
     lastAnalysisIdRef.current = null;
+    if (convType === "draft") {
+      setSelectedDocType(null);
+      setFormData({});
+    }
   }
 
   function startAnalysisChat() {
@@ -391,7 +398,26 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     setMode("grill");
     setDraft("");
     setSidebarOpen(false);
-    setMyCasesOpen(false);
+    setSelectedDocType(null);
+    setFormData({});
+  }
+
+  function startDraftChat() {
+    const conv: Conversation = {
+      id: newId("d"),
+      title: "New draft",
+      preview: "Document drafting",
+      type: "draft",
+      createdAt: Date.now(),
+      messages: [],
+    };
+    setConversations((prev) => [conv, ...prev]);
+    setActiveId(conv.id);
+    setMode("draft");
+    setDraft("");
+    setSidebarOpen(false);
+    setSelectedDocType(null);
+    setFormData({});
   }
 
   function switchMode(newMode: ConversationType) {
@@ -403,18 +429,24 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       lastTalkIdRef.current = activeId;
     } else if (mode === "analysis") {
       lastAnalysisIdRef.current = activeId;
+    } else if (mode === "draft") {
+      setLastDraftIdRef(activeId);
     }
 
     setMode(target);
 
     // Restore the last conversation for the target mode
-    const savedId = target === "analysis" ? lastAnalysisIdRef.current : lastTalkIdRef.current;
+    let savedId: string | null = null;
+    if (target === "analysis") savedId = lastAnalysisIdRef.current;
+    else if (target === "draft") savedId = lastDraftIdRef;
+    else savedId = lastTalkIdRef.current;
+
     const existing = savedId ? conversations.find((c) => c.id === savedId) : null;
 
     if (existing) {
       setActiveId(existing.id);
     } else {
-      const prefix = target === "analysis" ? "a" : "t";
+      const prefix = target === "analysis" ? "a" : target === "draft" ? "d" : "t";
       const conv: Conversation = {
         id: newId(prefix),
         title: "New conversation",
@@ -427,6 +459,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       setActiveId(conv.id);
     }
     setDraft("");
+    if (target === "draft") {
+      setSelectedDocType(null);
+      setFormData({});
+    }
   }
 
   async function sendMessage(text: string) {
@@ -670,9 +706,9 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
   function clearHistory(section?: ConversationType) {
     if (section === undefined) {
-      const types: ConversationType[] = ["talk-to-ai", "analysis", "grill"];
+      const types: ConversationType[] = ["talk-to-ai", "analysis", "grill", "draft"];
       const freshConversations: Conversation[] = types.map((type) => ({
-        id: newId(type === "analysis" ? "a" : type === "talk-to-ai" ? "t" : "g"),
+        id: newId(type === "analysis" ? "a" : type === "talk-to-ai" ? "t" : type === "grill" ? "g" : "d"),
         title: "New conversation",
         preview: "Just started",
         type,
@@ -685,7 +721,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       return;
     }
     const clearType = section ?? active?.type ?? "talk-to-ai";
-    const prefix = clearType === "analysis" ? "a" : clearType === "talk-to-ai" ? "t" : clearType === "grill" ? "g" : "c";
+    const prefix = clearType === "analysis" ? "a" : clearType === "talk-to-ai" ? "t" : clearType === "grill" ? "g" : clearType === "draft" ? "d" : "c";
     const fresh: Conversation = {
       id: newId(prefix),
       title: "New conversation",
@@ -764,6 +800,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     const isAnalysis = conv.type === "analysis";
     const isTalkToAI = conv.type === "talk-to-ai";
     const isGrill = conv.type === "grill";
+    const isDraft = conv.type === "draft";
 
     if (isEditing) {
       return (
@@ -809,6 +846,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-amber-400/70" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /><path d="M11 8v6M8 11h6" /><path d="M9 2L7 5l2 3M15 2l2 3-2 3" />
             </svg>
+          ) : isDraft ? (
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-blue-400/70" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" />
+            </svg>
           ) : (
             <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-white/30" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -819,7 +860,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               {conv.title}
             </span>
             <span className="block text-[10px] text-white/25">
-              {conv.type === "analysis" ? "In-depth Analysis" : conv.type === "talk-to-ai" ? "Talk to AI" : conv.type === "grill" ? "Case Intake" : "Chat"}
+              {conv.type === "analysis" ? "In-depth Analysis" : conv.type === "talk-to-ai" ? "Talk to AI" : conv.type === "grill" ? "Case Intake" : conv.type === "draft" ? "Document Drafter" : "Chat"}
             </span>
           </div>
         </button>
@@ -969,6 +1010,28 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </svg>
             <span>My Cases</span>
           </button>
+          <button
+            type="button"
+            onClick={startDraftChat}
+            className="mt-2 flex w-full items-center gap-2 rounded-full border border-blue-400/30 bg-blue-400/[0.08] px-4 py-2 text-sm font-medium text-blue-400 transition-transform duration-300 hover:scale-[1.01] hover:bg-blue-400/[0.12]"
+          >
+            <svg
+              aria-hidden
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+            <span>Document Drafter</span>
+          </button>
         </div>
 
         <nav
@@ -1033,6 +1096,35 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </div>
           )}
 
+          {groupConversations("draft").length > 0 && (
+            <div className="mb-4">
+              <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-blue-400/60">Document Drafter</p>
+              {groupConversations("draft").map((group) => (
+                <div key={group.label} className="mb-2">
+                  <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
+                  <ul className="space-y-0.5 text-sm">
+                    {group.items.map((conv) => (
+                      <li key={conv.id} className="relative" onMouseEnter={() => setHoveredId(conv.id)} onMouseLeave={() => setHoveredId(null)}>
+                        {renderConvItem(conv)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setConfirmAction({ type: "clearHistory", section: "draft" })}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
+              >
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+                Clear history
+              </button>
+            </div>
+          )}
+
           {groupConversations("grill").length > 0 && (
             <div className="mb-4">
               <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-amber-400/60">My Cases</p>
@@ -1062,7 +1154,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </div>
           )}
 
-          {groupConversations("analysis").length === 0 && groupConversations("talk-to-ai").length === 0 && groupConversations("grill").length === 0 && (
+          {groupConversations("analysis").length === 0 && groupConversations("talk-to-ai").length === 0 && groupConversations("grill").length === 0 && groupConversations("draft").length === 0 && (
             <p className="px-3 py-8 text-center text-xs text-white/35">No conversations yet</p>
           )}
         </nav>
@@ -1157,7 +1249,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 {active?.title ?? "New conversation"}
               </h1>
               <p className="text-[11px] uppercase tracking-[0.2em] text-white/40">
-                {mode === "analysis" ? "In-depth Analysis" : mode === "talk-to-ai" || mode === "chat" ? "Talk to AI" : mode === "grill" ? "Interrogation Mode" : "Talk to AI"}
+                {mode === "analysis" ? "In-depth Analysis" : mode === "talk-to-ai" || mode === "chat" ? "Talk to AI" : mode === "grill" ? "Interrogation Mode" : mode === "draft" ? "Document Drafter" : "Talk to AI"}
               </p>
             </div>
           </div>
@@ -1426,6 +1518,215 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                     </span>
                   </div>
                 </>
+              ) : mode === "draft" ? (
+                <div className="mx-auto flex h-full max-w-4xl flex-col items-center justify-center px-4">
+                  {!selectedDocType ? (
+                    <>
+                      <div className="rounded-full border border-blue-400/30 bg-blue-400/[0.06] px-4 py-1.5 text-xs uppercase tracking-[0.3em] text-blue-400/70">
+                        Document Drafter
+                      </div>
+                      <h2 className="mt-6 text-2xl font-semibold tracking-tight sm:text-3xl">
+                        Draft legal documents in minutes
+                      </h2>
+                      <p className="mt-3 max-w-md text-center text-sm leading-relaxed text-white/55">
+                        Select a document type to start drafting with a structured form,
+                        or switch to chat mode to describe your situation.
+                      </p>
+                      <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                        {[
+                          { id: "legal-notice", label: "Legal Notice", icon: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8" },
+                          { id: "fir-draft", label: "FIR Draft", icon: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" },
+                          { id: "consumer-complaint", label: "Consumer Complaint", icon: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" },
+                          { id: "rti-application", label: "RTI Application", icon: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M12 18v-6 M9 15h6" },
+                          { id: "will", label: "Will", icon: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z M9 12l2 2 4-4" },
+                          { id: "affidavit", label: "Affidavit", icon: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M12 18v-6 M9 12h6" },
+                          { id: "petition", label: "Petition", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 0 0 1 1h3m10-11l2 2m-2-2v10a1 1 0 0 1-1 1h-3m-4 0h4" },
+                          { id: "contract", label: "Contract", icon: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M8 13h8 M8 17h8 M8 9h2" },
+                        ].map((doc) => (
+                          <button
+                            key={doc.id}
+                            type="button"
+                            onClick={() => setSelectedDocType(doc.id)}
+                            className="flex flex-col items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-4 text-center transition-all hover:border-blue-400/30 hover:bg-blue-400/[0.06]"
+                          >
+                            <svg viewBox="0 0 24 24" className="h-8 w-8 text-blue-400/70" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d={doc.icon} />
+                            </svg>
+                            <span className="text-xs text-white/70">{doc.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="w-full max-w-2xl">
+                      <div className="mb-6 flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => { setSelectedDocType(null); setFormData({}); }}
+                          className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/[0.06] hover:text-white"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M19 12H5M12 19l-7-7 7-7" />
+                          </svg>
+                        </button>
+                        <h3 className="text-lg font-semibold text-white">
+                          {selectedDocType === "legal-notice" ? "Legal Notice" :
+                           selectedDocType === "fir-draft" ? "FIR Draft" :
+                           selectedDocType === "consumer-complaint" ? "Consumer Complaint" :
+                           selectedDocType === "rti-application" ? "RTI Application" :
+                           selectedDocType === "will" ? "Will" :
+                           selectedDocType === "affidavit" ? "Affidavit" :
+                           selectedDocType === "petition" ? "Petition" :
+                           "Contract/Agreement"}
+                        </h3>
+                      </div>
+                      <form onSubmit={(e) => {
+                        e.preventDefault();
+                        const docType = selectedDocType === "legal-notice" ? "Legal Notice" :
+                                       selectedDocType === "fir-draft" ? "FIR Draft" :
+                                       selectedDocType === "consumer-complaint" ? "Consumer Complaint" :
+                                       selectedDocType === "rti-application" ? "RTI Application" :
+                                       selectedDocType === "will" ? "Will" :
+                                       selectedDocType === "affidavit" ? "Affidavit" :
+                                       selectedDocType === "petition" ? "Petition" :
+                                       "Contract/Agreement";
+                        const formEntries = Object.entries(formData).filter(([, v]) => v.trim());
+                        const formText = formEntries.map(([k, v]) => `${k.replace(/([A-Z])/g, " $1").replace(/^./, s => s.toUpperCase())}: ${v}`).join("\n");
+                        const message = `Please draft a ${docType} with the following details:\n\n${formText}`;
+                        sendMessage(message);
+                      }} className="space-y-4">
+                        {selectedDocType === "legal-notice" && (
+                          <>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                              <div>
+                                <label className="mb-1 block text-xs text-white/50">From (Sender Name & Address)</label>
+                                <input type="text" value={formData.sender || ""} onChange={(e) => setFormData({ ...formData, sender: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Your name and address" />
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs text-white/50">To (Recipient Name & Address)</label>
+                                <input type="text" value={formData.recipient || ""} onChange={(e) => setFormData({ ...formData, recipient: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Recipient name and address" />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs text-white/50">Subject</label>
+                              <input type="text" value={formData.subject || ""} onChange={(e) => setFormData({ ...formData, subject: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Subject of the notice" />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs text-white/50">Facts / Description</label>
+                              <textarea value={formData.facts || ""} onChange={(e) => setFormData({ ...formData, facts: e.target.value })} rows={4} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Describe the facts and what happened" />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs text-white/50">Relief / Demand</label>
+                              <input type="text" value={formData.relief || ""} onChange={(e) => setFormData({ ...formData, relief: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="What are you demanding?" />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs text-white/50">Deadline (days)</label>
+                              <input type="text" value={formData.deadline || ""} onChange={(e) => setFormData({ ...formData, deadline: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="e.g., 15 days" />
+                            </div>
+                          </>
+                        )}
+                        {selectedDocType === "fir-draft" && (
+                          <>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                              <div>
+                                <label className="mb-1 block text-xs text-white/50">Complainant Name</label>
+                                <input type="text" value={formData.complainant || ""} onChange={(e) => setFormData({ ...formData, complainant: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Your name" />
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs text-white/50">Accused Name (if known)</label>
+                                <input type="text" value={formData.accused || ""} onChange={(e) => setFormData({ ...formData, accused: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Name of accused" />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs text-white/50">Offence / Incident</label>
+                              <input type="text" value={formData.offence || ""} onChange={(e) => setFormData({ ...formData, offence: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="What offence occurred?" />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs text-white/50">Details of Incident</label>
+                              <textarea value={formData.details || ""} onChange={(e) => setFormData({ ...formData, details: e.target.value })} rows={4} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Describe what happened in detail" />
+                            </div>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                              <div>
+                                <label className="mb-1 block text-xs text-white/50">Place of Incident</label>
+                                <input type="text" value={formData.place || ""} onChange={(e) => setFormData({ ...formData, place: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Where did it happen?" />
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs text-white/50">Date of Incident</label>
+                                <input type="text" value={formData.incidentDate || ""} onChange={(e) => setFormData({ ...formData, incidentDate: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="When did it happen?" />
+                              </div>
+                            </div>
+                          </>
+                        )}
+                        {selectedDocType === "consumer-complaint" && (
+                          <>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                              <div>
+                                <label className="mb-1 block text-xs text-white/50">Consumer Name</label>
+                                <input type="text" value={formData.consumerName || ""} onChange={(e) => setFormData({ ...formData, consumerName: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Your name" />
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs text-white/50">Opponent (Company/Seller)</label>
+                                <input type="text" value={formData.opponent || ""} onChange={(e) => setFormData({ ...formData, opponent: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Company or seller name" />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs text-white/50">Product/Service</label>
+                              <input type="text" value={formData.product || ""} onChange={(e) => setFormData({ ...formData, product: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="What product or service?" />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs text-white/50">Deficiency / Problem</label>
+                              <textarea value={formData.deficiency || ""} onChange={(e) => setFormData({ ...formData, deficiency: e.target.value })} rows={4} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="What is the deficiency in service or product?" />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs text-white/50">Relief Sought</label>
+                              <input type="text" value={formData.relief || ""} onChange={(e) => setFormData({ ...formData, relief: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="What compensation/relief do you want?" />
+                            </div>
+                          </>
+                        )}
+                        {selectedDocType === "rti-application" && (
+                          <>
+                            <div>
+                              <label className="mb-1 block text-xs text-white/50">Applicant Name</label>
+                              <input type="text" value={formData.applicant || ""} onChange={(e) => setFormData({ ...formData, applicant: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Your name" />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs text-white/50">Public Authority / Department</label>
+                              <input type="text" value={formData.authority || ""} onChange={(e) => setFormData({ ...formData, authority: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Which government department?" />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs text-white/50">Information Sought</label>
+                              <textarea value={formData.information || ""} onChange={(e) => setFormData({ ...formData, information: e.target.value })} rows={4} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="What information do you want?" />
+                            </div>
+                          </>
+                        )}
+                        {(selectedDocType === "will" || selectedDocType === "affidavit" || selectedDocType === "petition" || selectedDocType === "contract") && (
+                          <>
+                            <div>
+                              <label className="mb-1 block text-xs text-white/50">Your Name / Party Details</label>
+                              <input type="text" value={formData.partyName || ""} onChange={(e) => setFormData({ ...formData, partyName: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Your name or party details" />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs text-white/50">Purpose / Description</label>
+                              <textarea value={formData.purpose || ""} onChange={(e) => setFormData({ ...formData, purpose: e.target.value })} rows={4} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Describe the purpose and key details" />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs text-white/50">Additional Details</label>
+                              <textarea value={formData.additionalDetails || ""} onChange={(e) => setFormData({ ...formData, additionalDetails: e.target.value })} rows={3} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Any other relevant information" />
+                            </div>
+                          </>
+                        )}
+                        <div className="flex gap-3 pt-2">
+                          <button type="submit" className="flex-1 rounded-xl bg-blue-500 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-600">
+                            Generate Document
+                          </button>
+                          <button type="button" onClick={() => { setSelectedDocType(null); setFormData({}); }} className="rounded-xl border border-white/10 px-4 py-2.5 text-sm text-white/60 transition-colors hover:bg-white/[0.04]">
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <>
                   <div className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-1.5 text-xs uppercase tracking-[0.3em] text-white/40">
@@ -1453,7 +1754,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             <label htmlFor="chat-input" className="sr-only">
               Message
             </label>
-            {mode !== "grill" && (
+            {mode !== "grill" && mode !== "draft" && (
               <button
                 type="button"
                 onClick={() => switchMode(mode === "analysis" ? "talk-to-ai" : "analysis")}

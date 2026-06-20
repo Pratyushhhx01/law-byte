@@ -126,6 +126,10 @@ ACTS = [
      "category": "Tort Law", "aliases": ["tort", "tort law", "law of torts"]},
 
     # COURT PROCEDURES
+    {"id": "jurisdiction-structure-of-courts", "title": "Jurisdiction and Structure of Courts",
+     "url": "https://nja.gov.in/Concluded_Programmes/2017-18/SE-13_PPTs/6.Judiciary%20organization%20HC%20and%20SC.pdf",
+     "category": "Court Procedure", "aliases": ["jurisdiction of courts", "court jurisdiction", "structure of courts", "court structure", "high court jurisdiction", "supreme court jurisdiction"]},
+
     {"id": "civil-appeals", "title": "Law of Civil Appeals",
      "url": "https://lawhelpline.in/wp-content/uploads/2024/01/APPEALCIVIL.pdf",
      "category": "Court Procedure", "aliases": ["civil appeal", "civil appeals"]},

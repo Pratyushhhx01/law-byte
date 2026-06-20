@@ -15,6 +15,52 @@ const ANALYSIS_SYSTEM_PROMPT = `You are Lawbite AI, an Indian legal assistant. O
 
 const TALK_TO_AI_SYSTEM_PROMPT = `You are Lawbite AI, an Indian legal assistant. ONLY answer about Indian law. Never answer about laws of any other country. If not about Indian law, respond ONLY with: I can only provide information related to Indian law. Please ask a legal question concerning India. If the user's message is ONLY a greeting word (hi, hello, hey, namaste) with no legal question, reply ONLY with: Hello! How can I assist you with Indian legal matters today? Nothing else. Otherwise, answer the question directly without any greeting. For EVERY other question, answer in EXACTLY TWO SHORT LINES ONLY. Maximum 2 lines. No exceptions. No tables. No bullet points. No lists. No headers. No multiple paragraphs. If you write more than 2 lines you are wrong. IMPORTANT: Never confuse sections (used in Acts/Codes like CrPC, IPC) with articles (used in the Constitution). They are different provisions. Never invent or hallucinate section numbers, article numbers, amendment numbers, or case names. Only use facts from the legal knowledge provided to you.`;
 
+const DOCUMENT_DRAFTER_SYSTEM_PROMPT = `You are Lawbite AI Document Drafter, a specialized Indian legal document drafting assistant.
+
+## Your Job
+Generate properly formatted, ready-to-use Indian legal documents based on user-provided information.
+
+## Document Types You Can Draft
+1. LEGAL NOTICE — Formal notice before legal action
+2. FIR DRAFT — Police complaint draft
+3. CONSUMER COMPLAINT — Consumer court complaint
+4. RTI APPLICATION — Right to Information request
+5. WILL — Testamentary document
+6. AFFIDAVIT — Sworn statement
+7. PETITION — Court petition/plaint
+8. CONTRACT/AGREEMENT — Legal agreement between parties
+
+## When User Provides Facts (Form or Chat)
+1. Identify the document type requested
+2. Verify all mandatory information is provided
+3. If missing critical information, ask ONE clarifying question at a time
+4. Once all facts are gathered, generate the complete document
+
+## Document Format Rules
+- Use proper Indian legal document format
+- Include date, parties, subject line, and body
+- Reference correct Indian law sections (ONLY from the knowledge base provided)
+- Use formal legal language
+- Include signature blocks where appropriate
+- NEVER hallucinate section numbers, case names, or legal provisions
+- If unsure about a section number, say "relevant provisions of [Act Name]"
+
+## Output Format
+Generate the document in plain text with proper structure:
+- Title/heading centered
+- Parties identified clearly
+- Facts narrated in paragraphs
+- Legal provisions cited correctly
+- Relief/prayer clearly stated
+- Signature blocks at the end
+
+## Rules
+- Only draft documents related to Indian law
+- Never draft documents for illegal purposes
+- Always include a disclaimer: "This is a draft for reference purposes. Please consult a practicing lawyer before filing."
+- Keep language formal but understandable
+- Use numbered paragraphs for facts and legal grounds`;
+
 const GRILL_SYSTEM_PROMPT = `You are Lawbite AI, a rigorous Indian legal advisor running a structured interrogation session called "Grill Me."
 
 ## Your Job
@@ -88,6 +134,8 @@ function getSystemPrompt(conversationType?: string) {
       return TALK_TO_AI_SYSTEM_PROMPT;
     case "grill":
       return GRILL_SYSTEM_PROMPT;
+    case "draft":
+      return DOCUMENT_DRAFTER_SYSTEM_PROMPT;
     default:
       return CHAT_SYSTEM_PROMPT;
   }
@@ -196,6 +244,8 @@ async function getLegalKnowledge(query: string): Promise<string> {
       "transfer of property": "transfer-of-property-act", "property act": "transfer-of-property-act", tpa: "transfer-of-property-act",
       contract: "indian-contract-act", "contract act": "indian-contract-act",
       "specific relief": "specific-relief-act",
+      "jurisdiction of courts": "jurisdiction-structure-of-courts", "court jurisdiction": "jurisdiction-structure-of-courts", "structure of courts": "jurisdiction-structure-of-courts", "court structure": "jurisdiction-structure-of-courts", "high court jurisdiction": "jurisdiction-structure-of-courts", "supreme court jurisdiction": "jurisdiction-structure-of-courts",
+      "tort law": "tort-law", tort: "tort-law", "tort liability": "tort-law", "civil wrong": "tort-law", "civil wrongs": "tort-law", negligence: "tort-law", defamation: "tort-law", nuisance: "tort-law", trespass: "tort-law", "strict liability": "tort-law", "vicarious liability": "tort-law", damages: "tort-law", "malicious prosecution": "tort-law", "false imprisonment": "tort-law", "assault and battery": "tort-law",
 
       // Family Law
       "consumer protection": "consumer-protection-act", "consumer act": "consumer-protection-act",
@@ -395,7 +445,8 @@ async function getLegalKnowledge(query: string): Promise<string> {
       "consumer-protection-act",
       "information-technology-act", "cyber-law-forensics", "data-protection", "hacking-laws",
       "identity-theft", "online-frauds", "cyber-crime-detection", "digital-evidence",
-      "constitutional-law-jurisprudence", "legal-terminology", "tort-law",
+      "constitutional-law-jurisprudence", "legal-terminology",
+      "jurisdiction-structure-of-courts", "tort-law",
       "civil-appeals", "judicial-review", "writ-jurisprudence", "public-interest-litigation", "revision-of-courts",
       "police-act-1861", "fir-procedures", "arrest-guidelines", "search-and-seizure", "nia-act",
       "charge-sheets", "preventive-detention",
