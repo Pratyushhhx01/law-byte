@@ -11,10 +11,10 @@ type Stat = {
 };
 
 const stats: Stat[] = [
-  { value: 99.9, suffix: "%", label: "Uptime across all regions", decimals: 1 },
-  { value: 12, suffix: "k+", label: "Active practitioners" },
-  { value: 4, suffix: "M+", label: "Documents processed" },
-  { value: 35, suffix: "%", label: "Faster turnaround on average" },
+  { value: 40, suffix: "+", label: "Indian bare acts covered" },
+  { value: 3, suffix: "", label: "AI conversation modes" },
+  { value: 8, suffix: "", label: "Legal analysis lenses in Grill Me" },
+  { value: 0, suffix: "", label: "Cost to get started", decimals: 0 },
 ];
 
 function useCountUp(target: number, durationMs = 1600, decimals = 0) {
@@ -102,7 +102,7 @@ export default function Stats() {
             / By the numbers
           </p>
           <h2 className="mt-5 max-w-3xl text-balance text-3xl font-semibold leading-[1.15] tracking-tight sm:text-4xl md:text-5xl">
-            Quietly powerful, on the metrics that matter.
+            Built for Indian legal research.
           </h2>
         </Reveal>
 

@@ -2,23 +2,22 @@
 
 import Link from "next/link";
 import { legalPages } from "../legal/_data";
+import LogoIcon from "./LogoIcon";
 
 const columns: { title: string; links: { label: string; href: string }[] }[] = [
   {
     title: "Product",
     links: [
-      { label: "Overview", href: "#product" },
-      { label: "Solutions", href: "#solutions" },
-      { label: "Process", href: "#process" },
-      { label: "Pricing", href: "#pricing" },
+      { label: "Features", href: "#features" },
+      { label: "How It Works", href: "#process" },
+      { label: "Preview", href: "#preview" },
+      { label: "FAQ", href: "#faq" },
     ],
   },
   {
     title: "Company",
     links: [
       { label: "About", href: "#" },
-      { label: "Careers", href: "#" },
-      { label: "Press", href: "#" },
       { label: "Contact", href: "#contact" },
     ],
   },
@@ -27,8 +26,6 @@ const columns: { title: string; links: { label: string; href: string }[] }[] = [
     links: [
       { label: "Docs", href: "#" },
       { label: "Guides", href: "#" },
-      { label: "Changelog", href: "#" },
-      { label: "Status", href: "#" },
     ],
   },
   {
@@ -47,18 +44,12 @@ export default function Footer() {
         <div className="grid gap-12 lg:grid-cols-12">
           <div className="lg:col-span-4">
             <a href="#" className="inline-flex items-center gap-2.5 text-sm font-semibold">
-              <span
-                className="relative inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-white text-black"
-                aria-hidden
-              >
-                <span className="absolute inset-1 rounded-full border border-black/30" />
-                <span className="relative h-1.5 w-1.5 rounded-full bg-black" />
-              </span>
+              <LogoIcon className="h-7 w-7" />
               <span>Lawbite</span>
             </a>
             <p className="mt-5 max-w-sm text-sm leading-relaxed text-white/55">
-              A short placeholder description of the company, the product, or
-              the mission. Keep it brief and human.
+              AI-powered Indian legal assistant. Get instant answers from
+              40+ bare acts, structured analysis, and real-time web search.
             </p>
             <form
               className="mt-7 flex max-w-sm items-center gap-2 rounded-full border border-white/10 bg-white/[0.02] p-1.5 pl-4 transition-colors duration-300 focus-within:border-white/30"

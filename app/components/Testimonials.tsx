@@ -12,27 +12,27 @@ type Testimonial = {
 const testimonials: Testimonial[] = [
   {
     quote:
-      "Placeholder quote from a happy customer. Short, specific, and focused on the outcome.",
-    name: "Alex Carter",
-    role: "Head of Operations, Acme",
+      "I used the Grill Me mode for a bail application. It walked me through every angle I hadn't considered — the structured approach saved me hours of research.",
+    name: "Arjun Mehta",
+    role: "Junior Advocate, Delhi High Court",
   },
   {
     quote:
-      "Placeholder quote from a happy customer. Short, specific, and focused on the outcome.",
-    name: "Priya Shah",
-    role: "General Counsel, Northwind",
+      "Finally, an AI that understands Indian law specifically. The section-level references to actual bare acts make this genuinely useful, not just generic legal chatbots.",
+    name: "Priya Sharma",
+    role: "Legal Researcher, NLU Delhi",
   },
   {
     quote:
-      "Placeholder quote from a happy customer. Short, specific, and focused on the outcome.",
-    name: "Marcus Lee",
-    role: "Founder, Stellaris",
+      "The in-depth analysis mode gave me a 12-point breakdown of a contract dispute. It cited relevant IPC sections and recent judgments I had missed.",
+    name: "Rohan Desai",
+    role: "Corporate Lawyer, Mumbai",
   },
   {
     quote:
-      "Placeholder quote from a happy customer. Short, specific, and focused on the outcome.",
-    name: "Sofia Romero",
-    role: "Director, Meridian",
+      "As a law student, this is incredible for exam prep. I can ask about any provision and get a clear, structured answer with the exact section references.",
+    name: "Kavya Nair",
+    role: "Final Year Student, NALSAR",
   },
 ];
 

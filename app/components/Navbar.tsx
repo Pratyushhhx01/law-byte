@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSession, signOut } from "@/lib/auth-client";
+import LogoIcon from "./LogoIcon";
 
 const links = [
-  { label: "Product", href: "#product" },
-  { label: "Solutions", href: "#solutions" },
-  { label: "Process", href: "#process" },
-  { label: "Pricing", href: "#pricing" },
+  { label: "Features", href: "#features" },
+  { label: "Preview", href: "#preview" },
+  { label: "How It Works", href: "#process" },
+  { label: "FAQ", href: "#faq" },
   { label: "Contact", href: "#contact" },
 ];
 
@@ -56,13 +57,7 @@ export default function Navbar() {
           href="#"
           className="group flex items-center gap-2.5 text-sm font-semibold tracking-tight"
         >
-          <span
-            className="relative inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-white text-black transition-transform duration-500 group-hover:rotate-90"
-            aria-hidden
-          >
-            <span className="absolute inset-1 rounded-full border border-black/30" />
-            <span className="relative h-1.5 w-1.5 rounded-full bg-black" />
-          </span>
+          <LogoIcon className="h-7 w-7" />
           <span className="text-white">Lawbite</span>
         </a>
 

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import LogoIcon from "./LogoIcon";
 
 const Navbar = dynamic(() => import("./Navbar"), {
   ssr: false,
@@ -12,10 +13,7 @@ const Navbar = dynamic(() => import("./Navbar"), {
           href="#"
           className="group flex items-center gap-2.5 text-sm font-semibold tracking-tight"
         >
-          <span className="relative inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-white text-black">
-            <span className="absolute inset-1 rounded-full border border-black/30" />
-            <span className="relative h-1.5 w-1.5 rounded-full bg-black" />
-          </span>
+          <LogoIcon className="h-7 w-7" />
           <span className="text-white">Lawbite</span>
         </a>
         <div className="hidden items-center gap-2 md:flex">

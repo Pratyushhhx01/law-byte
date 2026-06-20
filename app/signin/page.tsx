@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { signIn } from "@/lib/auth-client";
+import LogoIcon from "../components/LogoIcon";
 
 function GitHubIcon({ className }: { className?: string }) {
   return (
@@ -77,13 +78,7 @@ export default function SignInPage() {
             aria-label="Lawbite home"
             className="inline-flex items-center gap-2.5 text-sm font-semibold tracking-tight"
           >
-            <span
-              aria-hidden
-              className="relative inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-white text-black"
-            >
-              <span className="absolute inset-1 rounded-full border border-black/30" />
-              <span className="relative h-1.5 w-1.5 rounded-full bg-black" />
-            </span>
+            <LogoIcon className="h-7 w-7" />
             <span>Lawbite</span>
           </Link>
           <h1 className="mt-8 text-2xl font-semibold tracking-tight sm:text-3xl">

@@ -9,27 +9,27 @@ type Step = {
 const steps: Step[] = [
   {
     number: "01",
-    title: "Discover",
+    title: "Ask",
     description:
-      "Placeholder step describing the discovery phase. Brief and focused.",
+      "Type your legal question in plain language. No need to know the right section or act — just describe your situation.",
   },
   {
     number: "02",
-    title: "Design",
+    title: "Choose a Mode",
     description:
-      "Placeholder step describing the design phase. Brief and focused.",
+      "Pick quick answer, deep analysis, structured interrogation, or free-form chat — depending on how much detail you need.",
   },
   {
     number: "03",
-    title: "Deliver",
+    title: "Get Grounded Answers",
     description:
-      "Placeholder step describing the delivery phase. Brief and focused.",
+      "AI retrieves from 40+ Indian bare acts and searches the web for current legal developments to support its response.",
   },
   {
     number: "04",
-    title: "Support",
+    title: "Save & Share",
     description:
-      "Placeholder step describing the support phase. Brief and focused.",
+      "Pin important conversations, save completed cases for reference, and share findings to social platforms.",
   },
 ];
 
@@ -47,12 +47,12 @@ export default function HowItWorks() {
                 / Process
               </p>
               <h2 className="mt-5 max-w-2xl text-balance text-4xl font-semibold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl">
-                A clear path from idea to outcome.
+                From question to clarity in four steps.
               </h2>
             </div>
             <p className="max-w-sm text-sm leading-relaxed text-white/60">
-              Four lightweight stages. No fluff, no surprise scope — just
-              steady forward motion.
+              No legal training required. Just ask, and Lawbite does the
+              heavy lifting.
             </p>
           </div>
         </Reveal>

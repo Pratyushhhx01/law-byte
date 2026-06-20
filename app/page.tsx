@@ -5,25 +5,23 @@ import Footer from "./components/Footer";
 import Hero from "./components/Hero";
 import HowItWorks from "./components/HowItWorks";
 import Marquee from "./components/Marquee";
-import MouseGlow from "./components/MouseGlow";
 import NavbarWrapper from "./components/NavbarWrapper";
 import Showcase from "./components/Showcase";
 import Stats from "./components/Stats";
 import Testimonials from "./components/Testimonials";
 
 const marqueeItems = [
-  "Client-first workflows",
-  "Built for speed",
-  "Calm by design",
-  "Quietly powerful",
-  "Engineered to scale",
-  "Made for teams",
+  "40+ Indian Bare Acts",
+  "Instant Legal Answers",
+  "IPC \u00b7 BNS \u00b7 CrPC \u00b7 BNSS",
+  "AI-Powered Legal Research",
+  "Section-Level Retrieval",
+  "Free to Start",
 ];
 
 export default function Home() {
   return (
     <div className="relative isolate flex min-h-screen flex-col bg-black text-white">
-      <MouseGlow />
       <NavbarWrapper />
       <main className="relative z-10 flex flex-1 flex-col">
         <Hero />

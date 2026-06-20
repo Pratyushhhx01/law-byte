@@ -4,7 +4,7 @@ import Reveal from "./Reveal";
 export default function Hero() {
   return (
     <section
-      id="product"
+      id="hero"
       className="relative isolate flex min-h-[100svh] items-center overflow-hidden pt-32 pb-24"
     >
       <div className="absolute inset-0 -z-10">
@@ -20,25 +20,6 @@ export default function Hero() {
       </div>
 
       <div className="relative mx-auto flex w-full max-w-6xl flex-col items-center px-6 text-center">
-        <Reveal>
-          <a
-            href="#"
-            className="group inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.03] px-3.5 py-1.5 text-xs text-white/70 transition-all duration-300 hover:border-white/30 hover:text-white"
-          >
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-60" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-white" />
-            </span>
-            <span>Now in private beta</span>
-            <span
-              aria-hidden
-              className="inline-block translate-x-0 text-white/50 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:text-white"
-            >
-              →
-            </span>
-          </a>
-        </Reveal>
-
         <Reveal delay={1}>
           <h1 className="mt-8 max-w-5xl text-balance text-5xl font-semibold leading-[1.05] tracking-tight sm:text-6xl md:text-7xl lg:text-[88px]">
             <span className="block">Modern legal practice,</span>
@@ -48,19 +29,19 @@ export default function Hero() {
 
         <Reveal delay={2}>
           <p className="mt-7 max-w-2xl text-balance text-base leading-relaxed text-white/65 sm:text-lg">
-            A placeholder headline for the Lawbite landing page. Drop the
-            real copy here later — the structure, motion, and rhythm of the
-            page are already in place.
+            Ask any Indian legal question in plain language. Get instant
+            answers backed by 40+ bare acts, structured legal analysis, and
+            real-time web search &mdash; all in one place.
           </p>
         </Reveal>
 
         <Reveal delay={3}>
           <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row">
             <a
-              href="#cta"
+              href="/chat"
               className="btn-shine group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-white px-6 py-3 text-sm font-medium text-black transition-transform duration-300 hover:scale-[1.03]"
             >
-              Start building
+              Ask a Legal Question
               <span
                 aria-hidden
                 className="inline-block transition-transform duration-300 group-hover:translate-x-0.5"
@@ -69,7 +50,7 @@ export default function Hero() {
               </span>
             </a>
             <a
-              href="#process"
+              href="#features"
               className="group inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.02] px-6 py-3 text-sm text-white/80 transition-all duration-300 hover:border-white/30 hover:bg-white/[0.06] hover:text-white"
             >
               See how it works
@@ -87,7 +68,7 @@ export default function Hero() {
           <div className="relative mt-20 w-full">
             <div className="absolute inset-x-10 -top-2 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
             <div className="grid grid-cols-2 items-center gap-6 sm:grid-cols-4">
-              {["Acme", "Northwind", "Stellaris", "Meridian"].map((name, i) => (
+              {["IPC / BNS", "CrPC / BNSS", "Constitution", "40+ Acts"].map((name, i) => (
                 <span
                   key={name}
                   className="text-center text-sm font-medium tracking-[0.2em] text-white/40 transition-colors duration-500 hover:text-white/80"

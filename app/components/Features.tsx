@@ -9,46 +9,69 @@ type Feature = {
 const features: Feature[] = [
   {
     tag: "01",
-    title: "Built for clarity",
+    title: "Talk to AI",
     description:
-      "Placeholder copy describing a feature of the product. Calm, focused, and fast.",
+      "Get quick, direct answers to any Indian legal question in plain language. No legal jargon, no fluff — just clear guidance.",
   },
   {
     tag: "02",
-    title: "Motion with intent",
+    title: "In-depth Analysis",
     description:
-      "Every animation guides attention, never distracts. Designed to feel weightless.",
+      "Receive a detailed 10–12 point legal analysis with numbered findings, relevant sections, and a clear conclusion.",
   },
   {
     tag: "03",
-    title: "Engineered scale",
+    title: "Grill Me",
     description:
-      "Placeholder copy describing scalability, performance, or reliability of the platform.",
+      "A structured interrogation mode that asks one question at a time across 8 legal lenses — building a complete picture before delivering tailored advice.",
   },
   {
     tag: "04",
-    title: "Secure by default",
+    title: "Standard Chat",
     description:
-      "Placeholder copy describing the security posture, compliance, and data protection.",
+      "Have a free-form conversation about any legal topic. Ask follow-ups, explore edge cases, and refine your understanding.",
   },
   {
     tag: "05",
-    title: "Designed in monochrome",
+    title: "40+ Bare Acts",
     description:
-      "A black and white system that lets the content breathe and stand on its own.",
+      "AI-powered retrieval from India's key legislation — IPC, BNS, CrPC, BNSS, the Constitution, and 40+ other acts at the section level.",
   },
   {
     tag: "06",
-    title: "Effortless integrations",
+    title: "Live Web Search",
     description:
-      "Placeholder copy describing how the product connects with the rest of the stack.",
+      "When your query needs current information, Lawbite automatically searches the web for recent judgments, amendments, and legal developments.",
   },
 ];
 
 function FeatureIcon({ index }: { index: number }) {
   const shapes = [
     <svg
-      key="circle"
+      key="chat"
+      viewBox="0 0 32 32"
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+    >
+      <path d="M6 6h20a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H14l-6 4v-4H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z" />
+      <path d="M10 12h12M10 16h8" />
+    </svg>,
+    <svg
+      key="analysis"
+      viewBox="0 0 32 32"
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+    >
+      <rect x="4" y="4" width="24" height="24" rx="2" />
+      <path d="M10 12l3 3 4-4 5 5" />
+      <path d="M10 22h12" />
+    </svg>,
+    <svg
+      key="grill"
       viewBox="0 0 32 32"
       className="h-6 w-6"
       fill="none"
@@ -56,64 +79,42 @@ function FeatureIcon({ index }: { index: number }) {
       strokeWidth="1.4"
     >
       <circle cx="16" cy="16" r="11" />
-      <circle cx="16" cy="16" r="4" />
+      <path d="M16 11v6" />
+      <circle cx="16" cy="21" r="1" fill="currentColor" />
     </svg>,
     <svg
-      key="square"
+      key="conversation"
       viewBox="0 0 32 32"
       className="h-6 w-6"
       fill="none"
       stroke="currentColor"
       strokeWidth="1.4"
     >
-      <rect x="6" y="6" width="20" height="20" rx="2" />
-      <path d="M6 16h20M16 6v20" />
+      <path d="M4 8h18a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H12l-4 3v-3H4a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2z" />
+      <path d="M26 18l4 3v-3h-2" />
     </svg>,
     <svg
-      key="tri"
+      key="books"
       viewBox="0 0 32 32"
       className="h-6 w-6"
       fill="none"
       stroke="currentColor"
       strokeWidth="1.4"
     >
-      <path d="M16 5l11 22H5z" />
-      <path d="M16 14v8" />
+      <path d="M4 5h8a4 4 0 0 1 4 4v18a3 3 0 0 0-3-3H4V5z" />
+      <path d="M28 5h-8a4 4 0 0 0-4 4v18a3 3 0 0 1 3-3h9V5z" />
     </svg>,
     <svg
-      key="diamond"
+      key="search"
       viewBox="0 0 32 32"
       className="h-6 w-6"
       fill="none"
       stroke="currentColor"
       strokeWidth="1.4"
     >
-      <path d="M16 3l13 13-13 13L3 16z" />
-      <path d="M9 16h14M16 9v14" />
-    </svg>,
-    <svg
-      key="hex"
-      viewBox="0 0 32 32"
-      className="h-6 w-6"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-    >
-      <path d="M16 3l11 6.5v13L16 29 5 22.5v-13z" />
-      <circle cx="16" cy="16" r="3" />
-    </svg>,
-    <svg
-      key="lines"
-      viewBox="0 0 32 32"
-      className="h-6 w-6"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-    >
-      <path d="M5 9h22M5 16h22M5 23h22" />
-      <circle cx="9" cy="9" r="1.5" fill="currentColor" />
-      <circle cx="23" cy="16" r="1.5" fill="currentColor" />
-      <circle cx="13" cy="23" r="1.5" fill="currentColor" />
+      <circle cx="14" cy="14" r="8" />
+      <path d="M20 20l6 6" />
+      <path d="M11 11h6M11 14h4" />
     </svg>,
   ];
   return shapes[index % shapes.length];
@@ -122,24 +123,23 @@ function FeatureIcon({ index }: { index: number }) {
 export default function Features() {
   return (
     <section
-      id="solutions"
+      id="features"
       className="relative isolate border-t border-white/10 py-28 sm:py-36"
     >
       <div className="mx-auto max-w-6xl px-6">
         <div className="grid items-end gap-10 md:grid-cols-2">
           <Reveal>
             <p className="text-xs font-medium uppercase tracking-[0.3em] text-white/50">
-              / Solutions
+              / Features
             </p>
             <h2 className="mt-5 text-balance text-4xl font-semibold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl">
-              Everything you need, nothing you don&apos;t.
+              Four ways to get legal clarity.
             </h2>
           </Reveal>
           <Reveal delay={1}>
             <p className="max-w-md text-base leading-relaxed text-white/60">
-              A short, scannable intro goes here. Two or three sentences is
-              the right size for this kind of supporting copy on a marketing
-              page.
+              From quick answers to deep analysis, choose the mode that fits
+              your situation. Every response is grounded in Indian law.
             </p>
           </Reveal>
         </div>
@@ -175,7 +175,7 @@ export default function Features() {
                   {feature.description}
                 </p>
                 <div className="mt-8 inline-flex items-center gap-1.5 text-xs font-medium text-white/0 transition-colors duration-500 group-hover:text-white/80">
-                  Learn more
+                  Try it now
                   <span
                     aria-hidden
                     className="inline-block transition-transform duration-500 group-hover:translate-x-1"

@@ -40,19 +40,19 @@ export default function CTASection() {
               / Get started
             </p>
             <h2 className="mx-auto mt-5 max-w-3xl text-balance text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl md:text-6xl">
-              Ready to see it in motion?
+              Your first legal answer is one question away.
             </h2>
             <p className="mx-auto mt-6 max-w-xl text-balance text-base leading-relaxed text-white/65">
-              A short, focused call-to-action description goes here. Keep it
-              confident, calm, and specific.
+              No sign-up walls. No credit card. Just type your question and
+              get an answer grounded in Indian law.
             </p>
 
             <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <a
-                href="#"
+                href="/chat"
                 className="btn-shine group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-white px-7 py-3.5 text-sm font-medium text-black transition-transform duration-300 hover:scale-[1.03]"
               >
-                Schedule a demo
+                Ask a Legal Question
                 <span
                   aria-hidden
                   className="inline-block transition-transform duration-300 group-hover:translate-x-0.5"
@@ -61,25 +61,25 @@ export default function CTASection() {
                 </span>
               </a>
               <a
-                href="#"
+                href="#features"
                 className="group inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.02] px-7 py-3.5 text-sm text-white/80 transition-all duration-300 hover:border-white/30 hover:bg-white/[0.06] hover:text-white"
               >
-                Talk to sales
+                Explore Features
               </a>
             </div>
 
             <div className="mt-12 flex flex-col items-center justify-center gap-2 text-xs text-white/40 sm:flex-row sm:gap-6">
               <span className="flex items-center gap-2">
                 <span className="inline-block h-1 w-1 rounded-full bg-white/50" />
+                Free to start
+              </span>
+              <span className="flex items-center gap-2">
+                <span className="inline-block h-1 w-1 rounded-full bg-white/50" />
+                40+ bare acts covered
+              </span>
+              <span className="flex items-center gap-2">
+                <span className="inline-block h-1 w-1 rounded-full bg-white/50" />
                 No credit card required
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="inline-block h-1 w-1 rounded-full bg-white/50" />
-                14-day trial
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="inline-block h-1 w-1 rounded-full bg-white/50" />
-                Cancel anytime
               </span>
             </div>
           </div>

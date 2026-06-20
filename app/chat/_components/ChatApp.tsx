@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Fragment, useEffect, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent, ReactNode } from "react";
 import { signOut } from "@/lib/auth-client";
+import LogoIcon from "../../components/LogoIcon";
 
 type Role = "user" | "assistant";
 
@@ -325,8 +326,8 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     const convType: ConversationType = mode === "analysis" ? "analysis" : mode === "grill" ? "grill" : "talk-to-ai";
     const conv: Conversation = {
       id: newId(prefix),
-      title: mode === "analysis" ? "New analysis" : mode === "grill" ? "New grill session" : "New conversation",
-      preview: mode === "analysis" ? "In-depth analysis" : mode === "grill" ? "Grill Me" : "Just started",
+      title: mode === "analysis" ? "New analysis" : mode === "grill" ? "New case" : "New conversation",
+      preview: mode === "analysis" ? "In-depth analysis" : mode === "grill" ? "Case intake" : "Just started",
       type: convType,
       createdAt: Date.now(),
       messages: [],
@@ -379,8 +380,8 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   function startGrill() {
     const conv: Conversation = {
       id: newId("g"),
-      title: "New grill session",
-      preview: "Grill Me",
+      title: "New case",
+      preview: "Case intake",
       type: "grill",
       createdAt: Date.now(),
       messages: [],
@@ -577,7 +578,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
           const newCase: SavedCase = {
             id: newId("sc"),
-            title: conv.title === "New grill session" ? extractTopic(problem) : conv.title,
+            title: conv.title === "New case" ? extractTopic(problem) : conv.title,
             summary,
             problem,
             state,
@@ -818,7 +819,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               {conv.title}
             </span>
             <span className="block text-[10px] text-white/25">
-              {conv.type === "analysis" ? "In-depth Analysis" : conv.type === "talk-to-ai" ? "Talk to AI" : conv.type === "grill" ? "Grill Me" : "Chat"}
+              {conv.type === "analysis" ? "In-depth Analysis" : conv.type === "talk-to-ai" ? "Talk to AI" : conv.type === "grill" ? "Case Intake" : "Chat"}
             </span>
           </div>
         </button>
@@ -905,13 +906,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             aria-label="Lawbite home"
             className="inline-flex items-center gap-2 text-sm font-semibold tracking-tight"
           >
-            <span
-              aria-hidden
-              className="relative inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/20 bg-white text-black"
-            >
-              <span className="absolute inset-0.5 rounded-full border border-black/30" />
-              <span className="relative h-1.5 w-1.5 rounded-full bg-black" />
-            </span>
+            <LogoIcon className="h-6 w-6" />
             <span>Lawbite</span>
           </Link>
           <button
@@ -1040,7 +1035,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
           {groupConversations("grill").length > 0 && (
             <div className="mb-4">
-              <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-amber-400/60">Grill Me</p>
+              <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-amber-400/60">My Cases</p>
               {groupConversations("grill").map((group) => (
                 <div key={group.label} className="mb-2">
                   <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
@@ -1162,7 +1157,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 {active?.title ?? "New conversation"}
               </h1>
               <p className="text-[11px] uppercase tracking-[0.2em] text-white/40">
-                {mode === "analysis" ? "In-depth Analysis" : mode === "talk-to-ai" || mode === "chat" ? "Talk to AI" : mode === "grill" ? "Grill Me — Interrogation Mode" : "Talk to AI"}
+                {mode === "analysis" ? "In-depth Analysis" : mode === "talk-to-ai" || mode === "chat" ? "Talk to AI" : mode === "grill" ? "Interrogation Mode" : "Talk to AI"}
               </p>
             </div>
           </div>
@@ -1405,7 +1400,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               ) : mode === "grill" ? (
                 <>
                   <div className="rounded-full border border-amber-400/30 bg-amber-400/[0.06] px-4 py-1.5 text-xs uppercase tracking-[0.3em] text-amber-400/70">
-                    Grill Me
+                    Case Intake
                   </div>
                   <h2 className="mt-6 text-2xl font-semibold tracking-tight sm:text-3xl">
                     Interrogate an idea with sharp follow-up questions
@@ -1567,7 +1562,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </h3>
             <p className="mt-2 text-sm text-white/55">
               {confirmAction.type === "clearHistory"
-                ? `This will permanently delete all conversations across Talk to AI, In-depth Analysis, and Grill Me. This action cannot be undone.`
+                ? `This will permanently delete all conversations across Talk to AI, In-depth Analysis, and Cases. This action cannot be undone.`
                 : "This will permanently delete this conversation. This action cannot be undone."}
             </p>
             <div className="mt-5 flex justify-end gap-2">
@@ -1849,7 +1844,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                   </p>
                   <p className="flex items-center gap-2 text-sm text-white/60">
                     <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                    Grill Me mode
+                    Case Intake mode
                   </p>
                   <p className="flex items-center gap-2 text-sm text-white/60">
                     <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
@@ -1980,7 +1975,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /><path d="M11 8v6M8 11h6" /><path d="M9 2L7 5l2 3M15 2l2 3-2 3" />
               </svg>
-              Start New Grill
+              Start New Case
             </button>
 
             <div className="min-h-0 flex-1 overflow-y-auto">
@@ -1990,7 +1985,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                     <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
                   </svg>
                   <p className="text-sm text-white/40">No saved cases yet</p>
-                  <p className="mt-1 text-xs text-white/25">Complete a grill session to save it here</p>
+                  <p className="mt-1 text-xs text-white/25">Complete a case to save it here</p>
                 </div>
               ) : (
                 <ul className="space-y-2">

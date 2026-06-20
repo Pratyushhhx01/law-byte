@@ -7,24 +7,28 @@ type Item = { q: string; a: string };
 
 const items: Item[] = [
   {
-    q: "What does this product actually do?",
-    a: "Placeholder answer. Describe the core capability in two or three sentences, focused on the outcome for the reader.",
+    q: "What Indian laws does Lawbite cover?",
+    a: "Lawbite has knowledge of 40+ Indian bare acts including the IPC, BNS, CrPC, BNSS, Constitution, Indian Contract Act, Evidence Act, and many more. It retrieves information at the section and article level for precise legal references.",
   },
   {
-    q: "How is it different from the alternatives?",
-    a: "Placeholder answer. Highlight the meaningful difference in a way that is concrete and easy to verify.",
+    q: "Is Lawbite a replacement for a lawyer?",
+    a: "No. Lawbite is a research and analysis tool — it helps you understand legal provisions, explore your options, and prepare better questions for your lawyer. It does not provide legal advice or represent you in any proceeding.",
   },
   {
-    q: "How long does setup take?",
-    a: "Placeholder answer. Give a realistic, honest estimate of time-to-value and what is required from the user.",
+    q: "How does the Grill Me mode work?",
+    a: "Grill Me asks one question at a time across 8 legal lenses — problem, state, role, details, sections, evidence, status, and outcome. It builds a complete picture of your situation before delivering tailored legal analysis.",
   },
   {
     q: "Is my data secure?",
-    a: "Placeholder answer. Briefly describe the security posture, compliance posture, and data handling practices.",
+    a: "Your conversations are protected and never shared with third parties. Authentication is handled through secure OAuth (Google/GitHub), and all data is encrypted in transit.",
   },
   {
-    q: "Can I cancel anytime?",
-    a: "Placeholder answer. Be direct and clear about commitments, billing, and how to leave if it isn't a fit.",
+    q: "Is it free to use?",
+    a: "Yes — Lawbite is free to start. You can ask questions across all four AI modes without any payment. A Plus plan with additional features is available for power users.",
+  },
+  {
+    q: "Does it search the web for current legal developments?",
+    a: "Yes. When your query requires up-to-date information — such as recent judgments, amendments, or notifications — Lawbite automatically searches the web and incorporates current results into its response.",
   },
 ];
 
@@ -32,7 +36,7 @@ export default function FAQ() {
   const [open, setOpen] = useState<number | null>(0);
 
   return (
-    <section className="relative border-t border-white/10 py-28 sm:py-36">
+    <section id="faq" className="relative border-t border-white/10 py-28 sm:py-36">
       <div className="mx-auto max-w-4xl px-6">
         <Reveal>
           <p className="text-xs font-medium uppercase tracking-[0.3em] text-white/50">
