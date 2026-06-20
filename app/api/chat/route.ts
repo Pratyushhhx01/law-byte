@@ -57,23 +57,28 @@ If you still need more information, do NOT include [ADVICE_COMPLETE]. Just ask t
 - Never use markdown, asterisks, or bullet points. Use plain text only.
 - IMPORTANT: After acknowledging the user's answer, you MUST use the exact delimiter "---" on its own line before asking the next question. Example: "Got it, that helps.\n---\nWhich state or UT in India do you live in?" The part before "---" is your brief response, and the part after is the next question. Always separate them with "\n---\n".`;
 
-const CLASSIFIER_PROMPT = `You are a query classifier. Determine if the user's query requires real-time web search to answer accurately.
+const CLASSIFIER_PROMPT = `You are a query classifier for an Indian legal assistant. Your ONLY job is to decide if the user's query needs real-time web search.
 
 Return ONLY "yes" or "no".
 
-Use web search ("yes") when the query asks about:
-- Current holders of positions (e.g., "who is the current Chief Justice", "who is the current President")
-- Latest or recent events, judgments, or news
-- Real-time data that changes frequently
-- Recent amendments or new laws
-- Anything with "current", "latest", "recent", "today", "now", "new", "2024", "2025", "2026"
+Return "yes" ONLY when the query asks about CURRENT or REAL-TIME information that changes frequently, such as:
+- Current holders of government/judicial positions (e.g., "who is the Chief Justice", "who is the President", "who is the PM", "who is the Governor")
+- Current or latest news, events, or developments
+- Today's date, current year statistics, or real-time data
+- Latest judgments or recent court orders (from 2024/2025/2026)
+- Recent amendments or new bills
+- Current stock market, RBI rates, or economic data
+- Words like "current", "latest", "recent", "today", "now", "who is", "who was" (for positions)
 
-Use normal response ("no") when the query asks about:
-- Static legal concepts (e.g., "what is article 21")
-- Established laws or procedures
-- Historical legal information
-- General legal advice
-- Greetings or casual conversation`;
+Return "no" for ALL other queries, including:
+- Legal concepts, definitions, or explanations (e.g., "what is article 21", "what is bail", "explain IPC")
+- How to do something (e.g., "how to file FIR", "how to apply for passport", "how to register a company")
+- What a law says (e.g., "what does the RTI Act say", "sections of NDPS")
+- Greetings, casual conversation, or vague legal questions
+- Anything that can be answered from a legal knowledge base
+- Historical legal information or established procedures
+- General legal advice or guidance
+- Anything not specifically about CURRENT people, events, or real-time data`;
 
 function getSystemPrompt(conversationType?: string) {
   switch (conversationType) {
@@ -154,52 +159,226 @@ async function getLegalKnowledge(query: string): Promise<string> {
     const sectionMatches = [...query.matchAll(SECTION_PATTERN)];
     const articleMatches = [...query.matchAll(ARTICLE_PATTERN)];
     const actMap: Record<string, string> = {
-      ipc: "ipc", "penal code": "ipc", "indian penal code": "ipc",
-      bns: "bns", "nyaya sanhita": "bns", "bharatiya nyaya": "bns",
-      crpc: "crpc", "criminal procedure": "crpc",
-      bnss: "bnss", "nagarik suraksha": "bnss",
-      cpc: "cpc", "civil procedure": "cpc",
-      evidence: "evidence-act", "evidence act": "evidence-act",
-      bsa: "bsa", "sakshya adhiniyam": "bsa", "sakshya": "bsa",
+      // Constitution & Polity
       constitution: "constitution",
-      "transfer of property": "transfer-of-property-act", "property act": "transfer-of-property-act", "tpa": "transfer-of-property-act",
+      jurisprudence: "constitutional-law-jurisprudence", "general laws": "constitutional-law-jurisprudence",
+      "legal terminology": "legal-terminology", "legal maxims": "legal-terminology",
+      "judicial review": "judicial-review",
+      writ: "writ-jurisprudence", "writs": "writ-jurisprudence", "habeas corpus": "writ-jurisprudence",
+      mandamus: "writ-jurisprudence", certiorari: "writ-jurisprudence", "quo warranto": "writ-jurisprudence",
+      pil: "public-interest-litigation", "public interest litigation": "public-interest-litigation",
+      "revision jurisdiction": "revision-of-courts",
+      "civil appeal": "civil-appeals", "civil appeals": "civil-appeals",
+      "indian polity": "indian-polity", polity: "indian-polity", governance: "indian-polity",
+      "local government": "local-government", panchayat: "local-government", municipality: "local-government",
+      "fundamental rules": "fundamental-rules", "fr rules": "fundamental-rules",
+      "general financial rules": "general-financial-rules", gfr: "general-financial-rules",
+      "delegated legislation": "delegated-legislation",
+      "public administration": "public-administration",
+
+      // Criminal Law
+      ipc: "ipc", "penal code": "ipc", "indian penal code": "ipc",
+      "bharatiya nyaya sanhita": "bharatiya-nyaya-sanhita", bns: "bharatiya-nyaya-sanhita", "nyaya sanhita": "bharatiya-nyaya-sanhita", "bharatiya nyaya": "bharatiya-nyaya-sanhita",
+      crpc: "crpc", "criminal procedure": "crpc",
+      "bharatiya nagrik suraksha": "bharatiya-nagrik-suraksha-sanhita", bnss: "bharatiya-nagrik-suraksha-sanhita", "nagarik suraksha": "bharatiya-nagrik-suraksha-sanhita", "bharatiya nagrik": "bharatiya-nagrik-suraksha-sanhita",
+      "bharatiya sakshya": "bharatiya-sakshya-adhiniyam", bsa: "bharatiya-sakshya-adhiniyam", "sakshya adhiniyam": "bharatiya-sakshya-adhiniyam", "sakshya": "bharatiya-sakshya-adhiniyam",
+      "arms act": "arms-act", weapons: "arms-act", firearm: "arms-act", "fire arm": "arms-act",
+      "dowry prohibition": "dowry-prohibition-act", dowry: "dowry-prohibition-act",
+      uapa: "uapa-act", "unlawful activities": "uapa-act", terrorism: "uapa-act", "terror act": "uapa-act",
+      pmla: "pmla-act", "money laundering": "pmla-act", "proceeds of crime": "pmla-act",
+      "explosive substances": "explosive-substances-act", explosives: "explosive-substances-act",
+      "prevention of corruption": "prevention-of-corruption-amended-act", corruption: "prevention-of-corruption-amended-act",
+      afspa: "armed-forces-special-powers-act", "armed forces special powers": "armed-forces-special-powers-act", "armed forces act": "armed-forces-special-powers-act",
+
+      // Civil Law
+      cpc: "code-of-civil-procedure", "civil procedure": "code-of-civil-procedure",
+      evidence: "evidence-act", "evidence act": "evidence-act",
+      "transfer of property": "transfer-of-property-act", "property act": "transfer-of-property-act", tpa: "transfer-of-property-act",
       contract: "indian-contract-act", "contract act": "indian-contract-act",
+      "specific relief": "specific-relief-act",
+
+      // Family Law
       "consumer protection": "consumer-protection-act", "consumer act": "consumer-protection-act",
+      "family law": "family-law", "family act": "family-law",
       succession: "indian-succession-act", "succession act": "indian-succession-act",
       "hindu succession": "hindu-succession-act",
-      "specific relief": "specific-relief-act",
-      "police act": "police-act-1861",
-      nia: "nia-act", "investigation agency": "nia-act",
-      "human rights": "protection-of-human-rights-act",
       "domestic violence": "domestic-violence-act",
-      "industrial dispute": "industrial-disputes-act",
+      "hindu marriage": "hindu-marriage-act", "hindu divorce": "hindu-marriage-act",
+      "special marriage": "special-marriage-act", "inter-faith marriage": "special-marriage-act",
+      "hindu adoption": "hindu-adoption-maintenance-act", "hindu maintenance": "hindu-adoption-maintenance-act",
+      "hindu guardianship": "hindu-minority-guardianship-act", "hindu minority": "hindu-minority-guardianship-act",
+      "muslim personal law": "muslim-personal-law-act", "shariat": "muslim-personal-law-act", "muslim law": "muslim-personal-law-act",
+      "muslim divorce": "dissolution-of-muslim-marriages-act", "dissolution of muslim marriage": "dissolution-of-muslim-marriages-act",
+      "indian divorce": "indian-divorce-act", "christian divorce": "indian-divorce-act", "christian marriage": "indian-christian-marriage-act",
+      "parsi marriage": "parsi-marriage-divorce-act", "parsi divorce": "parsi-marriage-divorce-act",
+      "child marriage": "prohibition-child-marriage-act", "child marriage prohibition": "prohibition-child-marriage-act", "minor marriage": "prohibition-child-marriage-act",
+      "guardian and ward": "guardian-wards-act", "guardianship": "guardian-wards-act", "ward": "guardian-wards-act",
+      "senior citizen maintenance": "maintenance-parents-senior-citizens-act", "parent maintenance": "maintenance-parents-senior-citizens-act", "elderly rights": "maintenance-parents-senior-citizens-act",
+
+      // Police & Criminal Procedure
+      "police act": "police-act-1861", "police powers": "police-act-1861",
+      nia: "nia-act", "investigation agency": "nia-act",
+      fir: "fir-procedures", "first information report": "fir-procedures",
+      arrest: "arrest-guidelines", "arrest guidelines": "arrest-guidelines",
+      "search and seizure": "search-and-seizure",
+      "charge sheet": "charge-sheets", chargesheet: "charge-sheets",
+      "preventive detention": "preventive-detention",
+
+      // Human Rights & Social Welfare
+      "human rights": "protection-of-human-rights-act",
+      "prisoner rights": "prisoner-rights", "prisoners rights": "prisoner-rights",
+      "women rights": "women-rights", "women law": "women-rights",
+      "sexual harassment": "posh-act", posh: "posh-act", "workplace harassment": "posh-act",
+      "maternity benefit": "maternity-benefit-act", "maternity leave": "maternity-benefit-act",
+      "mental health": "mental-healthcare-act", "mental healthcare": "mental-healthcare-act",
+      "food security": "national-food-security-act", "food rights": "national-food-security-act",
+      "rpwd": "rpwd-act", "persons with disabilities": "rpwd-act", "disability act": "rpwd-act", "disability rights": "rpwd-act",
+      "child rights": "child-rights",
+      "child labour": "child-labour-act", "child labor": "child-labour-act",
+      "minority rights": "minority-rights",
+
+      // Cyber Law & IT
+      "information technology": "information-technology-act", "it act": "information-technology-act",
+      "cyber law": "cyber-law-forensics", "cyber forensics": "cyber-law-forensics", "cyber laws": "cyber-law-forensics",
+      "data protection": "data-protection", "data privacy": "data-protection",
+      hacking: "hacking-laws", "hacking laws": "hacking-laws",
+      "identity theft": "identity-theft",
+      "online fraud": "online-frauds", "cyber fraud": "online-frauds",
+      "cyber crime": "cyber-crime-detection", "cyber crime detection": "cyber-crime-detection",
+      "digital evidence": "digital-evidence",
+
+      // Corporate & Business Law
+      "corporate law": "corporate-business-laws", "business law": "corporate-business-laws",
+      "real estate": "rera", rera: "rera", "real estate regulation": "rera",
+      "competition act": "competition-act", "anti-competitive": "competition-act", "cartel": "competition-act", "anti trust": "competition-act", "antitrust": "competition-act",
+      sebi: "sebi-act", "securities exchange board": "sebi-act", "capital market": "sebi-act", "stock market regulation": "sebi-act",
+      fema: "fema-act", "foreign exchange": "fema-act", "forex": "fema-act",
+      "foreign contribution": "fema-non-pci-act", fcra: "fema-non-pci-act", "foreign donation": "fema-non-pci-act",
+      msme: "msme-act", "micro small medium": "msme-act", "small enterprise": "msme-act",
+      benami: "benami-transactions-act", "benami transaction": "benami-transactions-act",
+      "black money": "black-money-act", "undisclosed foreign income": "black-money-act",
+
+      // Labour & Employment Law
+      "employment law": "employment-law", "labour law": "employment-law", "labor law": "employment-law",
+      "minimum wages": "minimum-wages-act", "wages act": "minimum-wages-act",
       "payment of wages": "payment-of-wages-act",
-      cgst: "cgst-act", "gst": "cgst-act",
+      "industrial dispute": "industrial-disputes-act", "industrial disputes": "industrial-disputes-act",
+      "social security": "social-security-act",
+      "trade union": "trade-unions-act", "trade unions": "trade-unions-act",
+      "factories act": "factories-act", "factory safety": "factories-act", "working conditions": "factories-act",
+      "essential commodities": "essential-commodities-act", "price control": "essential-commodities-act",
+
+      // Taxation
+      "income tax": "income-tax-act", "tax act": "income-tax-act",
+      cgst: "cgst-act", gst: "cgst-act",
       customs: "customs-act",
-      excise: "excise-act",
-      "trade union": "trade-unions-act",
-      arbitration: "arbitration-act", "conciliation": "arbitration-act",
-      "negotiable instrument": "negotiable-instruments-act", "cheque": "negotiable-instruments-act",
+      excise: "central-excise-act", "central excise": "central-excise-act",
+      "taxation law": "taxation-law", "tax law": "taxation-law",
+
+      // Legal Practice
+      "legal drafting": "legal-drafting", drafting: "legal-drafting", pleadings: "legal-drafting",
+
+      // Land & Anti-Corruption
+      "land acquisition": "larr-act", "land rehabilitation": "larr-act", larr: "larr-act",
+      lokpal: "lokpal-act", lokayukta: "lokpal-act", "anti corruption": "lokpal-act",
+
+      // Environmental Law
+      "wildlife protection": "wildlife-protection-act", "wildlife act": "wildlife-protection-act", "animal protection": "wildlife-protection-act", "national park": "wildlife-protection-act", "sanctuary": "wildlife-protection-act",
+      "forest conservation": "forest-conservation-act", "forest act": "forest-conservation-act", deforestation: "forest-conservation-act",
+      "water pollution": "water-act", "water act": "water-act", "sewage": "water-act",
+      "air pollution": "air-act", "air act": "air-act", "emission": "air-act",
+      "green tribunal": "national-green-tribunal-act", ngtp: "national-green-tribunal-act", "environmental dispute": "national-green-tribunal-act",
+      "biological diversity": "biological-diversity-act", biodiversity: "biological-diversity-act",
+
+      // Consumer & IT Law
+      "food safety": "food-safety-standards-act", "food standards": "food-safety-standards-act", fssai: "food-safety-standards-act", "food adulteration": "food-safety-standards-act",
+      "drugs and cosmetics": "drugs-cosmetics-act", "drug regulation": "drugs-cosmetics-act", "medicine regulation": "drugs-cosmetics-act",
+      "digital personal data": "dpdp-act", "dpdp": "dpdp-act", "personal data protection": "dpdp-act",
+      aadhaar: "aadhaar-act", "aadhaar card": "aadhaar-act", "unique identification": "aadhaar-act",
+      rti: "right-to-information-act", "right to information": "right-to-information-act", "information commission": "right-to-information-act", "transparency": "right-to-information-act",
+
+      // Intellectual Property
+      patent: "patents-act", "patent act": "patents-act", "patents act": "patents-act", "intellectual property": "patents-act", "invention": "patents-act", "patentee": "patents-act",
+      "geographical indication": "geographical-indications-act", gi: "geographical-indications-act", "gi act": "geographical-indications-act",
+
+      // Banking & Finance
+      "reserve bank": "rbi-act", "rbi": "rbi-act", "rbi act": "rbi-act", "monetary policy": "rbi-act", "banking regulation": "rbi-act", "cash reserve ratio": "rbi-act", "statutory liquidity ratio": "rbi-act", "slr": "rbi-act", "crr": "rbi-act",
+      irdai: "irdai-act", "insurance regulatory": "irdai-act", "insurance act": "irdai-act", "insurance company": "irdai-act", "insurance policy": "irdai-act", "solvency margin": "irdai-act", "insurance claim": "irdai-act", "insurance": "irdai-act",
+
+      // Miscellaneous Acts
+      "contempt of court": "contempt-of-courts-act", "contempt": "contempt-of-courts-act", "scandalising court": "contempt-of-courts-act", "contempt of courts act": "contempt-of-courts-act",
+      "official secrets": "official-secrets-act", "official secrets act": "official-secrets-act", "state secrets": "official-secrets-act",
+      passport: "passport-act", "passport act": "passport-act", "passport renewal": "passport-act", "passport application": "passport-act",
+      "indian telegraph": "indian-telegraph-act", "telegraph act": "indian-telegraph-act", "wiretap": "indian-telegraph-act", "interception": "indian-telegraph-act",
+      census: "census-act", "census act": "census-act", "population census": "census-act",
+      "epidemic diseases": "epidemic-diseases-act", "epidemic act": "epidemic-diseases-act", "quarantine": "epidemic-diseases-act", "pandemic": "epidemic-diseases-act", "public health emergency": "epidemic-diseases-act",
+
+      // Constitutional Reference
+      "fundamental rights": "fundamental-rights", "right to equality": "fundamental-rights", "right to freedom": "fundamental-rights", "freedom of speech": "fundamental-rights", "right to life": "fundamental-rights", "article 21": "fundamental-rights", "article 14": "fundamental-rights", "article 19": "fundamental-rights", "right to property": "fundamental-rights", "right to religion": "fundamental-rights", "constitutional remedies": "fundamental-rights",
+      "directive principles": "dpsp-fundamental-duties", dpsp: "dpsp-fundamental-duties", "fundamental duties": "dpsp-fundamental-duties", "article 51a": "dpsp-fundamental-duties", "uniform civil code": "dpsp-fundamental-duties", "state policy": "dpsp-fundamental-duties",
+      "constitution schedule": "constitutional-schedules", schedules: "constitutional-schedules", "seventh schedule": "constitutional-schedules", "union list": "constitutional-schedules", "state list": "constitutional-schedules", "concurrent list": "constitutional-schedules",
+      "constitution part": "constitutional-parts", "part iii": "constitutional-parts", "part iv": "constitutional-parts", "emergency provisions": "constitutional-parts", "amendment procedure": "constitutional-parts",
+
+      // Reference & Judgments
+      "landmark judgment": "landmark-judgments", "landmark case": "landmark-judgments", "sc judgment": "landmark-judgments", "supreme court judgment": "landmark-judgments",
+      "more landmark judgment": "more-landmark-judgments", "more sc judgment": "more-landmark-judgments",
+      "constitutional amendment": "constitutional-amendments", "amendment": "constitutional-amendments",
+      "legal maxim": "legal-reference", "legal doctrine": "legal-reference", "legal doctrines": "legal-reference",
+      "interpretation": "legal-reference", "statutory interpretation": "legal-reference",
+      "legal dictionary": "legal-dictionary", "legal term": "legal-dictionary",
+      "court hierarchy": "court-hierarchy-procedure", "court procedure": "court-hierarchy-procedure", "court system": "court-hierarchy-procedure",
+      "indian legal system": "indian-legal-system", "sources of law": "indian-legal-system",
+      "how to file fir": "practical-guides", "filing fir": "practical-guides", "file fir": "practical-guides",
+      "consumer complaint": "practical-guides", "file consumer complaint": "practical-guides",
+      "apply for bail": "practical-guides",
+      "rti application": "practical-guides",
+      "marriage registration": "practical-guides", "register marriage": "practical-guides",
+      "divorce": "practical-guides", "get divorce": "practical-guides",
+      "legal notice": "practical-guides", "send legal notice": "practical-guides",
+      "property registration": "practical-guides", "register property": "practical-guides",
+      "ndps bail": "practical-guides",
+      "file pil": "practical-guides-2",
+      "file appeal": "practical-guides-2", "appeal": "practical-guides-2",
+      "domestic violence protection": "practical-guides-2", "dv protection": "practical-guides-2", "dv act": "practical-guides-2",
+      "maintenance": "practical-guides-2", "section 125": "practical-guides-2",
+      "nhrc": "practical-guides-2", "human rights complaint": "practical-guides-2", "shrc": "practical-guides-2",
+      "anticipatory bail": "practical-guides-2", "438 bail": "practical-guides-2",
+      "child custody": "practical-guides-2", "custody": "practical-guides-2",
+      "challenge government": "practical-guides-2", "writ petition": "practical-guides-2",
+      "legal heir certificate": "practical-guides-3", "succession certificate": "practical-guides-3",
+      "register company": "practical-guides-3", "company registration": "practical-guides-3", "private limited": "practical-guides-3",
+      "income tax return": "practical-guides-3", "itr filing": "practical-guides-3", "file itr": "practical-guides-3",
+      "disability certificate": "practical-guides-3", "pwd certificate": "practical-guides-3",
+      "birth certificate": "practical-guides-3", "death certificate": "practical-guides-3",
+      "apply passport": "practical-guides-3",
+      "file insolvency": "practical-guides-3", bankruptcy: "practical-guides-3",
+      "government order appeal": "practical-guides-3", "appeal government order": "practical-guides-3",
+      "check case status": "practical-guides-4", "case status": "practical-guides-4", "court case status": "practical-guides-4",
+      "police clearance certificate": "practical-guides-4", "pcc": "practical-guides-4", "police clearance": "practical-guides-4",
+      "respond to legal notice": "practical-guides-4", "reply to legal notice": "practical-guides-4", "legal notice response": "practical-guides-4",
+      "rti follow up": "practical-guides-4", "rti appeal": "practical-guides-4", "rti status": "practical-guides-4",
+      "police complaint vs fir": "practical-guides-4", "fir vs complaint": "practical-guides-4",
+      "consumer complaint online": "practical-guides-4", "file consumer complaint online": "practical-guides-4", "consumer helpline": "practical-guides-4", "edaakhil": "practical-guides-4",
+      "duplicate document": "practical-guides-4", "lost document": "practical-guides-4", "duplicate certificate": "practical-guides-4",
+
+      // Existing S3 KB acts (already uploaded)
+      arbitration: "arbitration-act", conciliation: "arbitration-act",
+      "negotiable instrument": "negotiable-instruments-act", cheque: "negotiable-instruments-act",
       limitation: "limitation-act",
       companies: "companies-act", "company act": "companies-act",
-      "right to information": "right-to-information-act", rti: "right-to-information-act",
-      "prevention of corruption": "prevention-of-corruption-act", corruption: "prevention-of-corruption-act",
-      "motor vehicles": "motor-vehicles-act", "traffic": "motor-vehicles-act",
+      "motor vehicles": "motor-vehicles-act", traffic: "motor-vehicles-act",
       "sale of goods": "sale-of-goods-act",
       ndps: "ndps-act", narcotic: "ndps-act",
-      ibc: "ibc", "insolvency": "ibc", "bankruptcy": "ibc",
-      "banking regulation": "banking-regulation-act", "banking act": "banking-regulation-act",
       copyright: "copyright-act", "copyright act": "copyright-act",
-      "information technology": "information-technology-act", "it act": "information-technology-act",
       "juvenile justice": "juvenile-justice-act", "juvenile act": "juvenile-justice-act",
       pocso: "pocso-act", "protection of children": "pocso-act",
       registration: "registration-act", "registration act": "registration-act",
       "indian stamp": "indian-stamp-act", "stamp act": "indian-stamp-act",
       "indian partnership": "indian-partnership-act", "partnership act": "indian-partnership-act",
-      "sc st": "sc-st-act", "atrocities": "sc-st-act", "prevention of atrocities": "sc-st-act",
+      "sc st": "sc-st-act", atrocities: "sc-st-act", "prevention of atrocities": "sc-st-act",
       "environment protection": "environment-protection-act", "environment act": "environment-protection-act",
-      "trade marks": "trade-marks-act", "trademark": "trade-marks-act",
-      sarfaesi: "sarfaesi-act", "securitisation": "sarfaesi-act",
+      "trade marks": "trade-marks-act", trademark: "trade-marks-act",
+      sarfaesi: "sarfaesi-act", securitisation: "sarfaesi-act",
     };
 
     // Find which act is being referenced
@@ -209,14 +388,63 @@ async function getLegalKnowledge(query: string): Promise<string> {
     }
 
     const fullTextActs = new Set([
-      "bns", "bnss", "bsa", "transfer-of-property-act", "indian-contract-act",
-      "consumer-protection-act", "indian-succession-act", "hindu-succession-act",
-      "specific-relief-act", "police-act-1861", "nia-act", "protection-of-human-rights-act",
-      "domestic-violence-act", "industrial-disputes-act", "payment-of-wages-act",
-      "cgst-act", "customs-act", "excise-act", "trade-unions-act", "arbitration-act",
+      // Newly ingested acts (PDF-based)
+      "bharatiya-nyaya-sanhita", "bharatiya-nagrik-suraksha-sanhita", "bharatiya-sakshya-adhiniyam",
+      "code-of-civil-procedure", "transfer-of-property-act", "indian-contract-act", "specific-relief-act",
+      "family-law", "indian-succession-act", "hindu-succession-act", "domestic-violence-act",
+      "consumer-protection-act",
+      "information-technology-act", "cyber-law-forensics", "data-protection", "hacking-laws",
+      "identity-theft", "online-frauds", "cyber-crime-detection", "digital-evidence",
+      "constitutional-law-jurisprudence", "legal-terminology", "tort-law",
+      "civil-appeals", "judicial-review", "writ-jurisprudence", "public-interest-litigation", "revision-of-courts",
+      "police-act-1861", "fir-procedures", "arrest-guidelines", "search-and-seizure", "nia-act",
+      "charge-sheets", "preventive-detention",
+      "indian-polity", "local-government", "fundamental-rules", "general-financial-rules",
+      "delegated-legislation", "public-administration",
+      "protection-of-human-rights-act", "prisoner-rights", "women-rights", "child-rights", "minority-rights",
+      "posh-act", "maternity-benefit-act", "mental-healthcare-act", "national-food-security-act",
+      "rpwd-act", "child-labour-act",
+      "hindu-marriage-act", "special-marriage-act", "hindu-adoption-maintenance-act", "hindu-minority-guardianship-act",
+      "rera", "larr-act", "lokpal-act",
+      "landmark-judgments", "constitutional-amendments", "legal-reference", "practical-guides",
+      "more-landmark-judgments", "practical-guides-2",
+      "legal-dictionary", "court-hierarchy-procedure", "indian-legal-system",
+      "corporate-business-laws",
+      "employment-law", "minimum-wages-act", "payment-of-wages-act", "industrial-disputes-act",
+      "social-security-act", "trade-unions-act",
+      "income-tax-act", "cgst-act", "customs-act", "central-excise-act", "taxation-law",
+      "legal-drafting",
+      // Criminal Special Acts
+      "arms-act", "dowry-prohibition-act", "uapa-act", "pmla-act",
+      "explosive-substances-act", "prevention-of-corruption-amended-act", "armed-forces-special-powers-act",
+      // Commercial Acts
+      "competition-act", "sebi-act", "fema-act", "fema-non-pci-act",
+      "msme-act", "benami-transactions-act", "black-money-act",
+      // Family & Personal Law
+      "muslim-personal-law-act", "dissolution-of-muslim-marriages-act",
+      "indian-divorce-act", "parsi-marriage-divorce-act", "indian-christian-marriage-act",
+      "prohibition-child-marriage-act", "guardian-wards-act", "maintenance-parents-senior-citizens-act",
+      // Environment & Labour
+      "wildlife-protection-act", "forest-conservation-act", "water-act", "air-act",
+      "national-green-tribunal-act", "biological-diversity-act",
+      "factories-act", "essential-commodities-act",
+      // Consumer & IT
+      "food-safety-standards-act", "drugs-cosmetics-act", "dpdp-act", "aadhaar-act",
+      // Intellectual Property
+      "patents-act", "geographical-indications-act",
+      // Banking & Finance
+      "rbi-act", "irdai-act",
+      // Miscellaneous Acts
+      "contempt-of-courts-act", "official-secrets-act", "passport-act",
+      "indian-telegraph-act", "census-act", "epidemic-diseases-act",
+      // Constitutional Reference
+      "fundamental-rights", "dpsp-fundamental-duties", "constitutional-schedules", "constitutional-parts",
+      "practical-guides-3", "practical-guides-4",
+      // Pre-existing S3 KB acts
+      "arbitration-act",
       "negotiable-instruments-act", "limitation-act", "companies-act", "right-to-information-act",
       "prevention-of-corruption-act", "motor-vehicles-act", "sale-of-goods-act", "ndps-act", "ibc",
-      "banking-regulation-act", "copyright-act", "information-technology-act",
+      "banking-regulation-act", "copyright-act",
       "juvenile-justice-act", "pocso-act", "registration-act", "indian-stamp-act",
       "indian-partnership-act", "sc-st-act", "environment-protection-act",
       "trade-marks-act", "sarfaesi-act",
@@ -258,9 +486,9 @@ async function getLegalKnowledge(query: string): Promise<string> {
       }
     }
 
-    // Case 1d: Article number query without specifying an act → assume Constitution
-    // Runs regardless of whether sections were already found (e.g. "difference between article 144 and section 144")
-    if (!targetAct && articleMatches.length > 0) {
+    // Case 1d: Article number query → assume Constitution (article queries always map to Constitution,
+    // even if actMap matched a false positive like "rti" inside "article")
+    if (articleMatches.length > 0 && targetAct !== "constitution") {
       for (const match of articleMatches) {
         const sec = await s3kb.getSection("constitution", match[1]);
         if (sec) parts.push(`[Constitution Article ${sec.section}] ${sec.title}: ${sec.text}`);
@@ -359,7 +587,8 @@ export async function POST(request: NextRequest) {
     webSearchContext = await webSearch(userQuery);
   }
 
-  const legalContext = await getLegalKnowledge(userQuery);
+  // Only fetch from S3 if the query does NOT need web search
+  const legalContext = needsSearch ? "" : await getLegalKnowledge(userQuery);
 
   let finalSystemPrompt = systemPrompt;
   const contextParts: string[] = [];
