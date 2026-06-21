@@ -1658,7 +1658,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               <div ref={messagesEndRef} />
             </ul>
           ) : (
-            <div className="mx-auto flex h-full max-w-3xl flex-col items-center justify-center text-center">
+            <div className="mx-auto flex h-full max-w-3xl flex-col items-center justify-center pb-24 text-center">
               {mode === "analysis" ? (
                 <>
                   <div className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-1.5 text-xs uppercase tracking-[0.3em] text-white/40">
@@ -1686,6 +1686,57 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                       Precedent review
                     </span>
                   </div>
+                  <div className="mt-8 w-full">
+                    <form
+                      onSubmit={onSubmit}
+                      className="flex items-end gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-2 transition-colors duration-300 focus-within:border-white/30"
+                    >
+                      <label htmlFor="chat-input" className="sr-only">Message</label>
+                      <button
+                        type="button"
+                        onClick={() => switchMode("talk-to-ai")}
+                        aria-label="Switch to Talk to AI"
+                        style={blinkAnalysis ? { animation: "blink-icon 1s ease-in-out 3", color: "#ffffff" } : undefined}
+                        className={`mb-0.5 shrink-0 rounded-full p-2 transition-colors ${
+                          mode === "analysis"
+                            ? "text-amber-400/70 hover:bg-amber-400/10 hover:text-amber-400"
+                            : "text-white/30 hover:bg-white/[0.06] hover:text-white/60"
+                        }`}
+                      >
+                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                          <path d="M3 3v5h5" />
+                          <path d="M12 7v5l4 2" />
+                        </svg>
+                      </button>
+                      <textarea
+                        id="chat-input"
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        onKeyDown={onKeyDown}
+                        placeholder={pendingAttachment ? "Ask about this document, or send to review as-is…" : "Message Lawbite…"}
+                        rows={1}
+                        className="min-h-[40px] max-h-40 w-full resize-none bg-transparent px-3 py-2 text-sm leading-relaxed text-white placeholder:text-white/35 focus:outline-none"
+                      />
+                      <button
+                        type="submit"
+                        disabled={(!draft.trim() && !pendingAttachment) || isThinking}
+                        aria-label="Send message"
+                        className="btn-shine group relative inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-black transition-transform duration-300 hover:scale-[1.05] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+                      >
+                        <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M5 12h14M13 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </form>
+                    <p className="mx-auto mt-2 text-[11px] text-white/35">
+                      Press <kbd className="rounded border border-white/15 px-1">Enter</kbd>{" "}
+                      to send,{" "}
+                      <kbd className="rounded border border-white/15 px-1">Shift</kbd>+
+                      <kbd className="rounded border border-white/15 px-1">Enter</kbd> for
+                      a new line.
+                    </p>
+                  </div>
                 </>
               ) : mode === "talk-to-ai" || mode === "chat" ? (
                 <>
@@ -1699,6 +1750,52 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                     Have a conversation with the AI about legal questions,
                     get explanations, or explore ideas freely.
                   </p>
+                  <div className="mt-8 w-full">
+                    <form
+                      onSubmit={onSubmit}
+                      className="flex items-end gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-2 transition-colors duration-300 focus-within:border-white/30"
+                    >
+                      <label htmlFor="chat-input" className="sr-only">Message</label>
+                      <button
+                        type="button"
+                        onClick={() => switchMode("analysis")}
+                        aria-label="Switch to In-depth Analysis"
+                        style={blinkAnalysis ? { animation: "blink-icon 1s ease-in-out 3", color: "#ffffff" } : undefined}
+                        className="mb-0.5 shrink-0 rounded-full p-2 text-white/30 transition-colors hover:bg-white/[0.06] hover:text-white/60"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7z" />
+                          <path d="M10 21h4M9 17h6" />
+                        </svg>
+                      </button>
+                      <textarea
+                        id="chat-input"
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        onKeyDown={onKeyDown}
+                        placeholder={pendingAttachment ? "Ask about this document, or send to review as-is…" : "Message Lawbite…"}
+                        rows={1}
+                        className="min-h-[40px] max-h-40 w-full resize-none bg-transparent px-3 py-2 text-sm leading-relaxed text-white placeholder:text-white/35 focus:outline-none"
+                      />
+                      <button
+                        type="submit"
+                        disabled={(!draft.trim() && !pendingAttachment) || isThinking}
+                        aria-label="Send message"
+                        className="btn-shine group relative inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-black transition-transform duration-300 hover:scale-[1.05] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+                      >
+                        <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M5 12h14M13 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </form>
+                    <p className="mx-auto mt-2 text-[11px] text-white/35">
+                      Press <kbd className="rounded border border-white/15 px-1">Enter</kbd>{" "}
+                      to send,{" "}
+                      <kbd className="rounded border border-white/15 px-1">Shift</kbd>+
+                      <kbd className="rounded border border-white/15 px-1">Enter</kbd> for
+                      a new line.
+                    </p>
+                  </div>
                 </>
               ) : mode === "grill" ? (
                 <>
@@ -1727,6 +1824,40 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                     <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-white/50">
                       Case archive
                     </span>
+                  </div>
+                  <div className="mt-8 w-full">
+                    <form
+                      onSubmit={onSubmit}
+                      className="flex items-end gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-2 transition-colors duration-300 focus-within:border-white/30"
+                    >
+                      <label htmlFor="chat-input" className="sr-only">Message</label>
+                      <textarea
+                        id="chat-input"
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        onKeyDown={onKeyDown}
+                        placeholder={pendingAttachment ? "Ask about this document, or send to review as-is…" : "Message Lawbite…"}
+                        rows={1}
+                        className="min-h-[40px] max-h-40 w-full resize-none bg-transparent px-3 py-2 text-sm leading-relaxed text-white placeholder:text-white/35 focus:outline-none"
+                      />
+                      <button
+                        type="submit"
+                        disabled={(!draft.trim() && !pendingAttachment) || isThinking}
+                        aria-label="Send message"
+                        className="btn-shine group relative inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-black transition-transform duration-300 hover:scale-[1.05] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+                      >
+                        <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M5 12h14M13 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </form>
+                    <p className="mx-auto mt-2 text-[11px] text-white/35">
+                      Press <kbd className="rounded border border-white/15 px-1">Enter</kbd>{" "}
+                      to send,{" "}
+                      <kbd className="rounded border border-white/15 px-1">Shift</kbd>+
+                      <kbd className="rounded border border-white/15 px-1">Enter</kbd> for
+                      a new line.
+                    </p>
                   </div>
                 </>
               ) : mode === "draft" ? (
@@ -2016,6 +2147,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           )}
         </div>
 
+        {((mode !== "talk-to-ai" && mode !== "chat" && mode !== "analysis" && mode !== "grill") || (active && active.messages.length > 0)) && (
         <div className={`border-t border-white/10 px-5 py-4 backdrop-blur-md sm:px-8 ${(mode === "analysis" || mode === "talk-to-ai") ? "bg-black/60" : "bg-black/40"}`}>
           {pendingAttachment && (
             <div className="mx-auto mb-2 flex max-w-3xl items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] px-3 py-2">
@@ -2209,6 +2341,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             a new line.
           </p>
         </div>
+          )}
       </main>
 
       {confirmAction && (
