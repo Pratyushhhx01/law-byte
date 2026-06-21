@@ -757,8 +757,7 @@ export async function POST(request: NextRequest) {
       .replace(/\|channel\|?>[\s\S]*?(?=\n|$|<)/g, "")
       .replace(/<\|channel[^\n<]*/g, "")
       .replace(/<channel[^\n<]*/g, "")
-      .replace(/\|channel[^\n<]*/g, "")
-      .trim();
+      .replace(/\|channel[^\n<]*/g, "");
   }
 
   const stream = new ReadableStream({
@@ -769,15 +768,19 @@ export async function POST(request: NextRequest) {
         return;
       }
 
+      let sseBuffer = "";
+
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
           const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split("\n").filter((line) => line.trim() !== "");
+          sseBuffer += chunk;
+          const parts = sseBuffer.split("\n");
+          sseBuffer = parts.pop() ?? "";
 
-          for (const line of lines) {
+          for (const line of parts) {
             if (line.startsWith("data: ")) {
               const data = line.slice(6);
               if (data === "[DONE]") {

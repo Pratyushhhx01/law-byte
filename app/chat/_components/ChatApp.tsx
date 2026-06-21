@@ -201,6 +201,8 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const lastTalkIdRef = useRef<string | null>(null);
   const lastAnalysisIdRef = useRef<string | null>(null);
   const [mode, setMode] = useState<ConversationType>("chat");
+  const [plusMenuOpen, setPlusMenuOpen] = useState(false);
+  const plusMenuRef = useRef<HTMLDivElement | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
@@ -215,6 +217,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const [selectedDocType, setSelectedDocType] = useState<string | null>(null);
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [lastDraftIdRef, setLastDraftIdRef] = useState<string | null>(null);
+  const [lastReviewIdRef, setLastReviewIdRef] = useState<string | null>(null);
   const [reviewFileUploading, setReviewFileUploading] = useState(false);
   const [reviewFileName, setReviewFileName] = useState<string | null>(null);
   const [reviewAttachOpen, setReviewAttachOpen] = useState(false);
@@ -252,6 +255,17 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     }
     wasThinkingRef.current = isThinking;
   }, [isThinking, active]);
+
+  useEffect(() => {
+    if (!plusMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (plusMenuRef.current && !plusMenuRef.current.contains(e.target as Node)) {
+        setPlusMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [plusMenuOpen]);
 
   useEffect(() => {
     if (mode === "analysis" || mode === "grill" || mode === "draft" || mode === "review" || !active || active.messages.length === 0) {
@@ -431,6 +445,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     setMode("grill");
     setDraft("");
     setSidebarOpen(false);
+    setMyCasesOpen(false);
     setSelectedDocType(null);
     setFormData({});
   }
@@ -511,7 +526,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
   function switchMode(newMode: ConversationType) {
     const target = newMode === "chat" ? "talk-to-ai" : newMode;
-    if (target === "grill" || target === "review") return;
+    if (target === "grill") return;
 
     // Save current conversation ID for the mode we're leaving
     if (mode === "talk-to-ai" || mode === "chat") {
@@ -520,6 +535,8 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       lastAnalysisIdRef.current = activeId;
     } else if (mode === "draft") {
       setLastDraftIdRef(activeId);
+    } else if (mode === "review") {
+      setLastReviewIdRef(activeId);
     }
 
     setMode(target);
@@ -528,6 +545,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     let savedId: string | null = null;
     if (target === "analysis") savedId = lastAnalysisIdRef.current;
     else if (target === "draft") savedId = lastDraftIdRef;
+    else if (target === "review") savedId = lastReviewIdRef;
     else savedId = lastTalkIdRef.current;
 
     const existing = savedId ? conversations.find((c) => c.id === savedId) : null;
@@ -535,7 +553,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     if (existing) {
       setActiveId(existing.id);
     } else {
-      const prefix = target === "analysis" ? "a" : target === "draft" ? "d" : "t";
+      const prefix = target === "analysis" ? "a" : target === "draft" ? "d" : target === "review" ? "r" : "t";
       const conv: Conversation = {
         id: newId(prefix),
         title: "New conversation",
@@ -632,6 +650,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
       const decoder = new TextDecoder();
       let assistantContent = "";
+      let sseBuffer = "";
 
       setConversations((prev) =>
         prev.map((c) =>
@@ -646,9 +665,11 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
         if (done) break;
 
         const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n");
+        sseBuffer += chunk;
+        const parts = sseBuffer.split("\n");
+        sseBuffer = parts.pop() ?? "";
 
-        for (const line of lines) {
+        for (const line of parts) {
           if (line.startsWith("data: ")) {
             const data = line.slice(6).trim();
             if (data === "[DONE]") continue;
@@ -1162,50 +1183,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </svg>
             <span>My Cases</span>
           </button>
-          <button
-            type="button"
-            onClick={startDraftChat}
-            className="mt-2 flex w-full items-center gap-2 rounded-full border border-blue-400/30 bg-blue-400/[0.08] px-4 py-2 text-sm font-medium text-blue-400 transition-transform duration-300 hover:scale-[1.01] hover:bg-blue-400/[0.12]"
-          >
-            <svg
-              aria-hidden
-              viewBox="0 0 24 24"
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-            </svg>
-            <span>Document Drafter</span>
-          </button>
-          <button
-            type="button"
-            onClick={startReviewChat}
-            className="mt-2 flex w-full items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/[0.08] px-4 py-2 text-sm font-medium text-emerald-400 transition-transform duration-300 hover:scale-[1.01] hover:bg-emerald-400/[0.12]"
-          >
-            <svg
-              aria-hidden
-              viewBox="0 0 24 24"
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <path d="M12 18v-6" />
-              <path d="M9 15h6" />
-            </svg>
-            <span>Document Review</span>
-          </button>
         </div>
 
         <nav
@@ -1270,35 +1247,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </div>
           )}
 
-          {groupConversations("draft").length > 0 && (
-            <div className="mb-4">
-              <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-blue-400/60">Document Drafter</p>
-              {groupConversations("draft").map((group) => (
-                <div key={group.label} className="mb-2">
-                  <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
-                  <ul className="space-y-0.5 text-sm">
-                    {group.items.map((conv) => (
-                      <li key={conv.id} className="relative" onMouseEnter={() => setHoveredId(conv.id)} onMouseLeave={() => setHoveredId(null)}>
-                        {renderConvItem(conv)}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={() => setConfirmAction({ type: "clearHistory", section: "draft" })}
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
-              >
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                </svg>
-                Clear history
-              </button>
-            </div>
-          )}
-
           {groupConversations("grill").length > 0 && (
             <div className="mb-4">
               <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-amber-400/60">My Cases</p>
@@ -1317,6 +1265,35 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               <button
                 type="button"
                 onClick={() => setConfirmAction({ type: "clearHistory", section: "grill" })}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
+              >
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+                Clear history
+              </button>
+            </div>
+          )}
+
+          {groupConversations("draft").length > 0 && (
+            <div className="mb-4">
+              <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-blue-400/60">Document Drafter</p>
+              {groupConversations("draft").map((group) => (
+                <div key={group.label} className="mb-2">
+                  <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
+                  <ul className="space-y-0.5 text-sm">
+                    {group.items.map((conv) => (
+                      <li key={conv.id} className="relative" onMouseEnter={() => setHoveredId(conv.id)} onMouseLeave={() => setHoveredId(null)}>
+                        {renderConvItem(conv)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setConfirmAction({ type: "clearHistory", section: "draft" })}
                 className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
               >
                 <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1756,18 +1733,74 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                       className="flex items-end gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-2 transition-colors duration-300 focus-within:border-white/30"
                     >
                       <label htmlFor="chat-input" className="sr-only">Message</label>
-                      <button
-                        type="button"
-                        onClick={() => switchMode("analysis")}
-                        aria-label="Switch to In-depth Analysis"
-                        style={blinkAnalysis ? { animation: "blink-icon 1s ease-in-out 3", color: "#ffffff" } : undefined}
-                        className="mb-0.5 shrink-0 rounded-full p-2 text-white/30 transition-colors hover:bg-white/[0.06] hover:text-white/60"
-                      >
-                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7z" />
-                          <path d="M10 21h4M9 17h6" />
-                        </svg>
-                      </button>
+                      <div className="relative" ref={plusMenuRef}>
+                        <button
+                          type="button"
+                          onClick={() => setPlusMenuOpen((o) => !o)}
+                          aria-label="More features"
+                          className={`mb-0.5 shrink-0 rounded-full p-2 text-white/40 transition-all duration-300 hover:bg-white/[0.08] hover:text-white/80 ${plusMenuOpen ? "bg-white/[0.08] text-white/70" : ""}`}
+                        >
+                          <svg viewBox="0 0 24 24" className={`h-4 w-4 transition-transform duration-300 ${plusMenuOpen ? "rotate-45" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19" />
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                          </svg>
+                        </button>
+                        {plusMenuOpen && (
+                          <div className="absolute right-full top-1/2 -translate-y-1/2 mr-4 w-56 flex flex-col gap-1.5 z-50 animate-popover-in">
+                            <button
+                              type="button"
+                              onClick={() => { switchMode("analysis"); setPlusMenuOpen(false); }}
+                              className="group flex items-center gap-3 rounded-xl border border-amber-400/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-amber-400/30 hover:bg-amber-400/[0.06] hover:shadow-[0_0_16px_rgba(251,191,36,0.08)]"
+                            >
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-400/[0.08] transition-all duration-300 group-hover:bg-amber-400/[0.15]">
+                                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-amber-400/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <circle cx="12" cy="12" r="10" />
+                                  <path d="M12 6v6l4 2" />
+                                </svg>
+                              </div>
+                              <div>
+                                <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-amber-400/90">In-depth Analysis</div>
+                                <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">Deep dive into legal cases</div>
+                              </div>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { switchMode("draft"); setPlusMenuOpen(false); }}
+                              className="group flex items-center gap-3 rounded-xl border border-blue-400/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-blue-400/30 hover:bg-blue-400/[0.06] hover:shadow-[0_0_16px_rgba(96,165,250,0.08)]"
+                            >
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-400/[0.08] transition-all duration-300 group-hover:bg-blue-400/[0.15]">
+                                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-blue-400/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                  <polyline points="14 2 14 8 20 8" />
+                                  <line x1="16" y1="13" x2="8" y2="13" />
+                                  <line x1="16" y1="17" x2="8" y2="17" />
+                                </svg>
+                              </div>
+                              <div>
+                                <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-blue-400/90">Document Drafter</div>
+                                <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">Generate legal documents</div>
+                              </div>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { switchMode("review"); setPlusMenuOpen(false); }}
+                              className="group flex items-center gap-3 rounded-xl border border-emerald-400/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-emerald-400/30 hover:bg-emerald-400/[0.06] hover:shadow-[0_0_16px_rgba(52,211,153,0.08)]"
+                            >
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-400/[0.08] transition-all duration-300 group-hover:bg-emerald-400/[0.15]">
+                                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-emerald-400/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                  <polyline points="14 2 14 8 20 8" />
+                                  <path d="M9 15l2 2 4-4" />
+                                </svg>
+                              </div>
+                              <div>
+                                <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-emerald-400/90">Document Reviewer</div>
+                                <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">Review contracts &amp; clauses</div>
+                              </div>
+                            </button>
+                          </div>
+                        )}
+                      </div>
                       <textarea
                         id="chat-input"
                         value={draft}
@@ -2185,46 +2218,74 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               Message
             </label>
             {mode !== "grill" && mode !== "draft" && mode !== "review" && (
-              <button
-                type="button"
-                onClick={() => switchMode(mode === "analysis" ? "talk-to-ai" : "analysis")}
-                aria-label={mode === "analysis" ? "Switch to Talk to AI" : "Switch to In-depth Analysis"}
-                style={blinkAnalysis ? { animation: "blink-icon 1s ease-in-out 3", color: "#ffffff" } : undefined}
-                className={`mb-0.5 shrink-0 rounded-full p-2 transition-colors ${
-                  mode === "analysis"
-                    ? "text-amber-400/70 hover:bg-amber-400/10 hover:text-amber-400"
-                    : "text-white/30 hover:bg-white/[0.06] hover:text-white/60"
-                }`}
-              >
-                {mode === "analysis" ? (
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                    <path d="M3 3v5h5" />
-                    <path d="M12 7v5l4 2" />
+              <div className="relative" ref={plusMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setPlusMenuOpen((o) => !o)}
+                  aria-label="More features"
+                  className={`mb-0.5 shrink-0 rounded-full p-2 text-white/40 transition-all duration-300 hover:bg-white/[0.08] hover:text-white/80 ${plusMenuOpen ? "bg-white/[0.08] text-white/70" : ""}`}
+                >
+                  <svg viewBox="0 0 24 24" className={`h-4 w-4 transition-transform duration-300 ${plusMenuOpen ? "rotate-45" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
                   </svg>
-                ) : (
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7z" />
-                    <path d="M10 21h4M9 17h6" />
-                  </svg>
+                </button>
+                {plusMenuOpen && (
+                  <div className="absolute right-full top-1/2 -translate-y-1/2 mr-4 w-56 flex flex-col gap-1.5 z-50 animate-popover-in">
+                    <button
+                      type="button"
+                      onClick={() => { switchMode("analysis"); setPlusMenuOpen(false); }}
+                      className="group flex items-center gap-3 rounded-xl border border-amber-400/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-amber-400/30 hover:bg-amber-400/[0.06] hover:shadow-[0_0_16px_rgba(251,191,36,0.08)]"
+                    >
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-400/[0.08] transition-all duration-300 group-hover:bg-amber-400/[0.15]">
+                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-amber-400/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10" />
+                          <path d="M12 6v6l4 2" />
+                        </svg>
+                      </div>
+                      <div>
+                        <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-amber-400/90">In-depth Analysis</div>
+                        <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">Deep dive into legal cases</div>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { switchMode("draft"); setPlusMenuOpen(false); }}
+                      className="group flex items-center gap-3 rounded-xl border border-blue-400/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-blue-400/30 hover:bg-blue-400/[0.06] hover:shadow-[0_0_16px_rgba(96,165,250,0.08)]"
+                    >
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-400/[0.08] transition-all duration-300 group-hover:bg-blue-400/[0.15]">
+                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-blue-400/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          <polyline points="14 2 14 8 20 8" />
+                          <line x1="16" y1="13" x2="8" y2="13" />
+                          <line x1="16" y1="17" x2="8" y2="17" />
+                        </svg>
+                      </div>
+                      <div>
+                        <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-blue-400/90">Document Drafter</div>
+                        <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">Generate legal documents</div>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { switchMode("review"); setPlusMenuOpen(false); }}
+                      className="group flex items-center gap-3 rounded-xl border border-emerald-400/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-emerald-400/30 hover:bg-emerald-400/[0.06] hover:shadow-[0_0_16px_rgba(52,211,153,0.08)]"
+                    >
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-400/[0.08] transition-all duration-300 group-hover:bg-emerald-400/[0.15]">
+                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-emerald-400/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          <polyline points="14 2 14 8 20 8" />
+                          <path d="M9 15l2 2 4-4" />
+                        </svg>
+                      </div>
+                      <div>
+                        <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-emerald-400/90">Document Reviewer</div>
+                        <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">Review contracts &amp; clauses</div>
+                      </div>
+                    </button>
+                  </div>
                 )}
-              </button>
+              </div>
             )}
             {mode === "review" && (
               <>
