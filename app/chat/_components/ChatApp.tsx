@@ -13,6 +13,7 @@ type Message = {
   role: Role;
   content: string;
   type?: ConversationType;
+  documentName?: string;
 };
 
 type ChatUser = {
@@ -214,11 +215,12 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const [selectedDocType, setSelectedDocType] = useState<string | null>(null);
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [lastDraftIdRef, setLastDraftIdRef] = useState<string | null>(null);
-  const [lastReviewIdRef, setLastReviewIdRef] = useState<string | null>(null);
-  const [attachedFile, setAttachedFile] = useState<string | null>(null);
-  const [attachedFileName, setAttachedFileName] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [reviewFileUploading, setReviewFileUploading] = useState(false);
+  const [reviewFileName, setReviewFileName] = useState<string | null>(null);
+  const [reviewAttachOpen, setReviewAttachOpen] = useState(false);
+  const [pendingAttachment, setPendingAttachment] = useState<{ type: "pdf" | "image"; fileName: string; text?: string; imageBase64?: string; truncated?: boolean } | null>(null);
+  const reviewFileInputRef = useRef<HTMLInputElement | null>(null);
+  const reviewAttachMenuRef = useRef<HTMLDivElement | null>(null);
 
   const active = conversations.find((c) => c.id === activeId) ?? conversations[0];
 
@@ -302,6 +304,18 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isThinking]);
 
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (reviewAttachMenuRef.current && !reviewAttachMenuRef.current.contains(e.target as Node)) {
+        setReviewAttachOpen(false);
+      }
+    }
+    if (reviewAttachOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [reviewAttachOpen]);
+
   function renderBold(text: string): ReactNode {
     const parts = text.split(/(\*\*[^*]+\*\*)/g);
     return parts.map((part, i) => {
@@ -310,6 +324,17 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       }
       return part;
     });
+  }
+
+  function stripThinkingTokens(text: string): string {
+    return text
+      .replace(/<\|channel\|?>[\s\S]*?(?=\n|$|<)/g, "")
+      .replace(/<channel\|?>[\s\S]*?(?=\n|$|<)/g, "")
+      .replace(/\|channel\|?>[\s\S]*?(?=\n|$|<)/g, "")
+      .replace(/<\|channel[^\n<]*/g, "")
+      .replace(/<channel[^\n<]*/g, "")
+      .replace(/\|channel[^\n<]*/g, "")
+      .trim();
   }
 
   function extractTopic(text: string): string {
@@ -352,8 +377,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       setFormData({});
     }
     if (convType === "review") {
-      setAttachedFile(null);
-      setAttachedFileName(null);
+      setReviewFileName(null);
     }
   }
 
@@ -443,54 +467,51 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     setMode("review");
     setDraft("");
     setSidebarOpen(false);
-    setAttachedFile(null);
-    setAttachedFileName(null);
+    setSelectedDocType(null);
+    setFormData({});
+    setReviewFileName(null);
   }
 
-  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleReviewFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (file.type !== "application/pdf") {
-      alert("Only PDF files are supported");
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      alert("File size must be under 10MB");
-      return;
-    }
-
-    setIsUploading(true);
+    setReviewFileUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/review", { method: "POST", body: fd });
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Upload failed");
+        const err = await res.json().catch(() => null);
+        throw new Error(err?.error || "Failed to process file");
       }
-
       const data = await res.json();
-      setAttachedFile(data.text);
-      setAttachedFileName(data.fileName);
-    } catch (error) {
-      console.error("Upload error:", error);
-      alert(error instanceof Error ? error.message : "Failed to upload file");
+
+      if (data.type === "image") {
+        setPendingAttachment({ type: "image", fileName: data.fileName, imageBase64: data.imageBase64 });
+      } else {
+        setPendingAttachment({ type: "pdf", fileName: data.fileName, text: data.text, truncated: data.truncated });
+      }
+    } catch (err) {
+      console.error("File upload error:", err);
+      const errorMsg = err instanceof Error ? err.message : "Failed to process file";
+      const assistantId = newId("a");
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === activeId
+            ? { ...c, messages: [...c.messages, { id: assistantId, role: "assistant", content: `Error: ${errorMsg}. Please try uploading the file again.` }] }
+            : c
+        )
+      );
     } finally {
-      setIsUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      setReviewFileUploading(false);
+      e.target.value = "";
+      setReviewAttachOpen(false);
     }
   }
 
   function switchMode(newMode: ConversationType) {
     const target = newMode === "chat" ? "talk-to-ai" : newMode;
-    if (target === "grill") return;
+    if (target === "grill" || target === "review") return;
 
     // Save current conversation ID for the mode we're leaving
     if (mode === "talk-to-ai" || mode === "chat") {
@@ -499,8 +520,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       lastAnalysisIdRef.current = activeId;
     } else if (mode === "draft") {
       setLastDraftIdRef(activeId);
-    } else if (mode === "review") {
-      setLastReviewIdRef(activeId);
     }
 
     setMode(target);
@@ -509,7 +528,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     let savedId: string | null = null;
     if (target === "analysis") savedId = lastAnalysisIdRef.current;
     else if (target === "draft") savedId = lastDraftIdRef;
-    else if (target === "review") savedId = lastReviewIdRef;
     else savedId = lastTalkIdRef.current;
 
     const existing = savedId ? conversations.find((c) => c.id === savedId) : null;
@@ -517,7 +535,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     if (existing) {
       setActiveId(existing.id);
     } else {
-      const prefix = target === "analysis" ? "a" : target === "draft" ? "d" : target === "review" ? "r" : "t";
+      const prefix = target === "analysis" ? "a" : target === "draft" ? "d" : "t";
       const conv: Conversation = {
         id: newId(prefix),
         title: "New conversation",
@@ -534,13 +552,9 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       setSelectedDocType(null);
       setFormData({});
     }
-    if (target === "review") {
-      setAttachedFile(null);
-      setAttachedFileName(null);
-    }
   }
 
-  async function sendMessage(text: string) {
+  async function sendMessage(text: string, documentName?: string, imageDataUrl?: string, attachment?: { type: "pdf" | "image"; fileName: string; text?: string; imageBase64?: string; truncated?: boolean }) {
     const trimmed = text.trim();
     if (!trimmed || isThinking) return;
 
@@ -548,11 +562,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     const controller = new AbortController();
     abortRef.current = controller;
 
-    const messageContent = (mode === "review" && attachedFile)
-      ? `[Document: ${attachedFileName}]\n\n${attachedFile}\n\n---\n\n${trimmed}`
-      : trimmed;
-
-    const userMsg: Message = { id: newId("u"), role: "user", content: messageContent, type: mode };
+    const userMsg: Message = { id: newId("u"), role: "user", content: trimmed, type: mode, documentName: documentName ?? attachment?.fileName };
     const assistantId = newId("a");
 
     setConversations((prev) => {
@@ -562,9 +572,13 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               ...c,
               title:
                 c.messages.length === 0
-                  ? extractTopic(trimmed)
+                  ? attachment?.fileName
+                    ? attachment.fileName.replace(/\.[^.]+$/, "")
+                    : extractTopic(trimmed)
                   : c.title,
-              preview: trimmed,
+              preview: attachment?.fileName
+                ? draft.trim() || `Review: ${attachment.fileName}`
+                : trimmed,
               messages: [...c.messages, userMsg],
             }
           : c,
@@ -572,17 +586,32 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       return updated;
     });
     setDraft("");
-    if (mode === "review") {
-      setAttachedFile(null);
-      setAttachedFileName(null);
-    }
     setIsThinking(true);
 
     const currentConversations = conversations;
     const activeConversation = currentConversations.find((c) => c.id === activeId);
+
+    let userApiContent: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
+    if (attachment?.type === "image" && attachment.imageBase64) {
+      userApiContent = [
+        { type: "text", text: trimmed },
+        { type: "image_url", image_url: { url: attachment.imageBase64 } },
+      ];
+    } else if (attachment?.type === "pdf" && attachment.text) {
+      const docContext = `[Document: ${attachment.fileName}]\n\n${attachment.text}\n\n${attachment.truncated ? "(Note: Document was truncated due to length. Analysis covers the extracted portion.)\n\n" : ""}`;
+      userApiContent = `${docContext}${trimmed}`;
+    } else if (imageDataUrl) {
+      userApiContent = [
+        { type: "text", text: trimmed },
+        { type: "image_url", image_url: { url: imageDataUrl } },
+      ];
+    } else {
+      userApiContent = trimmed;
+    }
+
     const conversationMessages = [
       ...(activeConversation?.messages ?? []).map((m) => ({ role: m.role, content: m.content })),
-      { role: "user" as const, content: trimmed },
+      { role: "user" as const, content: userApiContent },
     ];
 
     try {
@@ -732,13 +761,29 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    sendMessage(draft);
+    if (pendingAttachment && !draft.trim()) {
+      const defaultPrompt = pendingAttachment.type === "image"
+        ? "Please review this image for any text, legal clauses, or important information. Analyze the content and provide a clause-by-clause breakdown with risk ratings where applicable."
+        : "Please review this document for risky clauses, unfair terms, and legal consequences. Provide a clause-by-clause analysis with risk ratings.";
+      sendMessage(defaultPrompt, undefined, undefined, pendingAttachment);
+    } else {
+      sendMessage(draft, undefined, undefined, pendingAttachment ?? undefined);
+    }
+    setPendingAttachment(null);
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      sendMessage(draft);
+      if (pendingAttachment && !draft.trim()) {
+        const defaultPrompt = pendingAttachment.type === "image"
+          ? "Please review this image for any text, legal clauses, or important information. Analyze the content and provide a clause-by-clause breakdown with risk ratings where applicable."
+          : "Please review this document for risky clauses, unfair terms, and legal consequences. Provide a clause-by-clause analysis with risk ratings.";
+        sendMessage(defaultPrompt, undefined, undefined, pendingAttachment);
+      } else {
+        sendMessage(draft, undefined, undefined, pendingAttachment ?? undefined);
+      }
+      setPendingAttachment(null);
     }
   }
 
@@ -791,7 +836,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     if (section === undefined) {
       const types: ConversationType[] = ["talk-to-ai", "analysis", "grill", "draft", "review"];
       const freshConversations: Conversation[] = types.map((type) => ({
-        id: newId(type === "analysis" ? "a" : type === "talk-to-ai" ? "t" : type === "grill" ? "g" : type === "draft" ? "d" : "r"),
+        id: newId(type === "analysis" ? "a" : type === "talk-to-ai" ? "t" : type === "grill" ? "g" : type === "review" ? "r" : "d"),
         title: "New conversation",
         preview: "Just started",
         type,
@@ -804,7 +849,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       return;
     }
     const clearType = section ?? active?.type ?? "talk-to-ai";
-    const prefix = clearType === "analysis" ? "a" : clearType === "talk-to-ai" ? "t" : clearType === "grill" ? "g" : clearType === "draft" ? "d" : clearType === "review" ? "r" : "c";
+    const prefix = clearType === "analysis" ? "a" : clearType === "talk-to-ai" ? "t" : clearType === "grill" ? "g" : clearType === "review" ? "r" : clearType === "draft" ? "d" : "c";
     const fresh: Conversation = {
       id: newId(prefix),
       title: "New conversation",
@@ -935,8 +980,8 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" />
             </svg>
           ) : isReview ? (
-            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-purple-400/70" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><path d="M9 15l2 2 4-4" />
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-emerald-400/70" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><path d="M12 18v-6" /><path d="M9 15h6" />
             </svg>
           ) : (
             <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-white/30" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1123,7 +1168,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           <button
             type="button"
             onClick={startReviewChat}
-            className="mt-2 flex w-full items-center gap-2 rounded-full border border-purple-400/30 bg-purple-400/[0.08] px-4 py-2 text-sm font-medium text-purple-400 transition-transform duration-300 hover:scale-[1.01] hover:bg-purple-400/[0.12]"
+            className="mt-2 flex w-full items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/[0.08] px-4 py-2 text-sm font-medium text-emerald-400 transition-transform duration-300 hover:scale-[1.01] hover:bg-emerald-400/[0.12]"
           >
             <svg
               aria-hidden
@@ -1137,7 +1182,8 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             >
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
               <polyline points="14 2 14 8 20 8" />
-              <path d="M9 15l2 2 4-4" />
+              <path d="M12 18v-6" />
+              <path d="M9 15h6" />
             </svg>
             <span>Document Review</span>
           </button>
@@ -1234,35 +1280,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </div>
           )}
 
-          {groupConversations("review").length > 0 && (
-            <div className="mb-4">
-              <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-purple-400/60">Document Review</p>
-              {groupConversations("review").map((group) => (
-                <div key={group.label} className="mb-2">
-                  <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
-                  <ul className="space-y-0.5 text-sm">
-                    {group.items.map((conv) => (
-                      <li key={conv.id} className="relative" onMouseEnter={() => setHoveredId(conv.id)} onMouseLeave={() => setHoveredId(null)}>
-                        {renderConvItem(conv)}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={() => setConfirmAction({ type: "clearHistory", section: "review" })}
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
-              >
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                </svg>
-                Clear history
-              </button>
-            </div>
-          )}
-
           {groupConversations("grill").length > 0 && (
             <div className="mb-4">
               <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-amber-400/60">My Cases</p>
@@ -1281,6 +1298,35 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               <button
                 type="button"
                 onClick={() => setConfirmAction({ type: "clearHistory", section: "grill" })}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
+              >
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+                Clear history
+              </button>
+            </div>
+          )}
+
+          {groupConversations("review").length > 0 && (
+            <div className="mb-4">
+              <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-emerald-400/60">Document Review</p>
+              {groupConversations("review").map((group) => (
+                <div key={group.label} className="mb-2">
+                  <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
+                  <ul className="space-y-0.5 text-sm">
+                    {group.items.map((conv) => (
+                      <li key={conv.id} className="relative" onMouseEnter={() => setHoveredId(conv.id)} onMouseLeave={() => setHoveredId(null)}>
+                        {renderConvItem(conv)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setConfirmAction({ type: "clearHistory", section: "review" })}
                 className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
               >
                 <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1387,7 +1433,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 {active?.title ?? "New conversation"}
               </h1>
               <p className="text-[11px] uppercase tracking-[0.2em] text-white/40">
-                {mode === "analysis" ? "In-depth Analysis" : mode === "talk-to-ai" || mode === "chat" ? "Talk to AI" : mode === "grill" ? "Interrogation Mode" : mode === "draft" ? "Document Drafter" : mode === "review" ? "Document Review" : "Talk to AI"}
+                {mode === "analysis" ? "In-depth Analysis" : mode === "talk-to-ai" || mode === "chat" ? "Talk to AI" : mode === "grill" ? "Interrogation Mode" : mode === "draft" ? "Document Drafter" : "Talk to AI"}
               </p>
             </div>
           </div>
@@ -1427,7 +1473,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 const hasDelimiter = message.content.includes("---");
 
                 if (isGrillAssistant && !hasAdviceComplete) {
-                  const cleaned = message.content.replace(/\[ADVICE_COMPLETE\]/g, "").trim();
+                  const cleaned = stripThinkingTokens(message.content.replace(/\[ADVICE_COMPLETE\]/g, "").trim());
                   let response = "";
                   let question = "";
 
@@ -1497,7 +1543,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                   >
                     {message.role === "assistant" && (message.type ?? active?.type) === "analysis" ? (
                       <div className="flex flex-col gap-4">
-                        {message.content.replace(/\[ADVICE_COMPLETE\]/g, "").split(/\n+/).filter(Boolean).map((block, i) => {
+                        {stripThinkingTokens(message.content).replace(/\[ADVICE_COMPLETE\]/g, "").split(/\n+/).filter(Boolean).map((block, i) => {
                           const numMatch = block.trim().match(/^(\d+)\.\s*/);
                           if (numMatch) {
                             const num = numMatch[1];
@@ -1514,9 +1560,9 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                                     ))}
                                   </div>
                                 </div>
-    </div>
-  );
-}
+                              </div>
+                            );
+                          }
                           return (
                             <div key={i} className="whitespace-pre-wrap leading-relaxed">
                               {block.trim().split(/\n\n+/).map((para, j) => (
@@ -1524,38 +1570,19 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                               ))}
                             </div>
                           );
-                        })}
+                         })}
                       </div>
-              ) : mode === "review" ? (
-                <>
-                  <div className="rounded-full border border-purple-400/30 bg-purple-400/[0.06] px-4 py-1.5 text-xs uppercase tracking-[0.3em] text-purple-400/70">
-                    Document Review
-                  </div>
-                  <h2 className="mt-6 text-2xl font-semibold tracking-tight sm:text-3xl">
-                    Upload and analyze legal documents
-                  </h2>
-                  <p className="mt-3 max-w-md text-sm leading-relaxed text-white/55">
-                    Upload a PDF document and get instant AI analysis with
-                    risk assessment, clause explanations, and recommendations.
-                  </p>
-                  <div className="mt-8 flex flex-wrap justify-center gap-3">
-                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-white/50">
-                      Rental Agreements
-                    </span>
-                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-white/50">
-                      Employment Contracts
-                    </span>
-                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-white/50">
-                      FIR Copies
-                    </span>
-                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-white/50">
-                      Legal Notices
-                    </span>
-                  </div>
-                </>
-              ) : (
+                    ) : message.role === "user" && message.documentName ? (
+                      <div className="flex items-center gap-2">
+                        <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-black/60" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          <polyline points="14 2 14 8 20 8" />
+                        </svg>
+                        <span className="text-sm font-medium">{message.documentName}</span>
+                      </div>
+                    ) : (
                       <div className="whitespace-pre-wrap leading-relaxed">
-                        {message.content.replace(/\[ADVICE_COMPLETE\]/g, "").split(/\n\n+/).map((para, i) => (
+                        {stripThinkingTokens(message.content).replace(/\[ADVICE_COMPLETE\]/g, "").split(/\n\n+/).map((para, i) => (
                           <p key={i} className={i > 0 ? "mt-3" : ""}>{renderBold(para)}</p>
                         ))}
                       </div>
@@ -1892,6 +1919,65 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                     </div>
                   )}
                 </div>
+              ) : mode === "review" ? (
+                <div className="mx-auto flex h-full max-w-4xl flex-col items-center justify-center px-4">
+                  <div className="rounded-full border border-emerald-400/30 bg-emerald-400/[0.06] px-4 py-1.5 text-xs uppercase tracking-[0.3em] text-emerald-400/70">
+                    Document Review
+                  </div>
+                  <h2 className="mt-6 text-2xl font-semibold tracking-tight sm:text-3xl">
+                    Review legal documents for risky clauses
+                  </h2>
+                  <p className="mt-3 max-w-md text-center text-sm leading-relaxed text-white/55">
+                    Upload a PDF or image — rental agreement, employment contract, FIR, sale deed,
+                    or any legal document — and get a clause-by-clause risk analysis
+                    with plain-language explanations.
+                  </p>
+                  <div className="mt-8 flex flex-wrap justify-center gap-3">
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-white/50">
+                      Risk ratings per clause
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-white/50">
+                      Plain-language explanations
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-white/50">
+                      Indian law references
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-white/50">
+                      Overall risk score
+                    </span>
+                  </div>
+                  <div className="mt-10 flex gap-4">
+                    <label className="flex cursor-pointer flex-col items-center gap-3 rounded-2xl border border-dashed border-emerald-400/30 bg-emerald-400/[0.04] px-8 py-6 transition-colors hover:border-emerald-400/50 hover:bg-emerald-400/[0.08]">
+                      <input
+                        type="file"
+                        accept=".pdf"
+                        className="hidden"
+                        onChange={handleReviewFileUpload}
+                      />
+                      <svg viewBox="0 0 24 24" className="h-8 w-8 text-emerald-400/50" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                      </svg>
+                      <span className="text-sm text-white/60">PDF Document</span>
+                      <span className="text-xs text-white/35">Contracts, agreements, FIRs</span>
+                    </label>
+                    <label className="flex cursor-pointer flex-col items-center gap-3 rounded-2xl border border-dashed border-blue-400/30 bg-blue-400/[0.04] px-8 py-6 transition-colors hover:border-blue-400/50 hover:bg-blue-400/[0.08]">
+                      <input
+                        type="file"
+                        accept=".png,.jpg,.jpeg,.webp,.gif"
+                        className="hidden"
+                        onChange={handleReviewFileUpload}
+                      />
+                      <svg viewBox="0 0 24 24" className="h-8 w-8 text-blue-400/50" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                        <circle cx="8.5" cy="8.5" r="1.5" />
+                        <polyline points="21 15 16 10 5 21" />
+                      </svg>
+                      <span className="text-sm text-white/60">Image / Screenshot</span>
+                      <span className="text-xs text-white/35">Photos of documents, screenshots</span>
+                    </label>
+                  </div>
+                </div>
               ) : (
                 <>
                   <div className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-1.5 text-xs uppercase tracking-[0.3em] text-white/40">
@@ -1912,6 +1998,34 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
         </div>
 
         <div className={`border-t border-white/10 px-5 py-4 backdrop-blur-md sm:px-8 ${(mode === "analysis" || mode === "talk-to-ai") ? "bg-black/60" : "bg-black/40"}`}>
+          {pendingAttachment && (
+            <div className="mx-auto mb-2 flex max-w-3xl items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] px-3 py-2">
+              {pendingAttachment.type === "image" ? (
+                <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <polyline points="21 15 16 10 5 21" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-red-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+              )}
+              <span className="truncate text-xs text-white/70">{pendingAttachment.fileName}</span>
+              <button
+                type="button"
+                onClick={() => setPendingAttachment(null)}
+                className="ml-auto shrink-0 rounded-full p-0.5 text-white/40 hover:text-white/80 transition-colors"
+                aria-label="Remove attachment"
+              >
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+          )}
           <form
             onSubmit={onSubmit}
             className="mx-auto flex max-w-3xl items-end gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-2 transition-colors duration-300 focus-within:border-white/30"
@@ -1919,7 +2033,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             <label htmlFor="chat-input" className="sr-only">
               Message
             </label>
-            {mode !== "grill" && mode !== "draft" && (
+            {mode !== "grill" && mode !== "draft" && mode !== "review" && (
               <button
                 type="button"
                 onClick={() => switchMode(mode === "analysis" ? "talk-to-ai" : "analysis")}
@@ -1964,29 +2078,79 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             {mode === "review" && (
               <>
                 <input
-                  ref={fileInputRef}
+                  ref={reviewFileInputRef}
                   type="file"
-                  accept=".pdf"
-                  onChange={handleFileUpload}
+                  accept=".pdf,.png,.jpg,.jpeg,.webp,.gif"
                   className="hidden"
+                  onChange={handleReviewFileUpload}
                 />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploading}
-                  aria-label="Upload PDF"
-                  className="mb-0.5 shrink-0 rounded-full p-2 text-purple-400/70 transition-colors hover:bg-purple-400/10 hover:text-purple-400 disabled:opacity-50"
-                >
-                  {isUploading ? (
-                    <svg viewBox="0 0 24 24" className="h-4 w-4 animate-spin" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="12" cy="12" r="10" strokeDasharray="31.42" strokeDashoffset="10" />
-                    </svg>
-                  ) : (
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-                    </svg>
+                <div className="relative" ref={reviewAttachMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setReviewAttachOpen((o) => !o)}
+                    disabled={reviewFileUploading}
+                    aria-label="Attach file for review"
+                    className="mb-0.5 shrink-0 rounded-full p-2 text-emerald-400/70 transition-colors hover:bg-emerald-400/10 hover:text-emerald-400 disabled:opacity-50"
+                  >
+                    {reviewFileUploading ? (
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400/30 border-t-emerald-400" />
+                    ) : (
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                      </svg>
+                    )}
+                  </button>
+                  {reviewAttachOpen && !reviewFileUploading && (
+                    <div className="absolute bottom-full left-0 mb-2 w-44 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-800 shadow-xl z-50">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (reviewFileInputRef.current) {
+                            reviewFileInputRef.current.accept = ".pdf";
+                            reviewFileInputRef.current.click();
+                          }
+                          setReviewAttachOpen(false);
+                        }}
+                        className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-700 transition-colors"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-4 w-4 text-red-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          <polyline points="14 2 14 8 20 8" />
+                          <line x1="16" y1="13" x2="8" y2="13" />
+                          <line x1="16" y1="17" x2="8" y2="17" />
+                          <polyline points="10 9 9 9 8 9" />
+                        </svg>
+                        PDF Document
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (reviewFileInputRef.current) {
+                            reviewFileInputRef.current.accept = ".png,.jpg,.jpeg,.webp,.gif";
+                            reviewFileInputRef.current.click();
+                          }
+                          setReviewAttachOpen(false);
+                        }}
+                        className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-700 transition-colors"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-4 w-4 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                          <circle cx="8.5" cy="8.5" r="1.5" />
+                          <polyline points="21 15 16 10 5 21" />
+                        </svg>
+                        Image / Screenshot
+                      </button>
+                    </div>
                   )}
-                </button>
+                </div>
               </>
             )}
             <textarea
@@ -1994,13 +2158,13 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder={mode === "review" ? "Ask about the uploaded document…" : "Message Lawbite…"}
+              placeholder={pendingAttachment ? "Ask about this document, or send to review as-is…" : "Message Lawbite…"}
               rows={1}
               className="min-h-[40px] max-h-40 w-full resize-none bg-transparent px-3 py-2 text-sm leading-relaxed text-white placeholder:text-white/35 focus:outline-none"
             />
             <button
               type="submit"
-              disabled={!draft.trim() || isThinking}
+              disabled={(!draft.trim() && !pendingAttachment) || isThinking}
               aria-label="Send message"
               className="btn-shine group relative inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-black transition-transform duration-300 hover:scale-[1.05] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
             >
@@ -2018,24 +2182,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               </svg>
             </button>
           </form>
-          {mode === "review" && attachedFileName && (
-            <div className="mx-auto mt-2 flex max-w-3xl items-center gap-2 rounded-lg border border-purple-400/20 bg-purple-400/[0.06] px-3 py-1.5">
-              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-purple-400/70" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-              </svg>
-              <span className="truncate text-xs text-purple-400/80">{attachedFileName}</span>
-              <button
-                type="button"
-                onClick={() => { setAttachedFile(null); setAttachedFileName(null); }}
-                className="ml-auto shrink-0 rounded p-0.5 text-purple-400/50 transition-colors hover:text-purple-400"
-              >
-                <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          )}
           <p className="mx-auto mt-2 max-w-3xl text-[11px] text-white/35">
             Press <kbd className="rounded border border-white/15 px-1">Enter</kbd>{" "}
             to send,{" "}

@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
     "kysely",
     "pg",
     "better-auth",
+    "pdf-parse",
   ],
 };
 

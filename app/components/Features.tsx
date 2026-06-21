@@ -27,18 +27,24 @@ const features: Feature[] = [
   },
   {
     tag: "04",
-    title: "Standard Chat",
+    title: "Document Drafter",
     description:
-      "Have a free-form conversation about any legal topic. Ask follow-ups, explore edge cases, and refine your understanding.",
+      "Generate ready-to-use Indian legal documents — legal notices, FIRs, consumer complaints, RTI applications, wills, affidavits, and contracts.",
   },
   {
     tag: "05",
+    title: "Document Review",
+    description:
+      "Upload a PDF — rental agreement, employment contract, FIR, or any legal document — and get a clause-by-clause risk analysis with plain-language explanations.",
+  },
+  {
+    tag: "06",
     title: "40+ Bare Acts",
     description:
       "AI-powered retrieval from India's key legislation — IPC, BNS, CrPC, BNSS, the Constitution, and 40+ other acts at the section level.",
   },
   {
-    tag: "06",
+    tag: "07",
     title: "Live Web Search",
     description:
       "When your query needs current information, Lawbite automatically searches the web for recent judgments, amendments, and legal developments.",
@@ -116,6 +122,30 @@ function FeatureIcon({ index }: { index: number }) {
       <path d="M20 20l6 6" />
       <path d="M11 11h6M11 14h4" />
     </svg>,
+    <svg
+      key="review"
+      viewBox="0 0 32 32"
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+    >
+      <path d="M14 4H6a2 2 0 0 0-2 2v18a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V12z" />
+      <path d="M14 4v8h8" />
+      <path d="M16 20v-6" />
+      <path d="M13 17h6" />
+    </svg>,
+    <svg
+      key="globe"
+      viewBox="0 0 32 32"
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+    >
+      <circle cx="16" cy="16" r="11" />
+      <path d="M2 16h28M16 5a15.3 15.3 0 0 1 4 11 15.3 15.3 0 0 1-4 11 15.3 15.3 0 0 1-4-11A15.3 15.3 0 0 1 16 5z" />
+    </svg>,
   ];
   return shapes[index % shapes.length];
 }
@@ -133,7 +163,7 @@ export default function Features() {
               / Features
             </p>
             <h2 className="mt-5 text-balance text-4xl font-semibold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl">
-              Four ways to get legal clarity.
+              Seven ways to get legal clarity.
             </h2>
           </Reveal>
           <Reveal delay={1}>

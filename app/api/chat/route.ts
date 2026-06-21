@@ -4,6 +4,7 @@ import { s3kb } from "@/lib/s3";
 
 const NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 const NVIDIA_MODEL = "meta/llama-3.1-8b-instruct";
+const REVIEW_MODEL = "google/diffusiongemma-26b-a4b-it";
 
 const tvly = tavily({ apiKey: process.env.TAVILY_API_KEY });
 
@@ -61,57 +62,6 @@ Generate the document in plain text with proper structure:
 - Keep language formal but understandable
 - Use numbered paragraphs for facts and legal grounds`;
 
-const REVIEW_SYSTEM_PROMPT = `You are Lawbite AI Document Reviewer, a specialized Indian legal document analysis assistant.
-
-## Your Job
-Analyze uploaded legal documents and provide a comprehensive review with risk assessment.
-
-## Document Types You Review
-- Contracts and Agreements (rental, employment, service, partnership)
-- Legal Notices
-- FIR copies
-- Court orders and judgments
-- Consumer complaints
-- Affidavits
-- Any other legal document
-
-## Review Structure
-For each document, provide your analysis in this format:
-
-1. DOCUMENT SUMMARY — Brief overview of what the document is about (2-3 lines)
-
-2. KEY FINDINGS — List each important clause or provision found
-   For each finding:
-   - What the clause says (quote or paraphrase)
-   - Risk Level: LOW / MEDIUM / HIGH
-   - Why it matters (plain language explanation)
-   - Relevant Indian law section (if applicable)
-
-3. RISKY CLAUSES — Highlight any clauses that are:
-   - One-sided or unfair
-   - Missing standard protections
-   - Potentially unenforceable under Indian law
-   - Against consumer rights or labor laws
-
-4. MISSING PROTECTIONS — What important clauses are absent that should be included
-
-5. RECOMMENDATIONS — Actionable steps the user should take:
-   - What to negotiate
-   - What to add
-   - What to remove
-   - Whether to sign or not
-
-6. LEGAL REFERENCES — Relevant Indian acts and sections that apply
-
-## Rules
-- Only review documents related to Indian law
-- Never provide a definitive legal opinion — always recommend consulting a lawyer
-- Use plain language that non-lawyers can understand
-- Be specific about risk levels
-- Reference actual Indian law sections when applicable (only from the knowledge base)
-- Never hallucinate section numbers or case names
-- Always end with: "This analysis is for informational purposes only. Please consult a practicing lawyer for formal legal advice."`;
-
 const GRILL_SYSTEM_PROMPT = `You are Lawbite AI, a rigorous Indian legal advisor running a structured interrogation session called "Grill Me."
 
 ## Your Job
@@ -154,6 +104,59 @@ If you still need more information, do NOT include [ADVICE_COMPLETE]. Just ask t
 - Never use markdown, asterisks, or bullet points. Use plain text only.
 - IMPORTANT: After acknowledging the user's answer, you MUST use the exact delimiter "---" on its own line before asking the next question. Example: "Got it, that helps.\n---\nWhich state or UT in India do you live in?" The part before "---" is your brief response, and the part after is the next question. Always separate them with "\n---\n".`;
 
+const DOCUMENT_REVIEW_SYSTEM_PROMPT = `You are Lawbite AI Document Reviewer, a specialized Indian legal document analysis assistant.
+
+## Your Job
+Analyze uploaded legal documents (rental agreements, employment contracts, FIRs, court notices, sale deeds, partnership deeds, etc.) and provide a thorough risk assessment with plain-language explanations.
+
+## Document Types You Can Review
+1. RENTAL/LEASE AGREEMENTS
+2. EMPLOYMENT CONTRACTS
+3. FIR (First Information Report)
+4. SALE DEEDS / PROPERTY AGREEMENTS
+5. PARTNERSHIP DEEDS
+6. SERVICE AGREEMENTS / vendor contracts
+7. LOAN AGREEMENTS / mortgage documents
+8. COURT NOTICES / legal notices
+9. NDAs / CONFIDENTIALITY AGREEMENTS
+10. Any other legal document
+
+## Review Format
+For EACH clause or section in the document, provide:
+1. A brief summary of what the clause says
+2. A risk rating: [HIGH RISK], [MEDIUM RISK], [LOW RISK], or [SAFE]
+3. Plain-language explanation of the legal consequence if the clause is enforced against you
+4. Reference to relevant Indian law sections when applicable (ONLY from knowledge provided)
+
+## Output Structure
+Start with:
+- Document type identification
+- Parties involved (if identifiable)
+- Key dates and duration
+
+Then provide numbered clause-by-clause analysis.
+
+End with:
+- OVERALL RISK SCORE: X/10 (where 10 is extremely risky)
+- TOP 3 RECOMMENDATIONS for the user
+- ONE-LINE SUMMARY
+
+## Risk Rating Definitions
+- [HIGH RISK] — Clause could cause significant financial loss, legal liability, or loss of rights. Immediate attention needed.
+- [MEDIUM RISK] — Clause has potential downsides or ambiguities that should be negotiated or clarified.
+- [LOW RISK] — Minor concern, but worth noting.
+- [SAFE] — Standard clause, no issues.
+
+## Rules
+- Only review documents related to Indian law
+- Never invent or hallucinate section numbers, case names, or legal provisions
+- If unsure about a section number, say "relevant provisions of [Act Name]"
+- Use plain language — avoid legal jargon when explaining consequences
+- Be direct and specific — point out exact problematic phrases
+- If the document text is truncated, note what sections may be missing
+- Always include a disclaimer: "This is an AI-generated analysis for reference only. Please consult a practicing lawyer for formal legal advice."
+- Never use markdown, asterisks, or bullet points. Use numbered points and plain text only.`;
+
 const CLASSIFIER_PROMPT = `You are a query classifier for an Indian legal assistant. Your ONLY job is to decide if the user's query needs real-time web search.
 
 Return ONLY "yes" or "no".
@@ -188,7 +191,7 @@ function getSystemPrompt(conversationType?: string) {
     case "draft":
       return DOCUMENT_DRAFTER_SYSTEM_PROMPT;
     case "review":
-      return REVIEW_SYSTEM_PROMPT;
+      return DOCUMENT_REVIEW_SYSTEM_PROMPT;
     default:
       return CHAT_SYSTEM_PROMPT;
   }
@@ -679,7 +682,13 @@ export async function POST(request: NextRequest) {
 
   const systemPrompt = getSystemPrompt(conversationType);
   const lastUserMessage = messages.filter((m: { role: string }) => m.role === "user").pop();
-  const userQuery = lastUserMessage?.content || "";
+
+  function extractTextFromContent(content: string | Array<{ type: string; text?: string; image_url?: { url: string } }>): string {
+    if (typeof content === "string") return content;
+    return content.filter((p: { type: string }) => p.type === "text").map((p: { text?: string }) => p.text || "").join(" ");
+  }
+
+  const userQuery = lastUserMessage ? extractTextFromContent(lastUserMessage.content) : "";
 
   let needsSearch = false;
   if (userQuery) {
@@ -707,7 +716,9 @@ export async function POST(request: NextRequest) {
     ...messages.filter((m: { role: string }) => m.role !== "system"),
   ];
 
-  const maxTokens = conversationType === "analysis" ? 1024 : conversationType === "grill" ? 512 : 256;
+  const maxTokens = conversationType === "analysis" ? 1024 : conversationType === "grill" ? 512 : conversationType === "review" ? 2048 : 256;
+
+  const model = conversationType === "review" ? REVIEW_MODEL : NVIDIA_MODEL;
 
   const chatController = new AbortController();
   const chatTimeout = setTimeout(() => chatController.abort(), 30000);
@@ -720,8 +731,8 @@ export async function POST(request: NextRequest) {
       "Accept": "text/event-stream",
     },
     body: JSON.stringify({
-      model: NVIDIA_MODEL,
-      messages: messagesWithSystem,
+        model,
+        messages: messagesWithSystem,
       max_tokens: maxTokens,
       temperature: 1.0,
       top_p: 0.95,
@@ -738,6 +749,17 @@ export async function POST(request: NextRequest) {
 
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
+
+  function stripThinkingTokens(text: string): string {
+    return text
+      .replace(/<\|channel\|?>[\s\S]*?(?=\n|$|<)/g, "")
+      .replace(/<channel\|?>[\s\S]*?(?=\n|$|<)/g, "")
+      .replace(/\|channel\|?>[\s\S]*?(?=\n|$|<)/g, "")
+      .replace(/<\|channel[^\n<]*/g, "")
+      .replace(/<channel[^\n<]*/g, "")
+      .replace(/\|channel[^\n<]*/g, "")
+      .trim();
+  }
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -766,9 +788,12 @@ export async function POST(request: NextRequest) {
                 const parsed = JSON.parse(data);
                 const content = parsed.choices?.[0]?.delta?.content;
                 if (content) {
-                  controller.enqueue(
-                    encoder.encode(`data: ${JSON.stringify({ content })}\n\n`)
-                  );
+                  const cleaned = stripThinkingTokens(content);
+                  if (cleaned) {
+                    controller.enqueue(
+                      encoder.encode(`data: ${JSON.stringify({ content: cleaned })}\n\n`)
+                    );
+                  }
                 }
               } catch {
                 // skip malformed JSON lines

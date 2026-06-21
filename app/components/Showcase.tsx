@@ -54,7 +54,8 @@ export default function Showcase() {
                   { label: "Talk to AI", active: true },
                   { label: "In-depth Analysis", active: false },
                   { label: "Grill Me", active: false },
-                  { label: "Standard Chat", active: false },
+                  { label: "Document Drafter", active: false },
+                  { label: "Document Review", active: false },
                 ].map((item) => (
                   <div
                     key={item.label}
