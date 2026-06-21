@@ -347,6 +347,22 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     return title.charAt(0).toUpperCase() + title.slice(1);
   }
 
+  function extractResponseTitle(text: string): string {
+    const cleaned = text
+      .replace(/\*\*/g, "")
+      .replace(/#{1,6}\s/g, "")
+      .replace(/\[.*?\]\(.*?\)/g, "")
+      .replace(/[`*_~]/g, "")
+      .replace(/\|/g, " ")
+      .replace(/\n+/g, " ")
+      .trim();
+    const firstSentence = cleaned.match(/^[^.!?]+[.!?]/)?.[0]?.trim() ?? cleaned.slice(0, 80);
+    const words = firstSentence.split(/\s+/).slice(0, 6);
+    let title = words.join(" ");
+    if (title.length > 50) title = title.slice(0, 47) + "...";
+    return title.charAt(0).toUpperCase() + title.slice(1);
+  }
+
   function selectConversation(id: string) {
     const target = conversations.find((c) => c.id === id);
     if (target) setMode(target.type);
@@ -699,6 +715,24 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     } finally {
       abortRef.current = null;
       setIsThinking(false);
+
+      setConversations((prev) => {
+        const conv = prev.find((c) => c.id === activeId);
+        if (!conv) return prev;
+        const firstMsg = conv.messages[0];
+        const assistantMsg = conv.messages.find((m) => m.role === "assistant" && m.id === assistantId);
+        if (!assistantMsg?.content) return prev;
+
+        const isUntouched = conv.title === "New conversation" || conv.title === "New case";
+        if (!isUntouched) return prev;
+
+        const newTitle = extractResponseTitle(assistantMsg.content);
+        if (!newTitle) return prev;
+
+        return prev.map((c) =>
+          c.id === activeId ? { ...c, title: newTitle } : c
+        );
+      });
 
       // Auto-save completed grill sessions
       if (mode === "grill") {
