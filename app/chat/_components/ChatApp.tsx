@@ -347,22 +347,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     return title.charAt(0).toUpperCase() + title.slice(1);
   }
 
-  function extractResponseTitle(text: string): string {
-    const cleaned = text
-      .replace(/\*\*/g, "")
-      .replace(/#{1,6}\s/g, "")
-      .replace(/\[.*?\]\(.*?\)/g, "")
-      .replace(/[`*_~]/g, "")
-      .replace(/\|/g, " ")
-      .replace(/\n+/g, " ")
-      .trim();
-    const firstSentence = cleaned.match(/^[^.!?]+[.!?]/)?.[0]?.trim() ?? cleaned.slice(0, 80);
-    const words = firstSentence.split(/\s+/).slice(0, 6);
-    let title = words.join(" ");
-    if (title.length > 50) title = title.slice(0, 47) + "...";
-    return title.charAt(0).toUpperCase() + title.slice(1);
-  }
-
   function selectConversation(id: string) {
     const target = conversations.find((c) => c.id === id);
     if (target) setMode(target.type);
@@ -587,8 +571,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           ? {
               ...c,
               title:
-                c.messages.length === 0 && !attachment
-                  ? extractTopic(trimmed)
+                c.messages.length === 0
+                  ? attachment?.fileName
+                    ? attachment.fileName.replace(/\.[^.]+$/, "")
+                    : extractTopic(trimmed)
                   : c.title,
               preview: attachment?.fileName
                 ? draft.trim() || `Review: ${attachment.fileName}`
@@ -713,24 +699,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     } finally {
       abortRef.current = null;
       setIsThinking(false);
-
-      setConversations((prev) => {
-        const conv = prev.find((c) => c.id === activeId);
-        if (!conv) return prev;
-        const firstMsg = conv.messages[0];
-        const assistantMsg = conv.messages.find((m) => m.role === "assistant" && m.id === assistantId);
-        if (!assistantMsg?.content) return prev;
-
-        const isUntouched = conv.title === "New conversation" || conv.title === "New case";
-        if (!isUntouched) return prev;
-
-        const newTitle = extractResponseTitle(assistantMsg.content);
-        if (!newTitle) return prev;
-
-        return prev.map((c) =>
-          c.id === activeId ? { ...c, title: newTitle } : c
-        );
-      });
 
       // Auto-save completed grill sessions
       if (mode === "grill") {
@@ -1102,7 +1070,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       />
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-white/10 bg-black transition-transform duration-300 md:static md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-white/10 bg-black transition-transform duration-300 md:static md:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}
       >
@@ -1155,6 +1123,25 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               <path d="M12 5v14M5 12h14" />
             </svg>
             <span>New chat</span>
+          </button>
+          <button
+            type="button"
+            onClick={startTalkToAI}
+            className="mt-2 flex w-full items-center gap-2 rounded-full border border-white/15 bg-white px-4 py-2 text-sm font-medium text-black transition-transform duration-300 hover:scale-[1.01]"
+          >
+            <svg
+              aria-hidden
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            <span>Talk to AI</span>
           </button>
           <button
             type="button"
