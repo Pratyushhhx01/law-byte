@@ -587,10 +587,8 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           ? {
               ...c,
               title:
-                c.messages.length === 0
-                  ? attachment?.fileName
-                    ? attachment.fileName.replace(/\.[^.]+$/, "")
-                    : extractTopic(trimmed)
+                c.messages.length === 0 && !attachment
+                  ? extractTopic(trimmed)
                   : c.title,
               preview: attachment?.fileName
                 ? draft.trim() || `Review: ${attachment.fileName}`
