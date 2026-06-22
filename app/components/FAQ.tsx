@@ -15,8 +15,8 @@ const items: Item[] = [
     a: "No. Lawbite is a research and analysis tool — it helps you understand legal provisions, explore your options, and prepare better questions for your lawyer. It does not provide legal advice or represent you in any proceeding.",
   },
   {
-    q: "How does the Grill Me mode work?",
-    a: "Grill Me asks one question at a time across 8 legal lenses — problem, state, role, details, sections, evidence, status, and outcome. It builds a complete picture of your situation before delivering tailored legal analysis.",
+    q: "How does the My Cases mode work?",
+    a: "My Cases asks one question at a time across 8 legal lenses — problem, state, role, details, sections, evidence, status, and outcome. It builds a complete picture of your situation before delivering tailored legal analysis.",
   },
   {
     q: "Is my data secure?",

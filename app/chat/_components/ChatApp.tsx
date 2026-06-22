@@ -1467,7 +1467,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 {active?.title ?? "New conversation"}
               </h1>
               <p className="text-[11px] uppercase tracking-[0.2em] text-white/40">
-                {mode === "analysis" ? "In-depth Analysis" : mode === "talk-to-ai" || mode === "chat" ? "Talk to AI" : mode === "grill" ? "Interrogation Mode" : mode === "draft" ? "Document Drafter" : mode === "review" ? "Document Reviewer" : "Talk to AI"}
+                {mode === "analysis" ? "In-depth Analysis" : mode === "talk-to-ai" || mode === "chat" ? "Talk to AI" : mode === "grill" ? "My Cases" : mode === "draft" ? "Document Drafter" : mode === "review" ? "Document Reviewer" : "Talk to AI"}
               </p>
             </div>
           </div>
@@ -3004,7 +3004,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </h3>
             <p className="mt-2 text-sm text-white/55">
               {confirmAction.type === "clearHistory"
-                ? `This will permanently delete all ${{ "talk-to-ai": "Talk to AI", "chat": "Chat", "analysis": "In-depth Analysis", "grill": "Case", "draft": "Document Drafter", "review": "Document Reviewer" }[confirmAction.section ?? "talk-to-ai"]} history. This action cannot be undone.`
+                ? `This will permanently delete all ${{ "talk-to-ai": "Talk to AI", "chat": "Chat", "analysis": "In-depth Analysis", "grill": "My Cases", "draft": "Document Drafter", "review": "Document Reviewer" }[confirmAction.section ?? "talk-to-ai"]} history. This action cannot be undone.`
                 : "This will permanently delete this conversation. This action cannot be undone."}
             </p>
             <div className="mt-5 flex justify-end gap-2">

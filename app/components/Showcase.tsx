@@ -51,17 +51,17 @@ export default function Showcase() {
             <div className="grid gap-4 pt-6 sm:grid-cols-12 sm:gap-6">
               <aside className="hidden flex-col gap-1 rounded-2xl border border-white/10 bg-white/[0.02] p-3 sm:col-span-3 sm:flex">
                 {[
-                  { label: "Talk to AI", active: true },
+                  { label: "Talk to AI", active: false },
                   { label: "In-depth Analysis", active: false },
-                  { label: "Grill Me", active: false },
-                  { label: "Document Drafter", active: false },
+                  { label: "My Cases", active: false },
+                  { label: "Document Drafter", active: true },
                   { label: "Document Review", active: false },
                 ].map((item) => (
                   <div
                     key={item.label}
                     className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs ${
                       item.active
-                        ? "bg-white/10 text-white"
+                        ? "bg-blue-400/15 text-blue-300"
                         : "text-white/55 transition-colors hover:bg-white/[0.04] hover:text-white/80"
                     }`}
                   >
@@ -85,58 +85,51 @@ export default function Showcase() {
 
               <div className="sm:col-span-9">
                 <div className="space-y-4">
+                  <div className="flex justify-start">
+                    <div className="max-w-[90%] rounded-2xl rounded-bl-md border border-blue-400/20 bg-blue-400/[0.04] px-4 py-3 text-sm leading-relaxed text-white/80">
+                      <p className="mb-2 font-medium text-blue-300">Document Drafter</p>
+                      <p className="text-white/60">Select a document type to start drafting:</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {["Legal Notice", "FIR Draft", "Consumer Complaint", "RTI Application", "Will", "Affidavit", "Petition", "Contract"].map((doc) => (
+                      <div key={doc} className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/60 transition-colors hover:border-blue-400/30 hover:bg-blue-400/[0.04] hover:text-blue-300">
+                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-blue-400/60" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          <polyline points="14 2 14 8 20 8" />
+                          <line x1="16" y1="13" x2="8" y2="13" />
+                          <line x1="16" y1="17" x2="8" y2="17" />
+                        </svg>
+                        {doc}
+                      </div>
+                    ))}
+                  </div>
+
                   <div className="flex justify-end">
                     <div className="max-w-[80%] rounded-2xl rounded-br-md bg-white/10 px-4 py-3 text-sm text-white/90">
-                      What are the bail provisions under BNSS for Section 302?
+                      Draft a legal notice for a property dispute
                     </div>
                   </div>
 
                   <div className="flex justify-start">
                     <div className="max-w-[85%] rounded-2xl rounded-bl-md border border-white/10 bg-white/[0.03] px-4 py-3 text-sm leading-relaxed text-white/75">
                       <p className="mb-2">
-                        <span className="font-medium text-white/90">Section 480 BNSS</span> (equivalent to
-                        Section 437 CrPC) governs bail in non-bailable offences:
+                        <span className="font-medium text-white/90">Legal Notice</span> — drafted successfully
                       </p>
-                      <ol className="ml-4 list-decimal space-y-1.5 text-white/65">
-                        <li>
-                          Bail may be granted by a Magistrate if there are
-                          reasonable grounds to believe the accused is not guilty
-                        </li>
-                        <li>
-                          The offence must not be punishable with death or life
-                          imprisonment
-                        </li>
-                        <li>
-                          The Magistrate must consider the nature of the evidence,
-                          severity of punishment, and flight risk
-                        </li>
-                      </ol>
-                      <p className="mt-2 text-white/50">
-                        For Section 302 BNS (murder), bail is extremely difficult
-                        but not impossible — factors like age, health, and time
-                        spent in custody matter.
+                      <p className="text-white/60">
+                        I have drafted a legal notice for your property dispute. You can review the full document below and consult a practicing lawyer before sending.
                       </p>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end">
-                    <div className="max-w-[80%] rounded-2xl rounded-br-md bg-white/10 px-4 py-3 text-sm text-white/90">
-                      Can anticipatory bail be filed under BNSS?
-                    </div>
-                  </div>
-
-                  <div className="flex justify-start">
-                    <div className="max-w-[85%] rounded-2xl rounded-bl-md border border-white/10 bg-white/[0.03] px-4 py-3 text-sm leading-relaxed text-white/75">
-                      Yes. <span className="font-medium text-white/90">Section 482 BNSS</span> (equivalent to
-                      Section 438 CrPC) provides for anticipatory bail. The
-                      Sessions Court or High Court can grant bail if there is
-                      reason to believe you may be arrested for a non-bailable
-                      offence.
                     </div>
                   </div>
                 </div>
 
                 <div className="mt-5 flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3">
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full text-white/30 transition-colors hover:text-white/50">
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                    </svg>
+                  </span>
                   <div className="flex-1 text-sm text-white/40">
                     Ask a follow-up question...
                   </div>

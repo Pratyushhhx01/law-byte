@@ -21,7 +21,7 @@ const features: Feature[] = [
   },
   {
     tag: "03",
-    title: "Grill Me",
+    title: "My Cases",
     description:
       "A structured interrogation mode that asks one question at a time across 8 legal lenses — building a complete picture before delivering tailored advice.",
   },
@@ -29,22 +29,34 @@ const features: Feature[] = [
     tag: "04",
     title: "Document Drafter",
     description:
-      "Generate ready-to-use Indian legal documents — legal notices, FIRs, consumer complaints, RTI applications, wills, affidavits, and contracts.",
+      "Generate ready-to-use Indian legal documents with structured forms — pick from 8 types (legal notice, FIR, consumer complaint, RTI, will, affidavit, petition, contract) via the popup selector and get professionally formatted drafts.",
   },
   {
     tag: "05",
     title: "Document Review",
     description:
-      "Upload a PDF — rental agreement, employment contract, FIR, or any legal document — and get a clause-by-clause risk analysis with plain-language explanations.",
+      "Upload a PDF or image — rental agreement, employment contract, FIR, or any legal document — and get a clause-by-clause risk analysis with plain-language explanations.",
   },
   {
     tag: "06",
+    title: "File Attachment",
+    description:
+      "Attach PDFs and images to any chat conversation. Ask questions about document contents, get summaries, or send them straight to the document reviewer for analysis.",
+  },
+  {
+    tag: "07",
+    title: "Organize & Pin",
+    description:
+      "Pin important conversations, organize cases by type, and manage your legal research across dedicated sections for every conversation mode.",
+  },
+  {
+    tag: "08",
     title: "40+ Bare Acts",
     description:
       "AI-powered retrieval from India's key legislation — IPC, BNS, CrPC, BNSS, the Constitution, and 40+ other acts at the section level.",
   },
   {
-    tag: "07",
+    tag: "09",
     title: "Live Web Search",
     description:
       "When your query needs current information, Lawbite automatically searches the web for recent judgments, amendments, and legal developments.",
@@ -136,6 +148,16 @@ function FeatureIcon({ index }: { index: number }) {
       <path d="M13 17h6" />
     </svg>,
     <svg
+      key="pin"
+      viewBox="0 0 32 32"
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+    >
+      <path d="M12 2L8.5 8.5 2 9.3l4.7 4.5L5.5 21 12 17.5 18.5 21l-1.2-7.2L22 9.3l-6.5-.8z" />
+    </svg>,
+    <svg
       key="globe"
       viewBox="0 0 32 32"
       className="h-6 w-6"
@@ -145,6 +167,16 @@ function FeatureIcon({ index }: { index: number }) {
     >
       <circle cx="16" cy="16" r="11" />
       <path d="M2 16h28M16 5a15.3 15.3 0 0 1 4 11 15.3 15.3 0 0 1-4 11 15.3 15.3 0 0 1-4-11A15.3 15.3 0 0 1 16 5z" />
+    </svg>,
+    <svg
+      key="attach"
+      viewBox="0 0 32 32"
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+    >
+      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
     </svg>,
   ];
   return shapes[index % shapes.length];
@@ -163,7 +195,7 @@ export default function Features() {
               / Features
             </p>
             <h2 className="mt-5 text-balance text-4xl font-semibold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl">
-              Seven ways to get legal clarity.
+              Nine ways to get legal clarity.
             </h2>
           </Reveal>
           <Reveal delay={1}>

@@ -21,12 +21,18 @@ const steps: Step[] = [
   },
   {
     number: "03",
+    title: "Upload & Draft",
+    description:
+      "Attach PDFs and images to any chat, or use the Document Drafter to generate legal documents from 8 ready templates — legal notices, FIRs, contracts, and more.",
+  },
+  {
+    number: "04",
     title: "Get Grounded Answers",
     description:
       "AI retrieves from 40+ Indian bare acts and searches the web for current legal developments to support its response.",
   },
   {
-    number: "04",
+    number: "05",
     title: "Save & Share",
     description:
       "Pin important conversations, save completed cases for reference, and share findings to social platforms.",
@@ -47,7 +53,7 @@ export default function HowItWorks() {
                 / Process
               </p>
               <h2 className="mt-5 max-w-2xl text-balance text-4xl font-semibold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl">
-                From question to clarity in four steps.
+                From question to clarity in five steps.
               </h2>
             </div>
             <p className="max-w-sm text-sm leading-relaxed text-white/60">
@@ -62,9 +68,9 @@ export default function HowItWorks() {
             aria-hidden
             className="pointer-events-none absolute left-0 right-0 top-7 hidden h-px bg-gradient-to-r from-transparent via-white/15 to-transparent lg:block"
           />
-          <ol className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+          <ol className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
             {steps.map((step, i) => (
-              <Reveal key={step.number} delay={((i % 4) + 1) as 1 | 2 | 3 | 4}>
+              <Reveal key={step.number} delay={((i % 5) + 1) as 1 | 2 | 3 | 4 | 5}>
                 <li className="group relative">
                   <div className="relative flex items-center gap-4">
                     <div className="relative">

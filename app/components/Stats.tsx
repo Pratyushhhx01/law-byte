@@ -12,8 +12,8 @@ type Stat = {
 
 const stats: Stat[] = [
   { value: 40, suffix: "+", label: "Indian bare acts covered" },
-  { value: 3, suffix: "", label: "AI conversation modes" },
-  { value: 8, suffix: "", label: "Legal analysis lenses in Grill Me" },
+  { value: 5, suffix: "", label: "AI conversation modes" },
+  { value: 8, suffix: "", label: "Legal analysis lenses in My Cases" },
   { value: 0, suffix: "", label: "Cost to get started", decimals: 0 },
 ];
 
