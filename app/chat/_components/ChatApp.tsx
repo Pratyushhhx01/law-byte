@@ -230,6 +230,8 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const analysisAttachMenuRef = useRef<HTMLDivElement | null>(null);
   const [analysisAttachOpen, setAnalysisAttachOpen] = useState(false);
   const [fileUploading, setFileUploading] = useState(false);
+  const [draftDocTypeOpen, setDraftDocTypeOpen] = useState(false);
+  const draftDocTypeMenuRef = useRef<HTMLDivElement | null>(null);
 
   const active = conversations.find((c) => c.id === activeId) ?? conversations[0];
 
@@ -270,6 +272,17 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [plusMenuOpen]);
+
+  useEffect(() => {
+    if (!draftDocTypeOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (draftDocTypeMenuRef.current && !draftDocTypeMenuRef.current.contains(e.target as Node)) {
+        setDraftDocTypeOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [draftDocTypeOpen]);
 
   useEffect(() => {
     if (mode === "analysis" || mode === "grill" || mode === "draft" || mode === "review" || !active || active.messages.length === 0) {
@@ -1216,34 +1229,32 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           aria-label="History"
           className="mt-4 flex-1 overflow-y-auto px-2 pb-4"
         >
-          {groupConversations("talk-to-ai").length > 0 && (
-            <div className="mb-4">
-              <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-white/35">Talk to AI</p>
-              {groupConversations("talk-to-ai").map((group) => (
-                <div key={group.label} className="mb-2">
-                  <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
-                  <ul className="space-y-0.5 text-sm">
-                    {group.items.map((conv) => (
-                      <li key={conv.id} className="relative" onMouseEnter={() => setHoveredId(conv.id)} onMouseLeave={() => setHoveredId(null)}>
-                        {renderConvItem(conv)}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={() => setConfirmAction({ type: "clearHistory", section: "talk-to-ai" })}
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
-              >
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                </svg>
-                Clear history
-              </button>
-            </div>
-          )}
+          <div className="mb-4">
+            <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-white/35">Talk to AI</p>
+            {groupConversations("talk-to-ai").map((group) => (
+              <div key={group.label} className="mb-2">
+                <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
+                <ul className="space-y-0.5 text-sm">
+                  {group.items.map((conv) => (
+                    <li key={conv.id} className="relative" onMouseEnter={() => setHoveredId(conv.id)} onMouseLeave={() => setHoveredId(null)}>
+                      {renderConvItem(conv)}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => setConfirmAction({ type: "clearHistory", section: "talk-to-ai" })}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
+            >
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+              Clear history
+            </button>
+          </div>
 
           {groupConversations("analysis").length > 0 && (
             <div className="mb-4">
@@ -1361,7 +1372,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </div>
           )}
 
-          {groupConversations("analysis").length === 0 && groupConversations("talk-to-ai").length === 0 && groupConversations("grill").length === 0 && groupConversations("draft").length === 0 && groupConversations("review").length === 0 && (
+          {groupConversations("analysis").length === 0 && groupConversations("grill").length === 0 && groupConversations("draft").length === 0 && groupConversations("review").length === 0 && (
             <p className="px-3 py-8 text-center text-xs text-white/35">No conversations yet</p>
           )}
         </nav>
@@ -1821,7 +1832,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                           )}
                         </button>
                         {analysisAttachOpen && !fileUploading && (
-                          <div className="absolute bottom-full left-0 mb-2 w-44 overflow-hidden rounded-lg border border-amber-400/10 bg-black/80 backdrop-blur-xl shadow-xl z-50">
+                          <div className="absolute bottom-full -left-12 mb-6 w-44 overflow-hidden rounded-lg border border-amber-400/10 bg-black/80 backdrop-blur-xl shadow-xl z-50">
                             <button
                               type="button"
                               onClick={() => {
@@ -1857,7 +1868,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                                 <circle cx="8.5" cy="8.5" r="1.5" />
                                 <polyline points="21 15 16 10 5 21" />
                               </svg>
-                              Image / Screenshot
+                              Image
                             </button>
                           </div>
                         )}
@@ -2035,7 +2046,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                           )}
                         </button>
                         {chatAttachOpen && !fileUploading && (
-                          <div className="absolute bottom-full left-0 mb-2 w-44 overflow-hidden rounded-lg border border-white/10 bg-black/80 backdrop-blur-xl shadow-xl z-50">
+                          <div className="absolute bottom-full -left-12 mb-6 w-44 overflow-hidden rounded-lg border border-white/10 bg-black/80 backdrop-blur-xl shadow-xl z-50">
                             <button
                               type="button"
                               onClick={() => {
@@ -2071,7 +2082,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                                 <circle cx="8.5" cy="8.5" r="1.5" />
                                 <polyline points="21 15 16 10 5 21" />
                               </svg>
-                              Image / Screenshot
+                              Image
                             </button>
                           </div>
                         )}
@@ -2557,8 +2568,8 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                         <circle cx="8.5" cy="8.5" r="1.5" />
                         <polyline points="21 15 16 10 5 21" />
                       </svg>
-                      <span className="text-sm text-white/60">Image / Screenshot</span>
-                      <span className="text-xs text-white/35">Photos of documents, screenshots</span>
+                      <span className="text-sm text-white/60">Image</span>
+                      <span className="text-xs text-white/35">Photos of documents</span>
                     </label>
                   </div>
                 </div>
@@ -2715,6 +2726,69 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                     </div>
                   </div>
                 </div>
+              {mode === "draft" && active.messages.length > 0 && (
+                <div className="relative" ref={draftDocTypeMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setDraftDocTypeOpen((o) => !o)}
+                    aria-label="Document types"
+                    className="mb-0.5 shrink-0 rounded-full p-2 text-blue-400/70 transition-colors hover:bg-blue-400/10 hover:text-blue-400"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                    </svg>
+                  </button>
+                  {draftDocTypeOpen && (
+                    <div className="absolute bottom-full -left-2 mb-6 w-52 overflow-hidden rounded-lg border border-blue-400/10 bg-black/80 backdrop-blur-xl shadow-xl z-50">
+                      {[
+                        { id: "legal-notice", label: "Legal Notice" },
+                        { id: "fir-draft", label: "FIR Draft" },
+                        { id: "consumer-complaint", label: "Consumer Complaint" },
+                        { id: "rti-application", label: "RTI Application" },
+                        { id: "will", label: "Will" },
+                        { id: "affidavit", label: "Affidavit" },
+                        { id: "petition", label: "Petition" },
+                        { id: "contract", label: "Contract/Agreement" },
+                      ].map((doc) => (
+                        <button
+                          key={doc.id}
+                          type="button"
+                          onClick={() => {
+                            const conv: Conversation = {
+                              id: newId("d"),
+                              title: doc.label,
+                              preview: "Document drafting",
+                              type: "draft",
+                              createdAt: Date.now(),
+                              messages: [],
+                            };
+                            setConversations((prev) => [conv, ...prev]);
+                            setActiveId(conv.id);
+                            setMode("draft");
+                            setDraft("");
+                            setSidebarOpen(false);
+                            setFormData({});
+                            setSelectedDocType(doc.id);
+                            setDraftDocTypeOpen(false);
+                          }}
+                          className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-white/70 hover:bg-blue-400/[0.06] transition-colors"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                            <line x1="16" y1="13" x2="8" y2="13" />
+                            <line x1="16" y1="17" x2="8" y2="17" />
+                          </svg>
+                          {doc.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               {(mode === "talk-to-ai" || mode === "chat" || mode === "analysis") && (
               <>
                 <input
@@ -2741,7 +2815,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                     )}
                   </button>
                   {chatAttachOpen && !fileUploading && (
-                    <div className="absolute bottom-full left-0 mb-2 w-44 overflow-hidden rounded-lg border border-white/10 bg-black/80 backdrop-blur-xl shadow-xl z-50">
+                    <div className="absolute bottom-full -left-12 mb-6 w-44 overflow-hidden rounded-lg border border-white/10 bg-black/80 backdrop-blur-xl shadow-xl z-50">
                       <button
                         type="button"
                         onClick={() => {
@@ -2777,7 +2851,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                           <circle cx="8.5" cy="8.5" r="1.5" />
                           <polyline points="21 15 16 10 5 21" />
                         </svg>
-                        Image / Screenshot
+                        Image
                       </button>
                     </div>
                   )}
@@ -2818,7 +2892,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                     )}
                   </button>
                   {reviewAttachOpen && !reviewFileUploading && (
-                    <div className="absolute bottom-full left-0 mb-2 w-44 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-800 shadow-xl z-50">
+                    <div className="absolute bottom-full -left-12 mb-6 w-44 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-800 shadow-xl z-50">
                       <button
                         type="button"
                         onClick={() => {
@@ -2855,7 +2929,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                           <circle cx="8.5" cy="8.5" r="1.5" />
                           <polyline points="21 15 16 10 5 21" />
                         </svg>
-                        Image / Screenshot
+                        Image
                       </button>
                     </div>
                   )}
@@ -2930,7 +3004,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </h3>
             <p className="mt-2 text-sm text-white/55">
               {confirmAction.type === "clearHistory"
-                ? `This will permanently delete all conversations across Talk to AI, In-depth Analysis, and Cases. This action cannot be undone.`
+                ? `This will permanently delete all ${{ "talk-to-ai": "Talk to AI", "chat": "Chat", "analysis": "In-depth Analysis", "grill": "Case", "draft": "Document Drafter", "review": "Document Reviewer" }[confirmAction.section ?? "talk-to-ai"]} history. This action cannot be undone.`
                 : "This will permanently delete this conversation. This action cannot be undone."}
             </p>
             <div className="mt-5 flex justify-end gap-2">
