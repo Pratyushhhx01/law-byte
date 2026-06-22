@@ -33,6 +33,7 @@
   --animate-border-spin: border-spin 6s linear infinite;
   --animate-grid-pan: grid-pan 18s linear infinite;
   --animate-popover-in: popover-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-popover-out: popover-out 0.15s cubic-bezier(0.4, 0, 1, 1) both;
 }
 
 @keyframes marquee {
@@ -97,6 +98,17 @@
   }
 }
 
+@keyframes popover-out {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(8px) scale(0.97);
+  }
+}
+
 @keyframes shimmer {
   0% {
     background-position: -200% 0;
@@ -123,19 +135,6 @@
   }
   50% {
     transform: translateY(-10px);
-  }
-}
-
-@keyframes blink-icon {
-  0%, 100% {
-    opacity: 1;
-    transform: scale(1);
-    filter: drop-shadow(0 0 0px transparent);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.4);
-    filter: drop-shadow(0 0 10px #ffffff) drop-shadow(0 0 20px #ffffff);
   }
 }
 

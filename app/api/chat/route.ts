@@ -718,7 +718,8 @@ export async function POST(request: NextRequest) {
 
   const maxTokens = conversationType === "analysis" ? 1024 : conversationType === "grill" ? 512 : conversationType === "review" ? 2048 : 256;
 
-  const model = conversationType === "review" ? REVIEW_MODEL : NVIDIA_MODEL;
+  const hasMultimodalContent = Array.isArray(lastUserMessage?.content) && lastUserMessage.content.some((p: { type: string }) => p.type === "image_url");
+  const model = (conversationType === "review" || hasMultimodalContent) ? REVIEW_MODEL : NVIDIA_MODEL;
 
   const chatController = new AbortController();
   const chatTimeout = setTimeout(() => chatController.abort(), 30000);

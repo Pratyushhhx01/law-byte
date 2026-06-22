@@ -196,7 +196,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const [myCasesOpen, setMyCasesOpen] = useState(false);
   const [savedCases, setSavedCases] = useState<SavedCase[]>([]);
   const [showSuggestion, setShowSuggestion] = useState(false);
-  const [blinkAnalysis, setBlinkAnalysis] = useState(false);
   const wasThinkingRef = useRef(false);
   const lastTalkIdRef = useRef<string | null>(null);
   const lastAnalysisIdRef = useRef<string | null>(null);
@@ -224,11 +223,18 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const [pendingAttachment, setPendingAttachment] = useState<{ type: "pdf" | "image"; fileName: string; text?: string; imageBase64?: string; truncated?: boolean } | null>(null);
   const reviewFileInputRef = useRef<HTMLInputElement | null>(null);
   const reviewAttachMenuRef = useRef<HTMLDivElement | null>(null);
+  const chatFileInputRef = useRef<HTMLInputElement | null>(null);
+  const chatAttachMenuRef = useRef<HTMLDivElement | null>(null);
+  const [chatAttachOpen, setChatAttachOpen] = useState(false);
+  const analysisFileInputRef = useRef<HTMLInputElement | null>(null);
+  const analysisAttachMenuRef = useRef<HTMLDivElement | null>(null);
+  const [analysisAttachOpen, setAnalysisAttachOpen] = useState(false);
+  const [fileUploading, setFileUploading] = useState(false);
 
   const active = conversations.find((c) => c.id === activeId) ?? conversations[0];
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [active?.messages.length, isThinking, showSuggestion]);
 
   useEffect(() => {
@@ -247,8 +253,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       const isAiGreeting = lastMsg?.content?.trim().toLowerCase().startsWith("hello") && lastMsg?.content?.toLowerCase().includes("how can i assist you");
       if (lastMsg && lastMsg.role === "assistant" && lastMsg.content && !isOffTopic && !isGreeting && !isCompliment && !isAiGreeting && active?.type !== "grill" && active?.type !== "draft" && active?.type !== "review") {
         setShowSuggestion(true);
-        setBlinkAnalysis(true);
-        setTimeout(() => setBlinkAnalysis(false), 3000);
       } else {
         setShowSuggestion(false);
       }
@@ -330,6 +334,30 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [reviewAttachOpen]);
 
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (chatAttachMenuRef.current && !chatAttachMenuRef.current.contains(e.target as Node)) {
+        setChatAttachOpen(false);
+      }
+    }
+    if (chatAttachOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [chatAttachOpen]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (analysisAttachMenuRef.current && !analysisAttachMenuRef.current.contains(e.target as Node)) {
+        setAnalysisAttachOpen(false);
+      }
+    }
+    if (analysisAttachOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [analysisAttachOpen]);
+
   function renderBold(text: string): ReactNode {
     const parts = text.split(/(\*\*[^*]+\*\*)/g);
     return parts.map((part, i) => {
@@ -407,24 +435,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     setConversations((prev) => [conv, ...prev]);
     setActiveId(conv.id);
     setMode("analysis");
-    setDraft("");
-    setSidebarOpen(false);
-    lastTalkIdRef.current = null;
-    lastAnalysisIdRef.current = null;
-  }
-
-  function startTalkToAI() {
-    const conv: Conversation = {
-      id: newId("t"),
-      title: "New AI conversation",
-      preview: "Talk to AI",
-      type: "talk-to-ai",
-      createdAt: Date.now(),
-      messages: [],
-    };
-    setConversations((prev) => [conv, ...prev]);
-    setActiveId(conv.id);
-    setMode("talk-to-ai");
     setDraft("");
     setSidebarOpen(false);
     lastTalkIdRef.current = null;
@@ -521,6 +531,42 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       setReviewFileUploading(false);
       e.target.value = "";
       setReviewAttachOpen(false);
+    }
+  }
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>, closeMenu?: () => void) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/review", { method: "POST", body: fd });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        throw new Error(err?.error || "Failed to process file");
+      }
+      const data = await res.json();
+      if (data.type === "image") {
+        setPendingAttachment({ type: "image", fileName: data.fileName, imageBase64: data.imageBase64 });
+      } else {
+        setPendingAttachment({ type: "pdf", fileName: data.fileName, text: data.text, truncated: data.truncated });
+      }
+    } catch (err) {
+      console.error("File upload error:", err);
+      const errorMsg = err instanceof Error ? err.message : "Failed to process file";
+      const assistantId = newId("a");
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === activeId
+            ? { ...c, messages: [...c.messages, { id: assistantId, role: "assistant", content: `Error: ${errorMsg}. Please try uploading the file again.` }] }
+            : c
+        )
+      );
+    } finally {
+      setFileUploading(false);
+      e.target.value = "";
+      closeMenu?.();
     }
   }
 
@@ -1014,7 +1060,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               {conv.title}
             </span>
             <span className="block text-[10px] text-white/25">
-              {conv.type === "analysis" ? "In-depth Analysis" : conv.type === "talk-to-ai" ? "Talk to AI" : conv.type === "grill" ? "Case Intake" : conv.type === "draft" ? "Document Drafter" : conv.type === "review" ? "Document Review" : "Chat"}
+              {conv.type === "analysis" ? "In-depth Analysis" : conv.type === "talk-to-ai" ? "Talk to AI" : conv.type === "grill" ? "Case Intake" : conv.type === "draft" ? "Document Drafter" : conv.type === "review" ? "Document Reviewer" : "Chat"}
             </span>
           </div>
         </button>
@@ -1144,25 +1190,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               <path d="M12 5v14M5 12h14" />
             </svg>
             <span>New chat</span>
-          </button>
-          <button
-            type="button"
-            onClick={startTalkToAI}
-            className="mt-2 flex w-full items-center gap-2 rounded-full border border-white/15 bg-white px-4 py-2 text-sm font-medium text-black transition-transform duration-300 hover:scale-[1.01]"
-          >
-            <svg
-              aria-hidden
-              viewBox="0 0 24 24"
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
-            <span>Talk to AI</span>
           </button>
           <button
             type="button"
@@ -1307,7 +1334,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
           {groupConversations("review").length > 0 && (
             <div className="mb-4">
-              <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-emerald-400/60">Document Review</p>
+              <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-emerald-400/60">Document Reviewer</p>
               {groupConversations("review").map((group) => (
                 <div key={group.label} className="mb-2">
                   <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
@@ -1429,7 +1456,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 {active?.title ?? "New conversation"}
               </h1>
               <p className="text-[11px] uppercase tracking-[0.2em] text-white/40">
-                {mode === "analysis" ? "In-depth Analysis" : mode === "talk-to-ai" || mode === "chat" ? "Talk to AI" : mode === "grill" ? "Interrogation Mode" : mode === "draft" ? "Document Drafter" : "Talk to AI"}
+                {mode === "analysis" ? "In-depth Analysis" : mode === "talk-to-ai" || mode === "chat" ? "Talk to AI" : mode === "grill" ? "Interrogation Mode" : mode === "draft" ? "Document Drafter" : mode === "review" ? "Document Reviewer" : "Talk to AI"}
               </p>
             </div>
           </div>
@@ -1460,7 +1487,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-5 py-8 sm:px-8">
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-8 sm:px-8">
           {active && active.messages.length > 0 ? (
             <ul className="mx-auto flex max-w-3xl flex-col gap-6">
               {active.messages.map((message) => {
@@ -1637,7 +1664,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           ) : (
             <div className="mx-auto flex h-full max-w-3xl flex-col items-center justify-center pb-24 text-center">
               {mode === "analysis" ? (
-                <>
+                <div className="animate-fade-up w-full flex flex-col items-center">
                   <div className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-1.5 text-xs uppercase tracking-[0.3em] text-white/40">
                     In-depth Analysis
                   </div>
@@ -1664,70 +1691,34 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                     </span>
                   </div>
                   <div className="mt-8 w-full">
-                    <form
-                      onSubmit={onSubmit}
-                      className="flex items-end gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-2 transition-colors duration-300 focus-within:border-white/30"
-                    >
-                      <label htmlFor="chat-input" className="sr-only">Message</label>
-                      <button
-                        type="button"
-                        onClick={() => switchMode("talk-to-ai")}
-                        aria-label="Switch to Talk to AI"
-                        style={blinkAnalysis ? { animation: "blink-icon 1s ease-in-out 3", color: "#ffffff" } : undefined}
-                        className={`mb-0.5 shrink-0 rounded-full p-2 transition-colors ${
-                          mode === "analysis"
-                            ? "text-amber-400/70 hover:bg-amber-400/10 hover:text-amber-400"
-                            : "text-white/30 hover:bg-white/[0.06] hover:text-white/60"
-                        }`}
-                      >
-                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                          <path d="M3 3v5h5" />
-                          <path d="M12 7v5l4 2" />
-                        </svg>
-                      </button>
-                      <textarea
-                        id="chat-input"
-                        value={draft}
-                        onChange={(e) => setDraft(e.target.value)}
-                        onKeyDown={onKeyDown}
-                        placeholder={pendingAttachment ? "Ask about this document, or send to review as-is…" : "Message Lawbite…"}
-                        rows={1}
-                        className="min-h-[40px] max-h-40 w-full resize-none bg-transparent px-3 py-2 text-sm leading-relaxed text-white placeholder:text-white/35 focus:outline-none"
-                      />
-                      <button
-                        type="submit"
-                        disabled={(!draft.trim() && !pendingAttachment) || isThinking}
-                        aria-label="Send message"
-                        className="btn-shine group relative inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-black transition-transform duration-300 hover:scale-[1.05] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
-                      >
-                        <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M5 12h14M13 5l7 7-7 7" />
-                        </svg>
-                      </button>
-                    </form>
-                    <p className="mx-auto mt-2 text-[11px] text-white/35">
-                      Press <kbd className="rounded border border-white/15 px-1">Enter</kbd>{" "}
-                      to send,{" "}
-                      <kbd className="rounded border border-white/15 px-1">Shift</kbd>+
-                      <kbd className="rounded border border-white/15 px-1">Enter</kbd> for
-                      a new line.
-                    </p>
-                  </div>
-                </>
-              ) : mode === "talk-to-ai" || mode === "chat" ? (
-                <>
-                  <div className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-1.5 text-xs uppercase tracking-[0.3em] text-white/40">
-                    Talk to AI
-                  </div>
-                  <h2 className="mt-6 text-2xl font-semibold tracking-tight sm:text-3xl">
-                    Ask anything about the law
-                  </h2>
-                  <p className="mt-3 max-w-md text-sm leading-relaxed text-white/55">
-                    Have a conversation with the AI about legal questions,
-                    get explanations, or explore ideas freely.
-                  </p>
-                  <div className="mt-8 w-full">
+                    {pendingAttachment && (
+                      <div className="mx-auto mb-2 flex max-w-3xl items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] px-3 py-2">
+                        {pendingAttachment.type === "image" ? (
+                          <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <polyline points="21 15 16 10 5 21" />
+                          </svg>
+                        ) : (
+                          <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-red-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                          </svg>
+                        )}
+                        <span className="truncate text-xs text-white/70">{pendingAttachment.fileName}</span>
+                        <button
+                          type="button"
+                          onClick={() => setPendingAttachment(null)}
+                          className="ml-auto shrink-0 rounded-full p-0.5 text-white/40 hover:text-white/80 transition-colors"
+                          aria-label="Remove attachment"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
                     <form
                       onSubmit={onSubmit}
                       className="flex items-end gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-2 transition-colors duration-300 focus-within:border-white/30"
@@ -1738,29 +1729,34 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                           type="button"
                           onClick={() => setPlusMenuOpen((o) => !o)}
                           aria-label="More features"
-                          className={`mb-0.5 shrink-0 rounded-full p-2 text-white/40 transition-all duration-300 hover:bg-white/[0.08] hover:text-white/80 ${plusMenuOpen ? "bg-white/[0.08] text-white/70" : ""}`}
+                          className={`mb-0.5 shrink-0 rounded-full p-2 text-amber-400/70 transition-all duration-300 hover:bg-amber-400/10 hover:text-amber-400 ${plusMenuOpen ? "bg-amber-400/10 text-amber-400" : ""}`}
                         >
                           <svg viewBox="0 0 24 24" className={`h-4 w-4 transition-transform duration-300 ${plusMenuOpen ? "rotate-45" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <line x1="12" y1="5" x2="12" y2="19" />
                             <line x1="5" y1="12" x2="19" y2="12" />
                           </svg>
                         </button>
-                        {plusMenuOpen && (
-                          <div className="absolute right-full top-1/2 -translate-y-1/2 mr-4 w-56 flex flex-col gap-1.5 z-50 animate-popover-in">
+                        <div className="absolute right-full top-1/2 -translate-y-1/2 mr-4 z-50">
+                          <div className="w-56 flex flex-col gap-1.5" style={{
+                            transform: plusMenuOpen ? "translateX(0) scale(1)" : "translateX(12px) scale(0.96)",
+                            opacity: plusMenuOpen ? 1 : 0,
+                            transformOrigin: "right center",
+                            transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+                            pointerEvents: plusMenuOpen ? "auto" : "none",
+                          }}>
                             <button
                               type="button"
-                              onClick={() => { switchMode("analysis"); setPlusMenuOpen(false); }}
-                              className="group flex items-center gap-3 rounded-xl border border-amber-400/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-amber-400/30 hover:bg-amber-400/[0.06] hover:shadow-[0_0_16px_rgba(251,191,36,0.08)]"
+                              onClick={() => { switchMode("talk-to-ai"); setPlusMenuOpen(false); }}
+                              className="group flex items-center gap-3 rounded-xl border border-white/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-white/30 hover:bg-white/[0.06]"
                             >
-                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-400/[0.08] transition-all duration-300 group-hover:bg-amber-400/[0.15]">
-                                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-amber-400/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <circle cx="12" cy="12" r="10" />
-                                  <path d="M12 6v6l4 2" />
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.08] transition-all duration-300 group-hover:bg-white/[0.15]">
+                                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-white/70" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                                 </svg>
                               </div>
                               <div>
-                                <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-amber-400/90">In-depth Analysis</div>
-                                <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">Deep dive into legal cases</div>
+                                <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-white">Talk to AI</div>
+                                <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">General legal chat</div>
                               </div>
                             </button>
                             <button
@@ -1799,6 +1795,71 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                               </div>
                             </button>
                           </div>
+                        </div>
+                      </div>
+                      <input
+                        ref={analysisFileInputRef}
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg,.webp,.gif"
+                        className="hidden"
+                        onChange={(e) => handleFileUpload(e, () => setAnalysisAttachOpen(false))}
+                      />
+                      <div className="relative" ref={analysisAttachMenuRef}>
+                        <button
+                          type="button"
+                          onClick={() => setAnalysisAttachOpen((o) => !o)}
+                          disabled={fileUploading}
+                          aria-label="Attach file"
+                          className="mb-0.5 shrink-0 rounded-full p-2 text-amber-400/70 transition-colors hover:bg-amber-400/10 hover:text-amber-400 disabled:opacity-50"
+                        >
+                          {fileUploading ? (
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-amber-400/30 border-t-amber-400" />
+                          ) : (
+                            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                            </svg>
+                          )}
+                        </button>
+                        {analysisAttachOpen && !fileUploading && (
+                          <div className="absolute bottom-full left-0 mb-2 w-44 overflow-hidden rounded-lg border border-amber-400/10 bg-black/80 backdrop-blur-xl shadow-xl z-50">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (analysisFileInputRef.current) {
+                                  analysisFileInputRef.current.accept = ".pdf";
+                                  analysisFileInputRef.current.click();
+                                }
+                                setAnalysisAttachOpen(false);
+                              }}
+                              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:bg-amber-400/[0.06] transition-colors"
+                            >
+                              <svg viewBox="0 0 24 24" className="h-4 w-4 text-red-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                <polyline points="14 2 14 8 20 8" />
+                                <line x1="16" y1="13" x2="8" y2="13" />
+                                <line x1="16" y1="17" x2="8" y2="17" />
+                              </svg>
+                              PDF Document
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (analysisFileInputRef.current) {
+                                  analysisFileInputRef.current.accept = ".png,.jpg,.jpeg,.webp,.gif";
+                                  analysisFileInputRef.current.click();
+                                }
+                                setAnalysisAttachOpen(false);
+                              }}
+                              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:bg-amber-400/[0.06] transition-colors"
+                            >
+                              <svg viewBox="0 0 24 24" className="h-4 w-4 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                <circle cx="8.5" cy="8.5" r="1.5" />
+                                <polyline points="21 15 16 10 5 21" />
+                              </svg>
+                              Image / Screenshot
+                            </button>
+                          </div>
                         )}
                       </div>
                       <textarea
@@ -1829,7 +1890,221 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                       a new line.
                     </p>
                   </div>
-                </>
+                </div>
+              ) : mode === "talk-to-ai" || mode === "chat" ? (
+                <div className="animate-fade-up w-full flex flex-col items-center">
+                  <div className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-1.5 text-xs uppercase tracking-[0.3em] text-white/40">
+                    Talk to AI
+                  </div>
+                  <h2 className="mt-6 text-2xl font-semibold tracking-tight sm:text-3xl">
+                    Ask anything about the law
+                  </h2>
+                  <p className="mt-3 max-w-md text-sm leading-relaxed text-white/55">
+                    Have a conversation with the AI about legal questions,
+                    get explanations, or explore ideas freely.
+                  </p>
+                  <div className="mt-8 w-full">
+                    {pendingAttachment && (
+                      <div className="mx-auto mb-2 flex max-w-3xl items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] px-3 py-2">
+                        {pendingAttachment.type === "image" ? (
+                          <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <polyline points="21 15 16 10 5 21" />
+                          </svg>
+                        ) : (
+                          <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-red-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                          </svg>
+                        )}
+                        <span className="truncate text-xs text-white/70">{pendingAttachment.fileName}</span>
+                        <button
+                          type="button"
+                          onClick={() => setPendingAttachment(null)}
+                          className="ml-auto shrink-0 rounded-full p-0.5 text-white/40 hover:text-white/80 transition-colors"
+                          aria-label="Remove attachment"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
+                    <form
+                      onSubmit={onSubmit}
+                      className="flex items-end gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-2 transition-colors duration-300 focus-within:border-white/30"
+                    >
+                      <label htmlFor="chat-input" className="sr-only">Message</label>
+                      <div className="relative" ref={plusMenuRef}>
+                        <button
+                          type="button"
+                          onClick={() => setPlusMenuOpen((o) => !o)}
+                          aria-label="More features"
+                          className={`mb-0.5 shrink-0 rounded-full p-2 text-white/40 transition-all duration-300 hover:bg-white/[0.08] hover:text-white/80 ${plusMenuOpen ? "bg-white/[0.08] text-white/70" : ""}`}
+                        >
+                          <svg viewBox="0 0 24 24" className={`h-4 w-4 transition-transform duration-300 ${plusMenuOpen ? "rotate-45" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19" />
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                          </svg>
+                        </button>
+                        <div className="absolute right-full top-1/2 -translate-y-1/2 mr-4 z-50">
+                          <div className="w-56 flex flex-col gap-1.5" style={{
+                            transform: plusMenuOpen ? "translateX(0) scale(1)" : "translateX(12px) scale(0.96)",
+                            opacity: plusMenuOpen ? 1 : 0,
+                            transformOrigin: "right center",
+                            transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+                            pointerEvents: plusMenuOpen ? "auto" : "none",
+                          }}>
+                              <button
+                                type="button"
+                                onClick={() => { switchMode("analysis"); setPlusMenuOpen(false); }}
+                                className="group flex items-center gap-3 rounded-xl border border-amber-400/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-amber-400/30 hover:bg-amber-400/[0.06] hover:shadow-[0_0_16px_rgba(251,191,36,0.08)]"
+                              >
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-400/[0.08] transition-all duration-300 group-hover:bg-amber-400/[0.15]">
+                                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-amber-400/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <path d="M12 6v6l4 2" />
+                                  </svg>
+                                </div>
+                                <div>
+                                  <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-amber-400/90">In-depth Analysis</div>
+                                  <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">Deep dive into legal cases</div>
+                                </div>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { switchMode("draft"); setPlusMenuOpen(false); }}
+                                className="group flex items-center gap-3 rounded-xl border border-blue-400/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-blue-400/30 hover:bg-blue-400/[0.06] hover:shadow-[0_0_16px_rgba(96,165,250,0.08)]"
+                              >
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-400/[0.08] transition-all duration-300 group-hover:bg-blue-400/[0.15]">
+                                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-blue-400/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                    <line x1="16" y1="13" x2="8" y2="13" />
+                                    <line x1="16" y1="17" x2="8" y2="17" />
+                                  </svg>
+                                </div>
+                                <div>
+                                  <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-blue-400/90">Document Drafter</div>
+                                  <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">Generate legal documents</div>
+                                </div>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { switchMode("review"); setPlusMenuOpen(false); }}
+                                className="group flex items-center gap-3 rounded-xl border border-emerald-400/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-emerald-400/30 hover:bg-emerald-400/[0.06] hover:shadow-[0_0_16px_rgba(52,211,153,0.08)]"
+                              >
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-400/[0.08] transition-all duration-300 group-hover:bg-emerald-400/[0.15]">
+                                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-emerald-400/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                    <path d="M9 15l2 2 4-4" />
+                                  </svg>
+                                </div>
+                                <div>
+                                  <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-emerald-400/90">Document Reviewer</div>
+                                  <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">Review contracts &amp; clauses</div>
+                                </div>
+                              </button>
+                          </div>
+                        </div>
+                      </div>
+                      <input
+                        ref={chatFileInputRef}
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg,.webp,.gif"
+                        className="hidden"
+                        onChange={(e) => handleFileUpload(e, () => setChatAttachOpen(false))}
+                      />
+                      <div className="relative" ref={chatAttachMenuRef}>
+                        <button
+                          type="button"
+                          onClick={() => setChatAttachOpen((o) => !o)}
+                          disabled={fileUploading}
+                          aria-label="Attach file"
+                          className="mb-0.5 shrink-0 rounded-full p-2 text-white/40 transition-colors hover:bg-white/[0.08] hover:text-white/70 disabled:opacity-50"
+                        >
+                          {fileUploading ? (
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white/70" />
+                          ) : (
+                            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                            </svg>
+                          )}
+                        </button>
+                        {chatAttachOpen && !fileUploading && (
+                          <div className="absolute bottom-full left-0 mb-2 w-44 overflow-hidden rounded-lg border border-white/10 bg-black/80 backdrop-blur-xl shadow-xl z-50">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (chatFileInputRef.current) {
+                                  chatFileInputRef.current.accept = ".pdf";
+                                  chatFileInputRef.current.click();
+                                }
+                                setChatAttachOpen(false);
+                              }}
+                              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:bg-white/[0.06] transition-colors"
+                            >
+                              <svg viewBox="0 0 24 24" className="h-4 w-4 text-red-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                <polyline points="14 2 14 8 20 8" />
+                                <line x1="16" y1="13" x2="8" y2="13" />
+                                <line x1="16" y1="17" x2="8" y2="17" />
+                              </svg>
+                              PDF Document
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (chatFileInputRef.current) {
+                                  chatFileInputRef.current.accept = ".png,.jpg,.jpeg,.webp,.gif";
+                                  chatFileInputRef.current.click();
+                                }
+                                setChatAttachOpen(false);
+                              }}
+                              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:bg-white/[0.06] transition-colors"
+                            >
+                              <svg viewBox="0 0 24 24" className="h-4 w-4 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                <circle cx="8.5" cy="8.5" r="1.5" />
+                                <polyline points="21 15 16 10 5 21" />
+                              </svg>
+                              Image / Screenshot
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <textarea
+                        id="chat-input"
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        onKeyDown={onKeyDown}
+                        placeholder={pendingAttachment ? "Ask about this document, or send to review as-is…" : "Message Lawbite…"}
+                        rows={1}
+                        className="min-h-[40px] max-h-40 w-full resize-none bg-transparent px-3 py-2 text-sm leading-relaxed text-white placeholder:text-white/35 focus:outline-none"
+                      />
+                      <button
+                        type="submit"
+                        disabled={(!draft.trim() && !pendingAttachment) || isThinking}
+                        aria-label="Send message"
+                        className="btn-shine group relative inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-black transition-transform duration-300 hover:scale-[1.05] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+                      >
+                        <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M5 12h14M13 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </form>
+                    <p className="mx-auto mt-2 text-[11px] text-white/35">
+                      Press <kbd className="rounded border border-white/15 px-1">Enter</kbd>{" "}
+                      to send,{" "}
+                      <kbd className="rounded border border-white/15 px-1">Shift</kbd>+
+                      <kbd className="rounded border border-white/15 px-1">Enter</kbd> for
+                      a new line.
+                    </p>
+                  </div>
+                </div>
               ) : mode === "grill" ? (
                 <>
                   <div className="rounded-full border border-amber-400/30 bg-amber-400/[0.06] px-4 py-1.5 text-xs uppercase tracking-[0.3em] text-amber-400/70">
@@ -1894,7 +2169,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                   </div>
                 </>
               ) : mode === "draft" ? (
-                <div className="mx-auto flex h-full max-w-4xl flex-col items-center justify-center px-4">
+                <div className="animate-fade-up mx-auto flex h-full max-w-4xl flex-col items-center justify-center px-4">
                   {!selectedDocType ? (
                     <>
                       <div className="rounded-full border border-blue-400/30 bg-blue-400/[0.06] px-4 py-1.5 text-xs uppercase tracking-[0.3em] text-blue-400/70">
@@ -1933,8 +2208,8 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                       </div>
                     </>
                   ) : (
-                    <div className="w-full max-w-2xl">
-                      <div className="mb-6 flex items-center gap-3">
+                    <div className="w-full max-w-2xl mt-24 self-start">
+                      <div className="mb-3 flex items-center gap-3">
                         <button
                           type="button"
                           onClick={() => { setSelectedDocType(null); setFormData({}); }}
@@ -1969,10 +2244,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                         const formText = formEntries.map(([k, v]) => `${k.replace(/([A-Z])/g, " $1").replace(/^./, s => s.toUpperCase())}: ${v}`).join("\n");
                         const message = `Please draft a ${docType} with the following details:\n\n${formText}`;
                         sendMessage(message);
-                      }} className="space-y-4">
+                       }} className="space-y-3">
                         {selectedDocType === "legal-notice" && (
                           <>
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                               <div>
                                 <label className="mb-1 block text-xs text-white/50">From (Sender Name & Address)</label>
                                 <input type="text" value={formData.sender || ""} onChange={(e) => setFormData({ ...formData, sender: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Your name and address" />
@@ -1988,7 +2263,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                             </div>
                             <div>
                               <label className="mb-1 block text-xs text-white/50">Facts / Description</label>
-                              <textarea value={formData.facts || ""} onChange={(e) => setFormData({ ...formData, facts: e.target.value })} rows={4} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Describe the facts and what happened" />
+                              <textarea value={formData.facts || ""} onChange={(e) => setFormData({ ...formData, facts: e.target.value })} rows={2} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Describe the facts and what happened" />
                             </div>
                             <div>
                               <label className="mb-1 block text-xs text-white/50">Relief / Demand</label>
@@ -2002,7 +2277,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                         )}
                         {selectedDocType === "fir-draft" && (
                           <>
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                               <div>
                                 <label className="mb-1 block text-xs text-white/50">Complainant Name</label>
                                 <input type="text" value={formData.complainant || ""} onChange={(e) => setFormData({ ...formData, complainant: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Your name" />
@@ -2018,9 +2293,9 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                             </div>
                             <div>
                               <label className="mb-1 block text-xs text-white/50">Details of Incident</label>
-                              <textarea value={formData.details || ""} onChange={(e) => setFormData({ ...formData, details: e.target.value })} rows={4} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Describe what happened in detail" />
+                              <textarea value={formData.details || ""} onChange={(e) => setFormData({ ...formData, details: e.target.value })} rows={2} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Describe what happened in detail" />
                             </div>
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                               <div>
                                 <label className="mb-1 block text-xs text-white/50">Place of Incident</label>
                                 <input type="text" value={formData.place || ""} onChange={(e) => setFormData({ ...formData, place: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Where did it happen?" />
@@ -2034,7 +2309,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                         )}
                         {selectedDocType === "consumer-complaint" && (
                           <>
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                               <div>
                                 <label className="mb-1 block text-xs text-white/50">Consumer Name</label>
                                 <input type="text" value={formData.consumerName || ""} onChange={(e) => setFormData({ ...formData, consumerName: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Your name" />
@@ -2050,7 +2325,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                             </div>
                             <div>
                               <label className="mb-1 block text-xs text-white/50">Deficiency / Problem</label>
-                              <textarea value={formData.deficiency || ""} onChange={(e) => setFormData({ ...formData, deficiency: e.target.value })} rows={4} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="What is the deficiency in service or product?" />
+                              <textarea value={formData.deficiency || ""} onChange={(e) => setFormData({ ...formData, deficiency: e.target.value })} rows={2} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="What is the deficiency in service or product?" />
                             </div>
                             <div>
                               <label className="mb-1 block text-xs text-white/50">Relief Sought</label>
@@ -2060,9 +2335,15 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                         )}
                         {selectedDocType === "rti-application" && (
                           <>
-                            <div>
-                              <label className="mb-1 block text-xs text-white/50">Applicant Name</label>
-                              <input type="text" value={formData.applicant || ""} onChange={(e) => setFormData({ ...formData, applicant: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Your name" />
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                              <div>
+                                <label className="mb-1 block text-xs text-white/50">Applicant Name</label>
+                                <input type="text" value={formData.applicant || ""} onChange={(e) => setFormData({ ...formData, applicant: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Your name" />
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs text-white/50">Applicant Address</label>
+                                <input type="text" value={formData.applicantAddress || ""} onChange={(e) => setFormData({ ...formData, applicantAddress: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Your address" />
+                              </div>
                             </div>
                             <div>
                               <label className="mb-1 block text-xs text-white/50">Public Authority / Department</label>
@@ -2070,23 +2351,143 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                             </div>
                             <div>
                               <label className="mb-1 block text-xs text-white/50">Information Sought</label>
-                              <textarea value={formData.information || ""} onChange={(e) => setFormData({ ...formData, information: e.target.value })} rows={4} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="What information do you want?" />
+                              <textarea value={formData.information || ""} onChange={(e) => setFormData({ ...formData, information: e.target.value })} rows={2} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Describe the information you want in detail" />
+                            </div>
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                              <div>
+                                <label className="mb-1 block text-xs text-white/50">Period (From)</label>
+                                <input type="text" value={formData.periodFrom || ""} onChange={(e) => setFormData({ ...formData, periodFrom: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="e.g., January 2024" />
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs text-white/50">Period (To)</label>
+                                <input type="text" value={formData.periodTo || ""} onChange={(e) => setFormData({ ...formData, periodTo: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="e.g., June 2025" />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs text-white/50">Grounds for Request</label>
+                              <textarea value={formData.grounds || ""} onChange={(e) => setFormData({ ...formData, grounds: e.target.value })} rows={2} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Why is this information needed?" />
                             </div>
                           </>
                         )}
-                        {(selectedDocType === "will" || selectedDocType === "affidavit" || selectedDocType === "petition" || selectedDocType === "contract") && (
+                        {selectedDocType === "will" && (
                           <>
-                            <div>
-                              <label className="mb-1 block text-xs text-white/50">Your Name / Party Details</label>
-                              <input type="text" value={formData.partyName || ""} onChange={(e) => setFormData({ ...formData, partyName: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Your name or party details" />
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                              <div>
+                                <label className="mb-1 block text-xs text-white/50">Testator Name</label>
+                                <input type="text" value={formData.testator || ""} onChange={(e) => setFormData({ ...formData, testator: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Your full name" />
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs text-white/50">Beneficiary Name</label>
+                                <input type="text" value={formData.beneficiary || ""} onChange={(e) => setFormData({ ...formData, beneficiary: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Who will inherit?" />
+                              </div>
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs text-white/50">Purpose / Description</label>
-                              <textarea value={formData.purpose || ""} onChange={(e) => setFormData({ ...formData, purpose: e.target.value })} rows={4} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Describe the purpose and key details" />
+                              <label className="mb-1 block text-xs text-white/50">Property / Asset Details</label>
+                              <textarea value={formData.assets || ""} onChange={(e) => setFormData({ ...formData, assets: e.target.value })} rows={2} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="List properties, bank accounts, investments, etc." />
+                            </div>
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                              <div>
+                                <label className="mb-1 block text-xs text-white/50">Executor Name</label>
+                                <input type="text" value={formData.executor || ""} onChange={(e) => setFormData({ ...formData, executor: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Who will execute the will?" />
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs text-white/50">Witness Name</label>
+                                <input type="text" value={formData.witness || ""} onChange={(e) => setFormData({ ...formData, witness: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Name of witness" />
+                              </div>
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs text-white/50">Additional Details</label>
-                              <textarea value={formData.additionalDetails || ""} onChange={(e) => setFormData({ ...formData, additionalDetails: e.target.value })} rows={3} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Any other relevant information" />
+                              <label className="mb-1 block text-xs text-white/50">Additional Instructions</label>
+                              <textarea value={formData.instructions || ""} onChange={(e) => setFormData({ ...formData, instructions: e.target.value })} rows={2} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Any special conditions or directions" />
+                            </div>
+                          </>
+                        )}
+                        {selectedDocType === "affidavit" && (
+                          <>
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                              <div>
+                                <label className="mb-1 block text-xs text-white/50">Deponent Name</label>
+                                <input type="text" value={formData.deponent || ""} onChange={(e) => setFormData({ ...formData, deponent: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Your full name" />
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs text-white/50">Occupation</label>
+                                <input type="text" value={formData.occupation || ""} onChange={(e) => setFormData({ ...formData, occupation: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Your occupation" />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs text-white/50">Address</label>
+                              <input type="text" value={formData.deponentAddress || ""} onChange={(e) => setFormData({ ...formData, deponentAddress: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Your full address" />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs text-white/50">Facts / Statement to be Sworn</label>
+                              <textarea value={formData.statement || ""} onChange={(e) => setFormData({ ...formData, statement: e.target.value })} rows={2} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Describe the facts you are swearing under oath" />
+                            </div>
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                              <div>
+                                <label className="mb-1 block text-xs text-white/50">Place</label>
+                                <input type="text" value={formData.affidavitPlace || ""} onChange={(e) => setFormData({ ...formData, affidavitPlace: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="City / location" />
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs text-white/50">Date</label>
+                                <input type="text" value={formData.affidavitDate || ""} onChange={(e) => setFormData({ ...formData, affidavitDate: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Date of swearing" />
+                              </div>
+                            </div>
+                          </>
+                        )}
+                        {selectedDocType === "petition" && (
+                          <>
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                              <div>
+                                <label className="mb-1 block text-xs text-white/50">Petitioner Name</label>
+                                <input type="text" value={formData.petitioner || ""} onChange={(e) => setFormData({ ...formData, petitioner: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Your name" />
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs text-white/50">Respondent Name</label>
+                                <input type="text" value={formData.respondent || ""} onChange={(e) => setFormData({ ...formData, respondent: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Opposite party name" />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs text-white/50">Subject / Case Title</label>
+                              <input type="text" value={formData.caseSubject || ""} onChange={(e) => setFormData({ ...formData, caseSubject: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Brief subject of the petition" />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs text-white/50">Facts / Grounds</label>
+                              <textarea value={formData.petitionFacts || ""} onChange={(e) => setFormData({ ...formData, petitionFacts: e.target.value })} rows={2} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Describe the facts and legal grounds" />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs text-white/50">Relief Sought</label>
+                              <textarea value={formData.petitionRelief || ""} onChange={(e) => setFormData({ ...formData, petitionRelief: e.target.value })} rows={2} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="What relief or order are you seeking from the court?" />
+                            </div>
+                          </>
+                        )}
+                        {selectedDocType === "contract" && (
+                          <>
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                              <div>
+                                <label className="mb-1 block text-xs text-white/50">Party A</label>
+                                <input type="text" value={formData.partyA || ""} onChange={(e) => setFormData({ ...formData, partyA: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="First party name" />
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs text-white/50">Party B</label>
+                                <input type="text" value={formData.partyB || ""} onChange={(e) => setFormData({ ...formData, partyB: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Second party name" />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs text-white/50">Contract Subject</label>
+                              <input type="text" value={formData.contractSubject || ""} onChange={(e) => setFormData({ ...formData, contractSubject: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Purpose of the agreement" />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs text-white/50">Key Terms & Conditions</label>
+                              <textarea value={formData.keyTerms || ""} onChange={(e) => setFormData({ ...formData, keyTerms: e.target.value })} rows={2} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Key clauses, payment terms, obligations, etc." />
+                            </div>
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                              <div>
+                                <label className="mb-1 block text-xs text-white/50">Duration / Term</label>
+                                <input type="text" value={formData.term || ""} onChange={(e) => setFormData({ ...formData, term: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="e.g., 12 months, indefinite" />
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs text-white/50">Governing Law</label>
+                                <input type="text" value={formData.govLaw || ""} onChange={(e) => setFormData({ ...formData, govLaw: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="e.g., Indian Contract Act" />
+                              </div>
                             </div>
                           </>
                         )}
@@ -2103,9 +2504,9 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                   )}
                 </div>
               ) : mode === "review" ? (
-                <div className="mx-auto flex h-full max-w-4xl flex-col items-center justify-center px-4">
+                <div className="animate-fade-up mx-auto flex h-full max-w-4xl flex-col items-center justify-center px-4">
                   <div className="rounded-full border border-emerald-400/30 bg-emerald-400/[0.06] px-4 py-1.5 text-xs uppercase tracking-[0.3em] text-emerald-400/70">
-                    Document Review
+                    Document Reviewer
                   </div>
                   <h2 className="mt-6 text-2xl font-semibold tracking-tight sm:text-3xl">
                     Review legal documents for risky clauses
@@ -2217,7 +2618,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             <label htmlFor="chat-input" className="sr-only">
               Message
             </label>
-            {mode !== "grill" && mode !== "draft" && mode !== "review" && (
               <div className="relative" ref={plusMenuRef}>
                 <button
                   type="button"
@@ -2230,62 +2630,159 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                     <line x1="5" y1="12" x2="19" y2="12" />
                   </svg>
                 </button>
-                {plusMenuOpen && (
-                  <div className="absolute right-full top-1/2 -translate-y-1/2 mr-4 w-56 flex flex-col gap-1.5 z-50 animate-popover-in">
-                    <button
-                      type="button"
-                      onClick={() => { switchMode("analysis"); setPlusMenuOpen(false); }}
-                      className="group flex items-center gap-3 rounded-xl border border-amber-400/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-amber-400/30 hover:bg-amber-400/[0.06] hover:shadow-[0_0_16px_rgba(251,191,36,0.08)]"
-                    >
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-400/[0.08] transition-all duration-300 group-hover:bg-amber-400/[0.15]">
-                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-amber-400/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="12" cy="12" r="10" />
-                          <path d="M12 6v6l4 2" />
-                        </svg>
-                      </div>
-                      <div>
-                        <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-amber-400/90">In-depth Analysis</div>
-                        <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">Deep dive into legal cases</div>
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { switchMode("draft"); setPlusMenuOpen(false); }}
-                      className="group flex items-center gap-3 rounded-xl border border-blue-400/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-blue-400/30 hover:bg-blue-400/[0.06] hover:shadow-[0_0_16px_rgba(96,165,250,0.08)]"
-                    >
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-400/[0.08] transition-all duration-300 group-hover:bg-blue-400/[0.15]">
-                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-blue-400/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <div className="absolute bottom-full right-full mb-9 -translate-x-2 z-50">
+                    <div className="w-56 flex flex-col gap-1.5" style={{
+                      transform: plusMenuOpen ? "translateX(0) scale(1)" : "translateX(12px) scale(0.96)",
+                      opacity: plusMenuOpen ? 1 : 0,
+                      transformOrigin: "bottom right",
+                      transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+                      pointerEvents: plusMenuOpen ? "auto" : "none",
+                    }}>
+                    {mode !== "talk-to-ai" && mode !== "chat" && (
+                      <button
+                        type="button"
+                        onClick={() => { switchMode("talk-to-ai"); setPlusMenuOpen(false); }}
+                        className="group flex items-center gap-3 rounded-xl border border-white/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-white/30 hover:bg-white/[0.06]"
+                      >
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.08] transition-all duration-300 group-hover:bg-white/[0.15]">
+                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-white/70" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-white">Talk to AI</div>
+                          <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">General legal chat</div>
+                        </div>
+                      </button>
+                    )}
+                    {mode !== "analysis" && (
+                      <button
+                        type="button"
+                        onClick={() => { switchMode("analysis"); setPlusMenuOpen(false); }}
+                        className="group flex items-center gap-3 rounded-xl border border-amber-400/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-amber-400/30 hover:bg-amber-400/[0.06] hover:shadow-[0_0_16px_rgba(251,191,36,0.08)]"
+                      >
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-400/[0.08] transition-all duration-300 group-hover:bg-amber-400/[0.15]">
+                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-amber-400/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                          </svg>
+                        </div>
+                        <div>
+                          <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-amber-400/90">In-depth Analysis</div>
+                          <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">Deep dive into legal cases</div>
+                        </div>
+                      </button>
+                    )}
+                    {mode !== "draft" && (
+                      <button
+                        type="button"
+                        onClick={() => { switchMode("draft"); setPlusMenuOpen(false); }}
+                        className="group flex items-center gap-3 rounded-xl border border-blue-400/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-blue-400/30 hover:bg-blue-400/[0.06] hover:shadow-[0_0_16px_rgba(96,165,250,0.08)]"
+                      >
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-400/[0.08] transition-all duration-300 group-hover:bg-blue-400/[0.15]">
+                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-blue-400/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                            <line x1="16" y1="13" x2="8" y2="13" />
+                            <line x1="16" y1="17" x2="8" y2="17" />
+                          </svg>
+                        </div>
+                        <div>
+                          <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-blue-400/90">Document Drafter</div>
+                          <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">Generate legal documents</div>
+                        </div>
+                      </button>
+                    )}
+                    {mode !== "review" && (
+                      <button
+                        type="button"
+                        onClick={() => { switchMode("review"); setPlusMenuOpen(false); }}
+                        className="group flex items-center gap-3 rounded-xl border border-emerald-400/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-emerald-400/30 hover:bg-emerald-400/[0.06] hover:shadow-[0_0_16px_rgba(52,211,153,0.08)]"
+                      >
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-400/[0.08] transition-all duration-300 group-hover:bg-emerald-400/[0.15]">
+                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-emerald-400/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                            <path d="M9 15l2 2 4-4" />
+                          </svg>
+                        </div>
+                        <div>
+                          <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-emerald-400/90">Document Reviewer</div>
+                          <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">Review contracts &amp; clauses</div>
+                        </div>
+                      </button>
+                    )}
+                    </div>
+                  </div>
+                </div>
+              {(mode === "talk-to-ai" || mode === "chat" || mode === "analysis") && (
+              <>
+                <input
+                  ref={chatFileInputRef}
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.webp,.gif"
+                  className="hidden"
+                  onChange={(e) => handleFileUpload(e, () => setChatAttachOpen(false))}
+                />
+                <div className="relative" ref={chatAttachMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setChatAttachOpen((o) => !o)}
+                    disabled={fileUploading}
+                    aria-label="Attach file"
+                    className="mb-0.5 shrink-0 rounded-full p-2 text-white/40 transition-colors hover:bg-white/[0.08] hover:text-white/70 disabled:opacity-50"
+                  >
+                    {fileUploading ? (
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white/70" />
+                    ) : (
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                      </svg>
+                    )}
+                  </button>
+                  {chatAttachOpen && !fileUploading && (
+                    <div className="absolute bottom-full left-0 mb-2 w-44 overflow-hidden rounded-lg border border-white/10 bg-black/80 backdrop-blur-xl shadow-xl z-50">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (chatFileInputRef.current) {
+                            chatFileInputRef.current.accept = ".pdf";
+                            chatFileInputRef.current.click();
+                          }
+                          setChatAttachOpen(false);
+                        }}
+                        className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:bg-white/[0.06] transition-colors"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-4 w-4 text-red-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                           <polyline points="14 2 14 8 20 8" />
                           <line x1="16" y1="13" x2="8" y2="13" />
                           <line x1="16" y1="17" x2="8" y2="17" />
                         </svg>
-                      </div>
-                      <div>
-                        <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-blue-400/90">Document Drafter</div>
-                        <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">Generate legal documents</div>
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { switchMode("review"); setPlusMenuOpen(false); }}
-                      className="group flex items-center gap-3 rounded-xl border border-emerald-400/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-emerald-400/30 hover:bg-emerald-400/[0.06] hover:shadow-[0_0_16px_rgba(52,211,153,0.08)]"
-                    >
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-400/[0.08] transition-all duration-300 group-hover:bg-emerald-400/[0.15]">
-                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-emerald-400/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                          <polyline points="14 2 14 8 20 8" />
-                          <path d="M9 15l2 2 4-4" />
+                        PDF Document
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (chatFileInputRef.current) {
+                            chatFileInputRef.current.accept = ".png,.jpg,.jpeg,.webp,.gif";
+                            chatFileInputRef.current.click();
+                          }
+                          setChatAttachOpen(false);
+                        }}
+                        className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:bg-white/[0.06] transition-colors"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-4 w-4 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                          <circle cx="8.5" cy="8.5" r="1.5" />
+                          <polyline points="21 15 16 10 5 21" />
                         </svg>
-                      </div>
-                      <div>
-                        <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-emerald-400/90">Document Reviewer</div>
-                        <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">Review contracts &amp; clauses</div>
-                      </div>
-                    </button>
-                  </div>
-                )}
-              </div>
+                        Image / Screenshot
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
             )}
             {mode === "review" && (
               <>
