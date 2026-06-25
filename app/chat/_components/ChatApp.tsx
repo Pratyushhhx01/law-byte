@@ -1075,8 +1075,11 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   );
 }
 
-  // eslint-disable-next-line react-hooks/purity
-  const now = Date.now();
+  const [now, setNow] = useState(0);
+  useEffect(() => {
+    const id = setTimeout(() => setNow(Date.now()), 0);
+    return () => clearTimeout(id);
+  }, []);
   return (
     <div className="relative flex h-screen w-full overflow-hidden bg-black text-white">
       <div

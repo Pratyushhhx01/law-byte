@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth";
 import { stripThinkingTokens, checkRateLimit } from "@/lib/utils";
 
 const NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
-const NVIDIA_MODEL = "meta/llama-3.1-8b-instruct";
+const NVIDIA_MODEL = "openai/gpt-oss-120b";
 const REVIEW_MODEL = "google/diffusiongemma-26b-a4b-it";
 
 const tvly = process.env.TAVILY_API_KEY ? tavily({ apiKey: process.env.TAVILY_API_KEY }) : null;
@@ -161,29 +161,6 @@ End with:
 - Always include a disclaimer: "This is an AI-generated analysis for reference only. Please consult a practicing lawyer for formal legal advice."
 - Never use markdown, asterisks, or bullet points. Use numbered points and plain text only.`;
 
-const CLASSIFIER_PROMPT = `You are a query classifier for an Indian legal assistant. Your ONLY job is to decide if the user's query needs real-time web search.
-
-Return ONLY "yes" or "no".
-
-Return "yes" ONLY when the query asks about CURRENT or REAL-TIME information that changes frequently, such as:
-- Current holders of government/judicial positions (e.g., "who is the Chief Justice", "who is the President", "who is the PM", "who is the Governor")
-- Current or latest news, events, or developments
-- Today's date, current year statistics, or real-time data
-- Latest judgments or recent court orders (from 2024/2025/2026)
-- Recent amendments or new bills
-- Current stock market, RBI rates, or economic data
-- Words like "current", "latest", "recent", "today", "now", "who is", "who was" (for positions)
-
-Return "no" for ALL other queries, including:
-- Legal concepts, definitions, or explanations (e.g., "what is article 21", "what is bail", "explain IPC")
-- How to do something (e.g., "how to file FIR", "how to apply for passport", "how to register a company")
-- What a law says (e.g., "what does the RTI Act say", "sections of NDPS")
-- Greetings, casual conversation, or vague legal questions
-- Anything that can be answered from a legal knowledge base
-- Historical legal information or established procedures
-- General legal advice or guidance
-- Anything not specifically about CURRENT people, events, or real-time data`;
-
 function getSystemPrompt(conversationType?: string) {
   switch (conversationType) {
     case "analysis":
@@ -201,39 +178,20 @@ function getSystemPrompt(conversationType?: string) {
   }
 }
 
-async function classifyQuery(query: string, apiKey: string): Promise<boolean> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-    const response = await fetch(NVIDIA_API_URL, {
-      signal: controller.signal,
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: NVIDIA_MODEL,
-        messages: [
-          { role: "system", content: CLASSIFIER_PROMPT },
-          { role: "user", content: query },
-        ],
-        max_tokens: 256,
-        temperature: 0,
-        stream: false,
-      }),
-    });
-    clearTimeout(timeout);
+async function classifyQuery(query: string): Promise<boolean> {
+  const lower = query.toLowerCase();
+  const currentYear = new Date().getFullYear();
+  const yearPattern = new RegExp(`\\b(${currentYear}|${currentYear - 1}|${currentYear - 2})\\b`);
 
-    if (!response.ok) return false;
+  const currentPositionPattern = /\b(who is|who was)\s+(the\s+)?(chief justice|president|prime minister|pm|governor|cji|cm|chief minister|speaker|chairman|chairperson)\b/i;
 
-    const data = await response.json();
-    const result = data.choices?.[0]?.message?.content?.toLowerCase().trim();
-    return result === "yes";
-  } catch (error) {
-    console.error("Classifier error:", error);
-    return false;
-  }
+  const timePattern = /\b(current|latest|recent|today|now|updat|breaking|newly)\b/i;
+
+  if (currentPositionPattern.test(lower)) return true;
+  if (timePattern.test(lower)) return true;
+  if (yearPattern.test(lower)) return true;
+
+  return false;
 }
 
 async function webSearch(query: string): Promise<string> {
@@ -702,9 +660,30 @@ export async function POST(request: NextRequest) {
 
     const userQuery = lastUserMessage ? extractTextFromContent(lastUserMessage.content) : "";
 
+    const greetingPattern = /^(hi|hello|hey|namaste|namaskar|good\s*(morning|afternoon|evening)|yo|sup|hii|helloo|hey there|hello there)\s*[!.]*$/i;
+    if (userQuery && greetingPattern.test(userQuery.trim()) && conversationType !== "grill") {
+      const greeting = "Hello! How can I assist you with Indian legal matters today?";
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: greeting })}\n\n`));
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+        },
+      });
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache, no-transform",
+          "Connection": "keep-alive",
+          "X-Accel-Buffering": "no",
+        },
+      });
+    }
+
     let needsSearch = false;
     if (userQuery) {
-      needsSearch = await classifyQuery(userQuery, apiKey);
+      needsSearch = await classifyQuery(userQuery);
     }
 
     let webSearchContext = "";
@@ -732,10 +711,7 @@ export async function POST(request: NextRequest) {
     const hasMultimodalContent = Array.isArray(lastUserMessage?.content) && lastUserMessage.content.some((p: { type: string }) => p.type === "image_url");
     const model = (conversationType === "review" || hasMultimodalContent) ? REVIEW_MODEL : NVIDIA_MODEL;
 
-    const chatController = new AbortController();
-    const chatTimeout = setTimeout(() => chatController.abort(), 60000);
     const response = await fetch(NVIDIA_API_URL, {
-      signal: chatController.signal,
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
@@ -751,7 +727,6 @@ export async function POST(request: NextRequest) {
         stream: true,
       }),
     });
-    clearTimeout(chatTimeout);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -763,6 +738,7 @@ export async function POST(request: NextRequest) {
     const decoder = new TextDecoder();
 
     const stream = new ReadableStream({
+      cancel() { /* client disconnected, clean up */ },
       async start(controller) {
         const reader = response.body?.getReader();
         if (!reader) {
@@ -807,7 +783,7 @@ export async function POST(request: NextRequest) {
             }
           }
         } catch (error) {
-          console.error("Stream processing error:", error);
+          console.warn("Stream interrupted:", (error as Error).message);
           try {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "Stream interrupted" })}\n\n`));
             controller.enqueue(encoder.encode("data: [DONE]\n\n"));
@@ -815,7 +791,7 @@ export async function POST(request: NextRequest) {
             // controller may already be closed
           }
         } finally {
-          controller.close();
+          try { controller.close(); } catch { /* stream already closed */ }
         }
       },
     });
@@ -829,7 +805,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Chat API error:", error);
+    console.warn("Chat API error:", (error as Error).message);
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

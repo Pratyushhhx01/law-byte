@@ -213,7 +213,7 @@ export default function Features() {
               delay={((i % 3) + 1) as 1 | 2 | 3}
               className="h-full"
             >
-              <article className={`group relative h-full overflow-hidden bg-black p-7 transition-all duration-500 hover:bg-[#0a0a0a] sm:p-8${i < 6 ? " border-b border-white/10" : ""}`}>
+              <article className="group relative h-full overflow-hidden bg-black p-7 transition-all duration-500 hover:bg-[#0a0a0a] sm:p-8">
                 <div
                   aria-hidden
                   className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-white/0 blur-2xl transition-all duration-700 group-hover:bg-white/[0.06]"
