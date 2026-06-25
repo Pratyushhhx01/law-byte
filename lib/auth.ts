@@ -3,6 +3,13 @@ import { kyselyAdapter } from "@better-auth/kysely-adapter";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "@/lib/db";
 
+const trustedOrigins = process.env.TRUSTED_ORIGINS
+  ? process.env.TRUSTED_ORIGINS.split(",").map((o) => o.trim())
+  : [
+      "http://localhost:3000",
+      "http://lawbite-alb-1096330116.ap-south-1.elb.amazonaws.com",
+    ];
+
 export const auth = betterAuth({
   database: kyselyAdapter(db),
   plugins: [nextCookies()],
@@ -26,8 +33,5 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 24 * 7,
     updateAge: 60 * 60 * 24,
   },
-  trustedOrigins: [
-    "http://localhost:3000",
-    "http://lawbite-alb-1096330116.ap-south-1.elb.amazonaws.com",
-  ],
+  trustedOrigins,
 });

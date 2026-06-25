@@ -5,8 +5,8 @@ const nextConfig: NextConfig = {
   serverExternalPackages: [
     "kysely",
     "pg",
-    "better-auth",
     "pdf-parse",
+    "better-auth",
   ],
 };
 

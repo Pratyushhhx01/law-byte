@@ -1,7 +1,7 @@
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { NodeHttpHandler } from "@smithy/node-http-handler";
 
-const s3 = new S3Client({
+export const s3Client = new S3Client({
   region: process.env.AWS_REGION || "ap-south-1",
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
@@ -13,7 +13,10 @@ const s3 = new S3Client({
   }),
 });
 
-const BUCKET = process.env.S3_BUCKET_NAME || "lawbite-app-storage";
+export const S3_BUCKET = process.env.S3_BUCKET_NAME || "lawbite-app-storage";
+
+const s3 = s3Client;
+const BUCKET = S3_BUCKET;
 
 async function getJson<T>(key: string): Promise<T | null> {
   try {
@@ -86,6 +89,7 @@ async function getSectionFromFullText(actName: string, section: string): Promise
 export const s3kb = {
   /** Get a full bare act as structured JSON */
   getAct(actName: string) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return getJson<Record<string, any>>(`bare-acts/${actName}/index.json`);
   },
   /** Get a specific section from an act */
@@ -98,6 +102,7 @@ export const s3kb = {
   },
   /** Get the full act index */
   getFullTextIndex() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return getJson<any[]>("bare-acts/_index.json");
   },
   /** Get the section list (titles only) for an act */
@@ -106,8 +111,10 @@ export const s3kb = {
   },
   /** Search across all acts (returns matching sections) */
   async searchActs(query: string): Promise<Array<{ act: string; section: string; title: string; text: string }>> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const raw = await getJson<any[]>("bare-acts/_index.json");
     if (!raw) return [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const acts: string[] = raw.map((e: any) => typeof e === 'string' ? e : e.id);
     const results: Array<{ act: string; section: string; title: string; text: string }> = [];
     const lower = query.toLowerCase();

@@ -119,6 +119,25 @@ export default function Navbar() {
                   </div>
                   <div className="p-1">
                     <Link
+                      href="/"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/5 hover:text-white"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                        <polyline points="9 22 9 12 15 12 15 22" />
+                      </svg>
+                      Home
+                    </Link>
+                    <Link
                       href="/chat"
                       onClick={() => setProfileOpen(false)}
                       className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/5 hover:text-white"
@@ -236,6 +255,13 @@ export default function Navbar() {
           >
             {session?.user ? (
               <div className="space-y-2">
+                <Link
+                  href="/"
+                  onClick={() => setOpen(false)}
+                  className="block rounded-xl bg-white/10 px-3 py-2.5 text-center font-medium text-white/80 transition-colors hover:bg-white/15 hover:text-white"
+                >
+                  Home
+                </Link>
                 <Link
                   href="/chat"
                   onClick={() => setOpen(false)}

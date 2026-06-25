@@ -5,6 +5,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent, ReactNode } from "react";
 import { signOut } from "@/lib/auth-client";
 import LogoIcon from "../../components/LogoIcon";
+import { stripThinkingTokens } from "@/lib/utils";
 
 type Role = "user" | "assistant";
 
@@ -206,6 +207,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const conversationsRef = useRef<Conversation[]>([]);
   const escCountRef = useRef(0);
   const escTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ type: "clearHistory"; section?: ConversationType } | { type: "deleteConversation"; id: string } | null>(null);
@@ -218,7 +220,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const [lastDraftIdRef, setLastDraftIdRef] = useState<string | null>(null);
   const [lastReviewIdRef, setLastReviewIdRef] = useState<string | null>(null);
   const [reviewFileUploading, setReviewFileUploading] = useState(false);
-  const [reviewFileName, setReviewFileName] = useState<string | null>(null);
   const [reviewAttachOpen, setReviewAttachOpen] = useState(false);
   const [pendingAttachment, setPendingAttachment] = useState<{ type: "pdf" | "image"; fileName: string; text?: string; imageBase64?: string; truncated?: boolean } | null>(null);
   const reviewFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -242,6 +243,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   useEffect(() => {
     setSavedCases(loadSavedCases());
   }, []);
+
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
 
   useEffect(() => {
     if (wasThinkingRef.current && !isThinking && mode !== "analysis") {
@@ -381,17 +386,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     });
   }
 
-  function stripThinkingTokens(text: string): string {
-    return text
-      .replace(/<\|channel\|?>[\s\S]*?(?=\n|$|<)/g, "")
-      .replace(/<channel\|?>[\s\S]*?(?=\n|$|<)/g, "")
-      .replace(/\|channel\|?>[\s\S]*?(?=\n|$|<)/g, "")
-      .replace(/<\|channel[^\n<]*/g, "")
-      .replace(/<channel[^\n<]*/g, "")
-      .replace(/\|channel[^\n<]*/g, "")
-      .trim();
-  }
-
   function extractTopic(text: string): string {
     const stopWords = /^(what|who|when|where|why|how|is|are|do|does|did|can|could|would|should|will|shall|may|might|the|a|an|me|about|it|its|this|that|these|those|by|in|on|of|to|for|with|under|between|from|please|i|want|to|know|like|tell|explain|define|describe|give|me|some|info|information|detail|details|regarding|concerning|related|question|answer|something|anything|everything)$/i;
     const cleaned = text.replace(/[?.,!]+$/, "").trim();
@@ -431,27 +425,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       setSelectedDocType(null);
       setFormData({});
     }
-    if (convType === "review") {
-      setReviewFileName(null);
-    }
-  }
-
-  function startAnalysisChat() {
-    const conv: Conversation = {
-      id: newId("a"),
-      title: "New analysis",
-      preview: "In-depth analysis",
-      type: "analysis",
-      createdAt: Date.now(),
-      messages: [],
-    };
-    setConversations((prev) => [conv, ...prev]);
-    setActiveId(conv.id);
-    setMode("analysis");
-    setDraft("");
-    setSidebarOpen(false);
-    lastTalkIdRef.current = null;
-    lastAnalysisIdRef.current = null;
   }
 
   function startGrill() {
@@ -471,43 +444,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     setMyCasesOpen(false);
     setSelectedDocType(null);
     setFormData({});
-  }
-
-  function startDraftChat() {
-    const conv: Conversation = {
-      id: newId("d"),
-      title: "New draft",
-      preview: "Document drafting",
-      type: "draft",
-      createdAt: Date.now(),
-      messages: [],
-    };
-    setConversations((prev) => [conv, ...prev]);
-    setActiveId(conv.id);
-    setMode("draft");
-    setDraft("");
-    setSidebarOpen(false);
-    setSelectedDocType(null);
-    setFormData({});
-  }
-
-  function startReviewChat() {
-    const conv: Conversation = {
-      id: newId("r"),
-      title: "New review",
-      preview: "Document review",
-      type: "review",
-      createdAt: Date.now(),
-      messages: [],
-    };
-    setConversations((prev) => [conv, ...prev]);
-    setActiveId(conv.id);
-    setMode("review");
-    setDraft("");
-    setSidebarOpen(false);
-    setSelectedDocType(null);
-    setFormData({});
-    setReviewFileName(null);
   }
 
   async function handleReviewFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -665,7 +601,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     setDraft("");
     setIsThinking(true);
 
-    const currentConversations = conversations;
+    const currentConversations = conversationsRef.current;
     const activeConversation = currentConversations.find((c) => c.id === activeId);
 
     let userApiContent: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
