@@ -17,15 +17,15 @@ const columns: { title: string; links: { label: string; href: string }[] }[] = [
   {
     title: "Company",
     links: [
-      { label: "About", href: "#" },
-      { label: "Contact", href: "#contact" },
+      { label: "About", href: "/about" },
+      { label: "Contact", href: "/contact" },
     ],
   },
   {
     title: "Resources",
     links: [
-      { label: "Docs", href: "#" },
-      { label: "Guides", href: "#" },
+      { label: "Documents", href: "/documents" },
+      { label: "Guides", href: "/guides" },
     ],
   },
   {

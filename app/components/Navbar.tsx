@@ -11,7 +11,7 @@ const links = [
   { label: "Preview", href: "#preview" },
   { label: "How It Works", href: "#process" },
   { label: "FAQ", href: "#faq" },
-  { label: "Contact", href: "#contact" },
+  { label: "Contact", href: "/contact" },
 ];
 
 export default function Navbar() {
