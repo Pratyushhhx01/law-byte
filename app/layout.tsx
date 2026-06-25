@@ -18,7 +18,24 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Lawbite — Modern legal practice, redefined",
   description:
-    "A modern landing page scaffolded in black and white with animated, component-driven sections.",
+    "AI-powered legal assistant for Indian law. Get instant analysis, draft documents, and research across 157+ bare acts.",
+  openGraph: {
+    title: "Lawbite — Modern legal practice, redefined",
+    description:
+      "AI-powered legal assistant for Indian law. Get instant analysis, draft documents, and research across 157+ bare acts.",
+    type: "website",
+    locale: "en_IN",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Lawbite — Modern legal practice, redefined",
+    description:
+      "AI-powered legal assistant for Indian law. Get instant analysis, draft documents, and research across 157+ bare acts.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({

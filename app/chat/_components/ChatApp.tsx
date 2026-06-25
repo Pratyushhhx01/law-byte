@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useEffect, useRef, useState } from "react";
+import Image from "next/image";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent, ReactNode } from "react";
 import { signOut } from "@/lib/auth-client";
 import LogoIcon from "../../components/LogoIcon";
@@ -51,6 +52,7 @@ type SavedCase = {
 };
 
 const STORAGE_KEY = "lawbite-saved-cases";
+const CONVERSATIONS_KEY = "lawbite-conversations";
 
 function loadSavedCases(): SavedCase[] {
   if (typeof window === "undefined") return [];
@@ -66,6 +68,23 @@ function saveSavedCases(cases: SavedCase[]) {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(cases));
+  } catch {}
+}
+
+function loadConversations(): Conversation[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(CONVERSATIONS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveConversations(convos: Conversation[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(convos));
   } catch {}
 }
 
@@ -181,11 +200,16 @@ const freshConversation: Conversation = {
 
 export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const [user, setUser] = useState<ChatUser>(initialUser);
-  const [conversations, setConversations] = useState<Conversation[]>([
-    freshConversation,
-    ...initialConversations,
-  ]);
-  const [activeId, setActiveId] = useState<string>(freshConversation.id);
+  const [conversations, setConversations] = useState<Conversation[]>(() => {
+    const saved = loadConversations();
+    if (saved && saved.length > 0) return saved;
+    return [freshConversation, ...initialConversations];
+  });
+  const [activeId, setActiveId] = useState<string>(() => {
+    const saved = loadConversations();
+    if (saved && saved.length > 0) return saved[0].id;
+    return freshConversation.id;
+  });
   const [draft, setDraft] = useState("");
   const [isThinking, setIsThinking] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -195,9 +219,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [contextMenuId, setContextMenuId] = useState<string | null>(null);
   const [myCasesOpen, setMyCasesOpen] = useState(false);
-  const [savedCases, setSavedCases] = useState<SavedCase[]>([]);
-  const [showSuggestion, setShowSuggestion] = useState(false);
-  const wasThinkingRef = useRef(false);
+  const [savedCases, setSavedCases] = useState<SavedCase[]>(() => loadSavedCases());
   const lastTalkIdRef = useRef<string | null>(null);
   const lastAnalysisIdRef = useRef<string | null>(null);
   const [mode, setMode] = useState<ConversationType>("chat");
@@ -236,36 +258,36 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
   const active = conversations.find((c) => c.id === activeId) ?? conversations[0];
 
+  const showSuggestion = useMemo(() => {
+    if (isThinking) return false;
+    if (mode === "analysis" || mode === "grill" || mode === "draft" || mode === "review") return false;
+    if (active?.type === "grill" || active?.type === "draft" || active?.type === "review") return false;
+    if (!active || active.messages.length === 0) return false;
+    const lastMsg = active.messages[active.messages.length - 1];
+    const userMsgs = active.messages.filter((m) => m.role === "user");
+    const lastUserMsg = userMsgs[userMsgs.length - 1];
+    const content = lastUserMsg?.content?.toLowerCase().trim() ?? "";
+    const isGreeting = /^(hi|hello|hey|namaste|good\s*(morning|afternoon|evening|night)|yo|sup|hola|howdy|greetings)/.test(content);
+    const isCompliment = /(thank|thanks|thx|good\s*(job|work|bot|ai)|great|awesome|nice|amazing|perfect|excellent|well\s*done|bravo|superb|fantastic|love\s*you)/.test(content);
+    const isOffTopic = /only\s+provide\s+information.*indian\s+law/i.test(lastMsg?.content?.trim() ?? "");
+    const isAiGreeting = lastMsg?.content?.trim().toLowerCase().startsWith("hello") && lastMsg?.content?.toLowerCase().includes("how can i assist you");
+    if (lastMsg && lastMsg.role === "assistant" && lastMsg.content && !isOffTopic && !isGreeting && !isCompliment && !isAiGreeting) {
+      return true;
+    }
+    return false;
+  }, [active, mode, isThinking]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [active?.messages.length, isThinking, showSuggestion]);
-
-  useEffect(() => {
-    setSavedCases(loadSavedCases());
-  }, []);
 
   useEffect(() => {
     conversationsRef.current = conversations;
   }, [conversations]);
 
   useEffect(() => {
-    if (wasThinkingRef.current && !isThinking && mode !== "analysis") {
-      const lastMsg = active?.messages[active.messages.length - 1];
-      const userMsgs = (active?.messages ?? []).filter((m) => m.role === "user");
-      const lastUserMsg = userMsgs[userMsgs.length - 1];
-      const content = lastUserMsg?.content?.toLowerCase().trim() ?? "";
-      const isGreeting = /^(hi|hello|hey|namaste|good\s*(morning|afternoon|evening|night)|yo|sup|hola|howdy|greetings)/.test(content);
-      const isCompliment = /(thank|thanks|thx|good\s*(job|work|bot|ai)|great|awesome|nice|amazing|perfect|excellent|well\s*done|bravo|superb|fantastic|love\s*you)/.test(content);
-      const isOffTopic = /only\s+provide\s+information.*indian\s+law/i.test(lastMsg?.content?.trim() ?? "");
-      const isAiGreeting = lastMsg?.content?.trim().toLowerCase().startsWith("hello") && lastMsg?.content?.toLowerCase().includes("how can i assist you");
-      if (lastMsg && lastMsg.role === "assistant" && lastMsg.content && !isOffTopic && !isGreeting && !isCompliment && !isAiGreeting && active?.type !== "grill" && active?.type !== "draft" && active?.type !== "review") {
-        setShowSuggestion(true);
-      } else {
-        setShowSuggestion(false);
-      }
-    }
-    wasThinkingRef.current = isThinking;
-  }, [isThinking, active]);
+    saveConversations(conversations);
+  }, [conversations]);
 
   useEffect(() => {
     if (!plusMenuOpen) return;
@@ -288,26 +310,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [draftDocTypeOpen]);
-
-  useEffect(() => {
-    if (mode === "analysis" || mode === "grill" || mode === "draft" || mode === "review" || !active || active.messages.length === 0) {
-      setShowSuggestion(false);
-      return;
-    }
-    const lastMsg = active.messages[active.messages.length - 1];
-    const userMsgs = active.messages.filter((m) => m.role === "user");
-    const lastUserMsg = userMsgs[userMsgs.length - 1];
-    const content = lastUserMsg?.content?.toLowerCase().trim() ?? "";
-    const isGreeting = /^(hi|hello|hey|namaste|good\s*(morning|afternoon|evening|night)|yo|sup|hola|howdy|greetings)/.test(content);
-    const isCompliment = /(thank|thanks|thx|good\s*(job|work|bot|ai)|great|awesome|nice|amazing|perfect|excellent|well\s*done|bravo|superb|fantastic|love\s*you)/.test(content);
-    const isOffTopic = /only\s+provide\s+information.*indian\s+law/i.test(lastMsg?.content?.trim() ?? "");
-    const isAiGreeting = lastMsg?.content?.trim().toLowerCase().startsWith("hello") && lastMsg?.content?.toLowerCase().includes("how can i assist you");
-    if (lastMsg && lastMsg.role === "assistant" && lastMsg.content && !isOffTopic && !isGreeting && !isCompliment && !isAiGreeting) {
-      setShowSuggestion(true);
-    } else {
-      setShowSuggestion(false);
-    }
-  }, [activeId, mode]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -571,7 +573,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     const trimmed = text.trim();
     if (!trimmed || isThinking) return;
 
-    setShowSuggestion(false);
     const controller = new AbortController();
     abortRef.current = controller;
 
@@ -901,8 +902,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     }
   }
 
-  function groupConversations(type: ConversationType) {
-    const now = Date.now();
+  function groupConversations(type: ConversationType, now: number) {
     const DAY = 1000 * 60 * 60 * 24;
 
     const filtered = type === "talk-to-ai"
@@ -965,7 +965,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   );
 }
 
-    return (
+  return (
       <div
         className={`flex items-center gap-1 rounded-lg px-3 py-2 text-left transition-colors duration-150 ${
           isActive
@@ -1075,6 +1075,8 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   );
 }
 
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
   return (
     <div className="relative flex h-screen w-full overflow-hidden bg-black text-white">
       <div
@@ -1167,7 +1169,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
         >
           <div className="mb-4">
             <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-white/35">Talk to AI</p>
-            {groupConversations("talk-to-ai").map((group) => (
+            {groupConversations("talk-to-ai", now).map((group) => (
               <div key={group.label} className="mb-2">
                 <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
                 <ul className="space-y-0.5 text-sm">
@@ -1192,10 +1194,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </button>
           </div>
 
-          {groupConversations("analysis").length > 0 && (
+          {groupConversations("analysis", now).length > 0 && (
             <div className="mb-4">
               <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-white/35">In-depth Analysis</p>
-              {groupConversations("analysis").map((group) => (
+              {groupConversations("analysis", now).map((group) => (
                 <div key={group.label} className="mb-2">
                   <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
                   <ul className="space-y-0.5 text-sm">
@@ -1221,10 +1223,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </div>
           )}
 
-          {groupConversations("grill").length > 0 && (
+          {groupConversations("grill", now).length > 0 && (
             <div className="mb-4">
               <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-amber-400/60">My Cases</p>
-              {groupConversations("grill").map((group) => (
+              {groupConversations("grill", now).map((group) => (
                 <div key={group.label} className="mb-2">
                   <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
                   <ul className="space-y-0.5 text-sm">
@@ -1250,10 +1252,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </div>
           )}
 
-          {groupConversations("draft").length > 0 && (
+          {groupConversations("draft", now).length > 0 && (
             <div className="mb-4">
               <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-blue-400/60">Document Drafter</p>
-              {groupConversations("draft").map((group) => (
+              {groupConversations("draft", now).map((group) => (
                 <div key={group.label} className="mb-2">
                   <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
                   <ul className="space-y-0.5 text-sm">
@@ -1279,10 +1281,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </div>
           )}
 
-          {groupConversations("review").length > 0 && (
+          {groupConversations("review", now).length > 0 && (
             <div className="mb-4">
               <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-emerald-400/60">Document Reviewer</p>
-              {groupConversations("review").map((group) => (
+              {groupConversations("review", now).map((group) => (
                 <div key={group.label} className="mb-2">
                   <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
                   <ul className="space-y-0.5 text-sm">
@@ -1308,7 +1310,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </div>
           )}
 
-          {groupConversations("analysis").length === 0 && groupConversations("grill").length === 0 && groupConversations("draft").length === 0 && groupConversations("review").length === 0 && (
+          {groupConversations("analysis", now).length === 0 && groupConversations("grill", now).length === 0 && groupConversations("draft", now).length === 0 && groupConversations("review", now).length === 0 && (
             <p className="px-3 py-8 text-center text-xs text-white/35">No conversations yet</p>
           )}
         </nav>
@@ -1317,9 +1319,12 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 min-w-0">
               {user.image ? (
-                <img
+                <Image
                   src={user.image}
                   alt=""
+                  width={28}
+                  height={28}
+                  unoptimized
                   className="h-7 w-7 shrink-0 rounded-full border border-white/15 object-cover"
                 />
               ) : (
@@ -1530,10 +1535,11 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                                     ))}
                                   </div>
                                 </div>
-                              </div>
-                            );
-                          }
-                          return (
+    </div>
+  );
+}
+
+  return (
                             <div key={i} className="whitespace-pre-wrap leading-relaxed">
                               {block.trim().split(/\n\n+/).map((para, j) => (
                                 <p key={j} className={j > 0 ? "mt-3" : ""}>{renderBold(para)}</p>
@@ -3004,9 +3010,12 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
             <div className="flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-4 mb-6">
               {user.image ? (
-                <img
+                <Image
                   src={user.image}
                   alt=""
+                  width={48}
+                  height={48}
+                  unoptimized
                   className="h-12 w-12 shrink-0 rounded-full border border-white/15 object-cover"
                 />
               ) : (
@@ -3532,9 +3541,12 @@ function EditProfileModal({
             className="group relative"
           >
             {avatarPreview || user.image ? (
-              <img
+              <Image
                 src={avatarPreview || user.image!}
                 alt=""
+                width={80}
+                height={80}
+                unoptimized
                 className="h-20 w-20 rounded-full border border-white/15 object-cover"
               />
             ) : (

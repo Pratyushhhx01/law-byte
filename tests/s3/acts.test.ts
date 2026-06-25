@@ -110,7 +110,7 @@ describe("S3 Knowledge Base — Acts Inventory", () => {
 
   beforeAll(async () => {
     const index = await s3kb.getFullTextIndex();
-    actsInS3 = (index || []).map((e: any) => (typeof e === "string" ? e : e.id));
+    actsInS3 = (index || []).map((e: string | { id: string }) => (typeof e === "string" ? e : e.id));
   });
 
   it("should have a non-empty acts index from S3", () => {
@@ -133,8 +133,7 @@ describe("S3 Knowledge Base — Act Data Verification", () => {
   const withFullText: string[] = [];
 
   beforeAll(async () => {
-    const index = await s3kb.getFullTextIndex();
-    const actsInS3 = new Set((index || []).map((e: any) => (typeof e === "string" ? e : e.id)));
+    await s3kb.getFullTextIndex();
 
     for (const key of ALL_S3_KEYS) {
       const data = await s3kb.getAct(key);
@@ -232,7 +231,7 @@ describe("S3 Knowledge Base — Full Text Availability", () => {
 
   beforeAll(async () => {
     const index = await s3kb.getFullTextIndex();
-    actsInS3 = (index || []).map((e: any) => (typeof e === "string" ? e : e.id));
+    actsInS3 = (index || []).map((e: string | { id: string }) => (typeof e === "string" ? e : e.id));
   });
 
   it("should have full.txt with substantive content for acts that have sections", async () => {
@@ -320,7 +319,7 @@ describe("S3 Knowledge Base — Source Attribution Summary", () => {
 
   beforeAll(async () => {
     const index = await s3kb.getFullTextIndex();
-    actsInS3 = (index || []).map((e: any) => (typeof e === "string" ? e : e.id));
+    actsInS3 = (index || []).map((e: string | { id: string }) => (typeof e === "string" ? e : e.id));
   }, 15000);
 
   it("should print final verdict: S3 vs LLM source for every act", () => {

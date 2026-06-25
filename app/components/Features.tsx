@@ -206,14 +206,14 @@ export default function Features() {
           </Reveal>
         </div>
 
-        <div className="mt-16 grid gap-px overflow-hidden rounded-3xl border border-white/10 bg-white/10 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="features-grid mt-16 grid gap-px rounded-3xl border border-white/10 bg-white/10 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((feature, i) => (
             <Reveal
               key={feature.title}
               delay={((i % 3) + 1) as 1 | 2 | 3}
               className="h-full"
             >
-              <article className="group relative h-full overflow-hidden bg-black p-7 transition-all duration-500 hover:bg-[#0a0a0a] sm:p-8">
+              <article className={`group relative h-full overflow-hidden bg-black p-7 transition-all duration-500 hover:bg-[#0a0a0a] sm:p-8${i < 6 ? " border-b border-white/10" : ""}`}>
                 <div
                   aria-hidden
                   className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-white/0 blur-2xl transition-all duration-700 group-hover:bg-white/[0.06]"

@@ -68,7 +68,7 @@ describe("Database Connection", () => {
        WHERE table_name = 'user'
        ORDER BY ordinal_position`,
     );
-    const columns = result.rows.map((r: any) => r.column_name);
+    const columns = result.rows.map((r: { column_name: string }) => r.column_name);
     expect(columns).toContain("id");
     expect(columns).toContain("email");
     expect(columns).toContain("name");
@@ -83,7 +83,7 @@ describe("Database Connection", () => {
        WHERE table_name = 'session'
        ORDER BY ordinal_position`,
     );
-    const columns = result.rows.map((r: any) => r.column_name);
+    const columns = result.rows.map((r: { column_name: string }) => r.column_name);
     expect(columns).toContain("id");
     expect(columns).toContain("token");
     expect(columns).toContain("userId");
@@ -97,7 +97,7 @@ describe("Database Connection", () => {
        WHERE table_name = 'account'
        ORDER BY ordinal_position`,
     );
-    const columns = result.rows.map((r: any) => r.column_name);
+    const columns = result.rows.map((r: { column_name: string }) => r.column_name);
     expect(columns).toContain("id");
     expect(columns).toContain("accountId");
     expect(columns).toContain("providerId");

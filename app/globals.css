@@ -277,6 +277,11 @@ body {
   transition-delay: 0.4s;
 }
 
+.features-grid > *:nth-child(1) { border-radius: 1.5rem 0 0 0; overflow: hidden; }
+.features-grid > *:nth-child(3) { border-radius: 0 1.5rem 0 0; overflow: hidden; }
+.features-grid > *:nth-child(7) { border-radius: 0 0 0 1.5rem; overflow: hidden; }
+.features-grid > *:nth-child(9) { border-radius: 0 0 1.5rem 0; overflow: hidden; }
+
 .glow {
   background: radial-gradient(
     600px circle at var(--mx, 50%) var(--my, 50%),

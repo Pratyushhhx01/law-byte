@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useSession, signOut } from "@/lib/auth-client";
 import LogoIcon from "./LogoIcon";
@@ -87,9 +88,12 @@ export default function Navbar() {
                 aria-label="Account menu"
               >
                 {session.user.image ? (
-                  <img
+                  <Image
                     src={session.user.image}
                     alt=""
+                    width={36}
+                    height={36}
+                    unoptimized
                     className="h-full w-full object-cover"
                   />
                 ) : (
@@ -190,8 +194,8 @@ export default function Navbar() {
                 className="inline-block transition-transform duration-300 group-hover:translate-x-0.5"
               >
                 →
-              </span>
-            </Link>
+                </span>
+              </Link>
           )}
         </div>
 
