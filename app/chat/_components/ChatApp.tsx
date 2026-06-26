@@ -862,6 +862,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       }));
       setConversations(freshConversations);
       setActiveId(freshConversations[0].id);
+      setMode("talk-to-ai");
       setContextMenuId(null);
       return;
     }
@@ -1564,6 +1565,11 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                         {stripThinkingTokens(message.content).replace(/\[ADVICE_COMPLETE\]/g, "").split(/\n\n+/).map((para, i) => (
                           <p key={i} className={i > 0 ? "mt-3" : ""}>{renderBold(para)}</p>
                         ))}
+                        {message.role === "assistant" && ((message.type ?? active?.type) === "review" || (message.type ?? active?.type) === "draft" || message.content.includes("[ADVICE_COMPLETE]")) && (
+                          <p className="mt-4 text-xs italic text-white/40 border-t border-white/10 pt-3">
+                            This is an AI-generated analysis for reference purposes. Please consult a practicing lawyer before making any legal decisions.
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -2948,8 +2954,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               {confirmAction.type === "clearHistory" ? "Clear History" : "Delete Chat"}
             </h3>
             <p className="mt-2 text-sm text-white/55">
-              {confirmAction.type === "clearHistory"
-                ? `This will permanently delete all ${{ "talk-to-ai": "Talk to AI", "chat": "Chat", "analysis": "In-depth Analysis", "grill": "My Cases", "draft": "Document Drafter", "review": "Document Reviewer" }[confirmAction.section ?? "talk-to-ai"]} history. This action cannot be undone.`
+               {confirmAction.type === "clearHistory"
+                 ? confirmAction.section
+                   ? `This will permanently delete all ${{ "talk-to-ai": "Talk to AI", "chat": "Chat", "analysis": "In-depth Analysis", "grill": "My Cases", "draft": "Document Drafter", "review": "Document Reviewer" }[confirmAction.section]} history. This action cannot be undone.`
+                   : "This will permanently delete all history of this account. This action cannot be undone."
                 : "This will permanently delete this conversation. This action cannot be undone."}
             </p>
             <div className="mt-5 flex justify-end gap-2">
