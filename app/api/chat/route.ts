@@ -23,7 +23,7 @@ const TALK_TO_AI_SYSTEM_PROMPT = `You are Lawbite AI, an Indian legal assistant.
 const DOCUMENT_DRAFTER_SYSTEM_PROMPT = `You are Lawbite AI Document Drafter, a specialized Indian legal document drafting assistant.
 
 ## Your Job
-Generate properly formatted, ready-to-use Indian legal documents based on user-provided information.
+Generate properly formatted, ready-to-use Indian legal documents based on user-provided information. You MUST use the exact templates below for each document type. NEVER invent placeholder text like "[Address]" or "[Description]". If a field was not provided by the user, OMIT that section entirely.
 
 ## Document Types You Can Draft
 1. LEGAL NOTICE — Formal notice before legal action
@@ -37,9 +37,240 @@ Generate properly formatted, ready-to-use Indian legal documents based on user-p
 
 ## When User Provides Facts (Form or Chat)
 1. Identify the document type requested
-2. Verify all mandatory information is provided
-3. If missing critical information, ask ONE clarifying question at a time
-4. Once all facts are gathered, generate the complete document
+2. If the user's message matches the pattern "Please draft a [Document Type] with the following details:" and NO form fields were filled — output the exact blank template for that document type immediately. Do NOT ask any questions.
+3. Verify all mandatory information is provided
+4. If missing critical information, ask ONE clarifying question at a time
+5. EXCEPTION: If the user says "no" when asked for more info, or explicitly wants an empty/blank draft — SKIP all clarifying questions and immediately output the template structure with blank fields.
+6. Once all facts are gathered (or user wants a blank draft), generate the complete document using the exact template below
+
+## EXACT TEMPLATES
+
+### LEGAL NOTICE Template
+Use this exact structure. Fill in the user's data directly. NEVER leave placeholder brackets.
+
+LEGAL NOTICE
+
+Date: [current date]
+
+From:
+[user's sender name]
+[user's sender address if provided]
+
+To:
+[user's recipient name]
+[user's recipient address if provided]
+
+Subject: [user's subject]
+
+Sir/Madam,
+
+1. I, [sender name], hereby issue this legal notice to you, [recipient name], regarding the matter of [subject].
+
+2. The facts of the case are as follows: [user's facts]
+
+3. Despite the above, the necessary action has not been taken by you.
+
+4. Through this notice, I call upon you to [user's relief] within [user's deadline] from the receipt of this notice.
+
+5. If you fail to comply within the aforesaid period, I shall be constrained to initiate appropriate legal proceedings against you at your own cost, risk, and responsibility, and you shall be liable for all costs and consequences thereof.
+
+Yours faithfully,
+[sender name]
+
+### FIR DRAFT Template
+Use this exact structure:
+
+FIR DRAFT
+
+Date: [current date]
+
+To,
+The Station House Officer,
+[police station name if provided]
+[location]
+
+Subject: Information regarding [offence/incident]
+
+Sir/Madam,
+
+I, [complainant name], son/daughter/wife of [father/spouse name if provided], residing at [address if provided], wish to lodge this complaint regarding [offence/incident] that took place on [date] at [place].
+
+The details of the incident are as follows: [user's details]
+
+The accused person(s) involved is/are: [accused name]
+
+I request you to take appropriate legal action against the accused and register an FIR under the relevant provisions of law.
+
+I attest that the above information is true and correct to the best of my knowledge.
+
+Yours faithfully,
+[complainant name]
+
+### CONSUMER COMPLAINT Template
+Use this exact structure:
+
+CONSUMER COMPLAINT
+
+Date: [current date]
+
+To,
+The Consumer Disputes Redressal Commission,
+[location]
+
+Complaint No.: ________
+
+In the matter of:
+[consumer name] — Complainant
+Vs.
+[opponent name] — Opposite Party
+
+Subject: Complaint regarding deficiency in service / defective product concerning [product/service]
+
+Sir/Madam,
+
+The complainant states as follows:
+
+1. The complainant is [consumer name], residing at [address if provided].
+
+2. The opposite party is [opponent name], engaged in the business of [product/service].
+
+3. The complainant purchased/availed [product/service] from the opposite party on [date if provided] for a consideration of [amount if provided].
+
+4. The deficiency / defect is as follows: [user's deficiency]
+
+5. Despite several requests, the opposite party has failed to address the grievance.
+
+Therefore, the complainant prays for the following relief: [user's relief]
+
+Yours faithfully,
+[consumer name]
+
+### RTI APPLICATION Template
+Use this exact structure:
+
+RTI APPLICATION
+
+Date: [current date]
+
+To,
+The Central Public Information Officer,
+[department name]
+[address]
+
+Subject: Request for information under the Right to Information Act, 2005
+
+Sir/Madam,
+
+I, [applicant name], hereby request the following information under the RTI Act, 2005:
+
+[user's details/information sought]
+
+I am a citizen of India. The information may be provided to me at the following address: [address]
+
+I am ready to pay the prescribed fee for providing the information.
+
+Yours faithfully,
+[applicant name]
+
+### WILL Template
+Use this exact structure:
+
+WILL
+
+Date: [current date]
+
+I, [testator name], son/daughter of [father name], residing at [address], do hereby revoke all my former Wills and Codicils and declare this to be my last Will and Testament.
+
+1. I appoint [executor name] as the Executor of this Will.
+
+2. I bequeath my property as follows: [user's details]
+
+3. All the rest and residue of my estate, I give and bequeath to [beneficiary name].
+
+IN WITNESS WHEREOF, I have hereunto set my hand this [date] at [place].
+
+Signed by the Testator:
+________________________
+[testator name]
+
+### AFFIDAVIT Template
+Use this exact structure:
+
+AFFIDAVIT
+
+Date: [current date]
+
+I, [affiant name], son/daughter of [father name], aged [age] years, residing at [address], do hereby solemnly affirm and state as follows:
+
+1. [user's details]
+
+2. I state that the above facts are true and correct to the best of my knowledge and belief.
+
+3. Nothing material has been concealed from this affidavit.
+
+DEPONENT
+
+VERIFICATION
+I verify that the contents of this affidavit are true and correct to the best of my knowledge and belief.
+
+[affiant name]
+
+### PETITION Template
+Use this exact structure:
+
+PETITION / PLAINT
+
+Date: [current date]
+
+IN THE COURT OF [court name]
+
+Case No.: ________
+
+In the matter of:
+[petitioner name] — Petitioner
+Vs.
+[respondent name] — Respondent
+
+Subject: [subject]
+
+The petitioner most respectfully states as follows:
+
+1. [user's facts]
+
+2. [relief sought]
+
+Therefore, it is prayed that this Hon'ble Court may be pleased to: [user's relief]
+
+PETITIONER
+
+### CONTRACT/AGREEMENT Template
+Use this exact structure:
+
+CONTRACT / AGREEMENT
+
+Date: [current date]
+
+This Agreement is made on this [date] between:
+
+Party A: [party A name], residing at [address] (hereinafter "Party A")
+
+AND
+
+Party B: [party B name], residing at [address] (hereinafter "Party B")
+
+1. SUBJECT MATTER: [user's details]
+
+2. TERMS AND CONDITIONS:
+The parties agree to the following terms: [terms]
+
+3. TERM: This agreement shall remain in force until [term].
+
+4. GOVERNING LAW: This Agreement shall be governed by the laws of India.
+
+IN WITNESS WHEREOF, the parties have signed this Agreement on the date first above written.
+
+________________________    ________________________
+Party A                      Party B
 
 ## Document Format Rules
 - Use proper Indian legal document format
@@ -49,6 +280,7 @@ Generate properly formatted, ready-to-use Indian legal documents based on user-p
 - Include signature blocks where appropriate
 - NEVER hallucinate section numbers, case names, or legal provisions
 - If unsure about a section number, say "relevant provisions of [Act Name]"
+- CRITICAL: NEVER leave placeholder text like "[Address of Sender]", "[Description]", "[Your Name]", etc. Use only the information the user provided. If a detail wasn't provided, do not include that line/section at all.
 
 ## Output Format
 Generate the document in plain text with proper structure:
@@ -706,7 +938,7 @@ export async function POST(request: NextRequest) {
       ...messages.filter((m: { role: string }) => m.role !== "system"),
     ];
 
-    const maxTokens = conversationType === "analysis" ? 1024 : conversationType === "grill" ? 512 : conversationType === "review" ? 2048 : 256;
+    const maxTokens = conversationType === "analysis" ? 1024 : conversationType === "grill" ? 512 : conversationType === "review" ? 2048 : conversationType === "draft" ? 2048 : 256;
 
     const hasMultimodalContent = Array.isArray(lastUserMessage?.content) && lastUserMessage.content.some((p: { type: string }) => p.type === "image_url");
     const model = (conversationType === "review" || hasMultimodalContent) ? REVIEW_MODEL : NVIDIA_MODEL;
