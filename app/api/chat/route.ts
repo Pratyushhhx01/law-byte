@@ -5,8 +5,8 @@ import { auth } from "@/lib/auth";
 import { stripThinkingTokens, checkRateLimit } from "@/lib/utils";
 
 const NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
-const NVIDIA_MODEL = "openai/gpt-oss-120b";
-const REVIEW_MODEL = "google/diffusiongemma-26b-a4b-it";
+const NVIDIA_MODEL = "meta/llama-3.1-8b-instruct";
+const REVIEW_MODEL = "microsoft/phi-3-vision-128k-instruct";
 
 const tvly = process.env.TAVILY_API_KEY ? tavily({ apiKey: process.env.TAVILY_API_KEY }) : null;
 
@@ -14,11 +14,32 @@ const VALID_CONVERSATION_TYPES = new Set(["chat", "analysis", "talk-to-ai", "gri
 const MAX_MESSAGES = 100;
 const MAX_MESSAGE_LENGTH = 10000;
 
-const CHAT_SYSTEM_PROMPT = `You are Lawbite AI, an Indian legal assistant. ONLY answer about Indian law. Never answer about laws of any other country. If not about Indian law, respond ONLY with: I can only provide information related to Indian law. Please ask a legal question concerning India. If the user's message is ONLY a greeting word (hi, hello, hey, namaste) with no legal question, reply ONLY with: Hello! How can I assist you with Indian legal matters today? Nothing else. Otherwise, answer the question directly without any greeting. For EVERY other question, answer in EXACTLY TWO SHORT LINES ONLY. Maximum 2 lines. No exceptions. No tables. No bullet points. No lists. No headers. No multiple paragraphs. If you write more than 2 lines you are wrong. IMPORTANT: Never confuse sections (used in Acts/Codes like CrPC, IPC) with articles (used in the Constitution). They are different provisions. Never invent or hallucinate section numbers, article numbers, amendment numbers, or case names. Only use facts from the legal knowledge provided to you.`;
+const CHAT_SYSTEM_PROMPT = `You are Lawbite AI, an Indian legal assistant. ONLY answer about Indian law. Never answer about laws of any other country. If not about Indian law, respond ONLY with: I can only provide information related to Indian law. Please ask a legal question concerning India. If the user's message is ONLY a greeting word (hi, hello, hey, namaste) with no legal question, reply ONLY with: Hello! How can I assist you with Indian legal matters today? Nothing else. Otherwise, answer the question directly without any greeting. For EVERY question, answer in EXACTLY 1-2 short sentences. This is strict. If the user asks for a comparison or difference, state the core distinction in 1 sentence only — NEVER use tables or columns. Never output pipe characters, tables, bullet points, numbered lists, or multiple paragraphs. If you write more than 2 sentences, you are wrong. IMPORTANT: Never confuse sections (used in Acts/Codes like CrPC, IPC) with articles (used in the Constitution). Never invent section numbers, article numbers, amendments, or case names. Only use facts from the legal knowledge provided.`;
 
-const ANALYSIS_SYSTEM_PROMPT = `You are Lawbite AI, an Indian legal assistant. ONLY answer about Indian law. Never answer about laws of any other country. If not about Indian law, respond ONLY with: I can only provide information related to Indian law. Please ask a legal question concerning India. If the user's message is ONLY a greeting word (hi, hello, hey, namaste) with no legal question, reply ONLY with: Hello! How can I assist you with Indian legal matters today? Nothing else. Otherwise, answer the question directly without any greeting. When asked a legal question, provide a thorough analysis in 10-12 lines. Use NUMBERED POINTS (1. 2. 3. etc.) with each point on a new line. Always put a blank line between points for readability. After the numbered points, end with a single CONCLUSION paragraph that summarizes the key takeaway in 1-2 sentences. Do NOT use asterisks, markdown symbols, or any special formatting. Write case names and important terms in plain text only. IMPORTANT: Never confuse sections (used in Acts/Codes like CrPC, IPC) with articles (used in the Constitution). They are different provisions. Only use facts from the legal knowledge provided. Never invent section numbers, article numbers, amendments, or case names.`;
+const ANALYSIS_SYSTEM_PROMPT = `You are Lawbite AI, an Indian legal assistant. ONLY answer about Indian law. Never answer about laws of any other country. If not about Indian law, respond ONLY with: I can only provide information related to Indian law. Please ask a legal question concerning India. If the user's message is ONLY a greeting word (hi, hello, hey, namaste) with no legal question, reply ONLY with: Hello! How can I assist you with Indian legal matters today? Nothing else. Otherwise, answer the question directly without any greeting.
 
-const TALK_TO_AI_SYSTEM_PROMPT = `You are Lawbite AI, an Indian legal assistant. ONLY answer about Indian law. Never answer about laws of any other country. If not about Indian law, respond ONLY with: I can only provide information related to Indian law. Please ask a legal question concerning India. If the user's message is ONLY a greeting word (hi, hello, hey, namaste) with no legal question, reply ONLY with: Hello! How can I assist you with Indian legal matters today? Nothing else. Otherwise, answer the question directly without any greeting. For EVERY other question, answer in EXACTLY TWO SHORT LINES ONLY. Maximum 2 lines. No exceptions. No tables. No bullet points. No lists. No headers. No multiple paragraphs. If you write more than 2 lines you are wrong. IMPORTANT: Never confuse sections (used in Acts/Codes like CrPC, IPC) with articles (used in the Constitution). They are different provisions. Never invent or hallucinate section numbers, article numbers, amendment numbers, or case names. Only use facts from the legal knowledge provided to you.`;
+Provide a thorough analysis. Use these structured formats depending on the query type:
+
+1. DIFFERENCES / COMPARISONS — When comparing two or more items (e.g., "difference between IPC and CrPC"), output a markdown table with headers and rows separated by | pipes:
+| Aspect | Item A | Item B |
+| --- | --- | --- |
+| Purpose | ... | ... |
+| Scope | ... | ... |
+Follow the table with a brief note.
+
+2. PROCEDURES / STEPS — When explaining how to do something, use format: **Step 1:** text. **Step 2:** text. etc. Each step on a new line.
+
+3. WARNINGS / IMPORTANT NOTES — If the user asks about risks, consequences, dangers, penalties, or legal pitfalls, start your response with **Warning:** followed by a 1-line summary of the key risk. Then continue with numbered points as needed.
+
+4. DEFINITIONS — When defining a legal term, use: **Term:** definition.
+
+5. SUMMARIES / KEY TAKEAWAYS — End complex explanations with **Key Takeaways:** followed by brief points.
+
+6. GENERAL ANALYSIS — Use numbered points (1. 2. 3.) with a blank line between each. End with a CONCLUSION paragraph.
+
+IMPORTANT: Never confuse sections (used in Acts/Codes) with articles (used in the Constitution). Never invent section numbers, article numbers, amendments, or case names. Only use facts from the legal knowledge provided.`;
+
+const TALK_TO_AI_SYSTEM_PROMPT = `You are a concise Indian legal assistant. Respond in exactly 1 or 2 plain sentences. Never use lists, numbers, headings, or formatting. Just 1-2 short sentences.`;
 
 const DOCUMENT_DRAFTER_SYSTEM_PROMPT = `You are Lawbite AI Document Drafter, a specialized Indian legal document drafting assistant.
 
@@ -950,7 +971,8 @@ export async function POST(request: NextRequest) {
       webSearchContext = await webSearch(userQuery);
     }
 
-    const legalContext = needsSearch ? "" : await getLegalKnowledge(userQuery);
+    const isTalkToAi = conversationType === "talk-to-ai";
+    const legalContext = (isTalkToAi || needsSearch) ? "" : await getLegalKnowledge(userQuery);
 
     let finalSystemPrompt = systemPrompt;
     const contextParts: string[] = [];
@@ -960,12 +982,21 @@ export async function POST(request: NextRequest) {
       finalSystemPrompt = `${systemPrompt}\n\nIMPORTANT: Use the following information to answer the user's question. Incorporate this into your response:\n\n${contextParts.join("\n\n")}`;
     }
 
-    const messagesWithSystem = [
-      { role: "system", content: finalSystemPrompt },
-      ...messages.filter((m: { role: string }) => m.role !== "system"),
-    ];
+    let messagesWithSystem: { role: string; content: unknown }[];
+    if (isTalkToAi) {
+      const lastUserMsg = messages.filter((m: { role: string }) => m.role === "user").slice(-1);
+      messagesWithSystem = [
+        { role: "system", content: finalSystemPrompt },
+        ...lastUserMsg,
+      ];
+    } else {
+      messagesWithSystem = [
+        { role: "system", content: finalSystemPrompt },
+        ...messages.filter((m: { role: string }) => m.role !== "system"),
+      ];
+    }
 
-    const maxTokens = conversationType === "analysis" ? 1024 : conversationType === "grill" ? 768 : conversationType === "review" ? 2048 : conversationType === "draft" ? 2048 : 256;
+    const maxTokens = conversationType === "analysis" ? 3072 : conversationType === "talk-to-ai" ? 2048 : conversationType === "grill" ? 768 : conversationType === "review" ? 3072 : conversationType === "draft" ? 3072 : 1024;
 
     const hasMultimodalContent = Array.isArray(lastUserMessage?.content) && lastUserMessage.content.some((p: { type: string }) => p.type === "image_url");
     const model = (conversationType === "review" || hasMultimodalContent) ? REVIEW_MODEL : NVIDIA_MODEL;
@@ -996,6 +1027,16 @@ export async function POST(request: NextRequest) {
     const encoder = new TextEncoder();
     const decoder = new TextDecoder();
 
+    function truncateToTwoSentences(text: string): string {
+      const cleaned = text.replace(/\*{1,2}/g, "").replace(/^[-#>\d]+\.?\s*/gm, "").trim();
+      const matches = [...cleaned.matchAll(/[^.!?\n]+[.!?\n]+/g)];
+      if (matches.length >= 2) {
+        return matches.slice(0, 2).map(m => m[0].trim()).join(" ").trim();
+      }
+      const firstMatch = cleaned.match(/^[^.!?\n]+[.!?\n]*/);
+      return firstMatch ? firstMatch[0].trim() : cleaned.replace(/\*{1,2}/g, "").trim();
+    }
+
     const stream = new ReadableStream({
       cancel() { /* client disconnected, clean up */ },
       async start(controller) {
@@ -1006,6 +1047,7 @@ export async function POST(request: NextRequest) {
         }
 
         let sseBuffer = "";
+        let fullContent = "";
 
         try {
           while (true) {
@@ -1013,43 +1055,44 @@ export async function POST(request: NextRequest) {
             if (done) break;
 
             const chunk = decoder.decode(value, { stream: true });
-            sseBuffer += chunk;
-            const parts = sseBuffer.split("\n");
-            sseBuffer = parts.pop() ?? "";
+            if (isTalkToAi) {
+              fullContent += chunk;
+            } else {
+              sseBuffer += chunk;
+              const parts = sseBuffer.split("\n");
+              sseBuffer = parts.pop() ?? "";
 
-            for (const line of parts) {
-              if (line.startsWith("data: ")) {
-                const data = line.slice(6);
-                if (data === "[DONE]") {
-                  controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-                  continue;
-                }
-                try {
-                  const parsed = JSON.parse(data);
-                  const content = parsed.choices?.[0]?.delta?.content;
-                  if (content) {
-                    const cleaned = stripThinkingTokens(content);
-                    if (cleaned) {
-                      controller.enqueue(
-                        encoder.encode(`data: ${JSON.stringify({ content: cleaned })}\n\n`)
-                      );
+              for (const line of parts) {
+                if (line.startsWith("data: ")) {
+                  const data = line.slice(6).trim();
+                  if (data === "[DONE]" || !data) continue;
+                  try {
+                    const parsed = JSON.parse(data);
+                    const content = parsed.choices?.[0]?.delta?.content;
+                    if (content) {
+                      const cleaned = stripThinkingTokens(content);
+                      if (cleaned) {
+                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: cleaned })}\n\n`));
+                      }
                     }
-                  }
-                } catch {
-                  // skip malformed JSON lines
+                  } catch { /* skip */ }
                 }
               }
             }
           }
+
+          if (isTalkToAi) {
+            const truncated = truncateToTwoSentences(fullContent);
+            if (truncated) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: truncated })}\n\n`));
+            }
+          }
+
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         } catch (error) {
           console.warn("Stream interrupted:", (error as Error).message);
-          try {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "Stream interrupted" })}\n\n`));
-            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-          } catch {
-            // controller may already be closed
-          }
         } finally {
+          try { controller.enqueue(encoder.encode("data: [DONE]\n\n")); } catch { /* skip */ }
           try { controller.close(); } catch { /* stream already closed */ }
         }
       },

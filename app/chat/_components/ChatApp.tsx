@@ -379,12 +379,343 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   }, [analysisAttachOpen]);
 
   function renderBold(text: string): ReactNode {
-    const parts = text.split(/(\*\*[^*]+\*\*)/g);
+    const cleaned = text.replace(/^[-*+>]{1,2}\s+/, "");
+    if (cleaned.startsWith("**") && !cleaned.includes("**", 2)) {
+      return <strong className="font-semibold text-white">{cleaned.slice(2)}</strong>;
+    }
+    if (cleaned.startsWith("*") && !cleaned.includes("*", 1) && cleaned.length > 1) {
+      return <strong className="font-semibold text-white">{cleaned.slice(1)}</strong>;
+    }
+    const parts = cleaned.split(/(\*{1,2}[^*]+\*{1,2})/g);
     return parts.map((part, i) => {
       if (part.startsWith("**") && part.endsWith("**")) {
         return <strong key={i} className="font-semibold text-white">{part.slice(2, -2)}</strong>;
       }
+      if (part.startsWith("*") && part.endsWith("*") && part.length > 1) {
+        return <strong key={i} className="font-semibold text-white">{part.slice(1, -1)}</strong>;
+      }
+      if (part.endsWith("**") && !part.startsWith("**")) return part.slice(0, -2);
+      if (part.endsWith("*") && !part.startsWith("*") && part.length > 1) return part.slice(0, -1);
       return part;
+    });
+  }
+
+  type ContentBlockType =
+    | { type: "text"; content: string }
+    | { type: "table"; headers: string[]; rows: string[][] }
+    | { type: "steps"; steps: { title: string; content: string }[] }
+    | { type: "warning"; content: string; variant: "warning" | "important" | "note" }
+    | { type: "definition"; term: string; content: string }
+    | { type: "summary"; content: string[] };
+
+  function parseContent(text: string): ContentBlockType[] {
+    const blocks: ContentBlockType[] = [];
+    const lines = text.split("\n");
+    let i = 0;
+
+    while (i < lines.length) {
+      const line = lines[i].trim();
+
+      if (!line) { i++; continue; }
+
+      const stepMatch = line.match(/^\*\*Step\s+(\d+)[:\u2013\u2014\-]+\s*(.+?)\*\*\s*(.*)/i);
+      if (stepMatch) {
+        const steps: { title: string; content: string }[] = [];
+        steps.push({ title: stepMatch[1], content: (stepMatch[2] + " " + stepMatch[3]).trim() });
+        i++;
+        while (i < lines.length) {
+          const next = lines[i].trim();
+          const nextStep = next.match(/^\*\*Step\s+(\d+)[:\u2013\u2014\-]+\s*(.+?)\*\*\s*(.*)/i);
+          if (nextStep) {
+            steps.push({ title: nextStep[1], content: (nextStep[2] + " " + nextStep[3]).trim() });
+            i++;
+          } else if (!next) {
+            i++;
+            break;
+          } else {
+            steps[steps.length - 1].content += " " + next;
+            i++;
+          }
+        }
+        blocks.push({ type: "steps", steps });
+        continue;
+      }
+
+      const warningMatch = line.match(/^\*\*(Warning|Important|Note|Disclaimer|Caution)[:\u2013\u2014\-]\s*(.+)/i);
+      if (warningMatch) {
+        let content = warningMatch[2];
+        const variant = warningMatch[1].toLowerCase() as "warning" | "important" | "note";
+        i++;
+        while (i < lines.length) {
+          const next = lines[i].trim();
+          if (!next) { i++; break; }
+          const nextWarning = next.match(/^\*\*(Warning|Important|Note|Disclaimer|Caution)[:\u2013\u2014\-]/i);
+          if (nextWarning) break;
+          content += " " + next;
+          i++;
+        }
+        blocks.push({ type: "warning", content, variant });
+        continue;
+      }
+
+      const tableLines: string[] = [];
+      if (line.startsWith("|")) {
+        while (i < lines.length) {
+          const l = lines[i].trim();
+          if (!l.startsWith("|")) break;
+          tableLines.push(l);
+          i++;
+        }
+        if (tableLines.length >= 3) {
+          const noSep = tableLines.filter((l) => !/^\|[\s\-:]+\|[\s\-:]+\|/.test(l));
+          if (noSep.length >= 2) {
+            const headers = noSep[0].split("|").map((h) => h.trim()).filter(Boolean);
+            const rows = noSep.slice(1).map((r) => {
+              const cells = r.split("|").map((c) => c.trim());
+              while (cells.length > 0 && cells[0] === "") cells.shift();
+              while (cells.length > 0 && cells[cells.length - 1] === "") cells.pop();
+              return cells;
+            });
+            if (rows.length > 0 && rows[0].length > 1) {
+              blocks.push({ type: "table", headers, rows });
+              continue;
+            }
+          }
+        }
+        tableLines.length = 0;
+      }
+
+      const defMatch = line.match(/^\*\*([^*]+?)[:\u2013\u2014\-]\s+(.+)/);
+      if (defMatch) {
+        let content = defMatch[2];
+        i++;
+        while (i < lines.length) {
+          const next = lines[i].trim();
+          if (!next || next.startsWith("**") || next.startsWith("|") || next.startsWith("#")) { break; }
+          content += " " + next;
+          i++;
+        }
+        blocks.push({ type: "definition", term: defMatch[1], content });
+        continue;
+      }
+
+      const summaryMatch = line.match(/^\*{0,2}(Key Takeaways|Summary|To Summarize|In Summary|Conclusion)\*{0,2}\s*[:\u2013\u2014\-]?\s*(.*)/i);
+      if (summaryMatch) {
+        const points: string[] = [];
+        if (summaryMatch[2]) {
+          const s = summaryMatch[2].trim().replace(/^[-*]\s*/, "").trim();
+          if (/[a-zA-Z0-9]/.test(s)) points.push(summaryMatch[2].trim());
+        }
+        i++;
+        while (i < lines.length) {
+          const next = lines[i].trim();
+          if (!next) { i++; continue; }
+          if (/^[*#|]/.test(next)) break;
+          if (/[a-zA-Z0-9]/.test(next.replace(/^[-*]\s*/, ""))) points.push(next);
+          i++;
+        }
+        if (points.length === 0) { continue; }
+        if (blocks.length > 0 && blocks[blocks.length - 1].type === "summary") {
+          (blocks[blocks.length - 1] as { type: "summary"; content: string[] }).content.push(...points);
+        } else {
+          blocks.push({ type: "summary", content: points });
+        }
+        continue;
+      }
+
+      let textContent = line;
+      i++;
+      while (i < lines.length) {
+        const next = lines[i];
+        if (!next.trim() || next.trim().startsWith("**") || next.trim().startsWith("|")) break;
+        textContent += "\n" + next;
+        i++;
+      }
+      blocks.push({ type: "text", content: textContent });
+    }
+
+    return blocks;
+  }
+
+  function renderContentBlocks(blocks: ContentBlockType[]): ReactNode {
+    return blocks.map((block, bi) => {
+      switch (block.type) {
+        case "table":
+          return (
+            <div key={bi} className="my-3 overflow-x-auto rounded-lg border border-white/[0.08] bg-white/[0.02]">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-white/[0.08]">
+                    {block.headers.map((h, hi) => (
+                      <th key={hi} className="px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-white/60 first:pl-4 last:pr-4">
+                        {renderBold(h)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {block.rows.map((row, ri) => (
+                    <tr key={ri} className="border-b border-white/[0.04] last:border-0">
+                      {row.map((cell, ci) => (
+                        <td key={ci} className="px-3 py-2 text-white/80 first:pl-4 last:pr-4 first:font-medium first:text-white/90">
+                          {renderBold(cell)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+
+        case "steps":
+          return (
+            <div key={bi} className="my-3 space-y-3">
+              {block.steps.map((step, si) => (
+                <div key={si} className="flex gap-3">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-400/15 text-xs font-bold text-amber-400">
+                    {step.title}
+                  </div>
+                  <div className="min-w-0 pt-0.5 text-sm leading-relaxed text-white/85">
+                    {renderBold(step.content)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+
+        case "warning": {
+          const colors = {
+            warning: { bg: "bg-red-400/[0.06]", border: "border-red-400/20", icon: "text-red-400", text: "text-white/85" },
+            important: { bg: "bg-amber-400/[0.06]", border: "border-amber-400/20", icon: "text-amber-400", text: "text-white/85" },
+            note: { bg: "bg-blue-400/[0.06]", border: "border-blue-400/20", icon: "text-blue-400", text: "text-white/85" },
+          };
+          const c = colors[block.variant] ?? colors.warning;
+          return (
+            <div key={bi} className={`my-3 flex gap-3 rounded-lg border ${c.border} ${c.bg} px-4 py-3`}>
+              <div className={`mt-0.5 shrink-0 ${c.icon}`}>
+                {block.variant === "warning" ? (
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                ) : block.variant === "important" ? (
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="16" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                  </svg>
+                )}
+              </div>
+              <div className={`text-sm leading-relaxed ${c.text}`}>
+                {renderBold(block.content)}
+              </div>
+            </div>
+          );
+        }
+
+        case "definition":
+          return (
+            <div key={bi} className="my-3 rounded-lg border border-white/[0.06] bg-white/[0.03] px-4 py-3">
+              <div className="flex flex-wrap items-baseline gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-white/50">Term</span>
+                <span className="text-sm font-semibold text-amber-400">{renderBold(block.term)}</span>
+              </div>
+              <div className="mt-2 text-sm leading-relaxed text-white/80">
+                {renderBold(block.content)}
+              </div>
+            </div>
+          );
+
+        case "summary":
+          return (
+            <div key={bi} className="my-3 rounded-lg border border-emerald-400/15 bg-emerald-400/[0.04] px-4 py-3">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-emerald-400/70">
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                </svg>
+                Key Takeaways
+              </div>
+              <div className="mt-2 space-y-1.5">
+                {block.content
+                  .filter((point) => /[a-zA-Z0-9]/.test(point.trim().replace(/^[-*]\s*/, "")))
+                  .map((point, pi) => {
+                    const trimmed = point.trim();
+                    const text = trimmed.replace(/^[-*]{1,2}\s*/, "");
+                    return (
+                      <div key={pi} className="flex items-start gap-2 text-sm leading-relaxed text-white/80">
+                        <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400/60" />
+                        <span className="min-w-0">{renderBold(text)}</span>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          );
+
+        default:
+          const textContent = (block as { type: "text"; content: string }).content;
+          const numMatch = textContent.trim().match(/^(\d+)\.\s*/);
+          if (numMatch) {
+            const num = numMatch[1];
+            const text = textContent.trim().replace(/^\d+\.\s*/, "");
+            return (
+              <div key={bi} className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-4 py-3">
+                <div className="flex gap-3">
+                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-xs font-bold text-white/80">
+                    {num}
+                  </span>
+                  <div className="whitespace-pre-wrap leading-relaxed">
+                    {text.split(/\n\n+/).map((para, j) => (
+                      <p key={j} className={j > 0 ? "mt-3" : ""}>{renderBold(para)}</p>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+          return (
+            <div key={bi} className="whitespace-pre-wrap leading-relaxed">
+              {(() => {
+                const lines = textContent.split("\n");
+                const elements: ReactNode[] = [];
+                let currentPara: string[] = [];
+                for (let li = 0; li < lines.length; li++) {
+                  const l = lines[li];
+                  const headingMatch = l.match(/^#{1,6}\s+(.+)/);
+                  if (headingMatch) {
+                    if (currentPara.length > 0) {
+                      elements.push(<p key={"p" + elements.length} className={elements.length > 0 ? "mt-3" : ""}>{renderBold(currentPara.join("\n"))}</p>);
+                      currentPara = [];
+                    }
+                    elements.push(<p key={"h" + elements.length} className={elements.length > 0 ? "mt-4 text-sm font-semibold text-white/90" : "text-sm font-semibold text-white/90"}>{renderBold(headingMatch[1])}</p>);
+                  } else if (!l.trim()) {
+                    if (currentPara.length > 0) {
+                      elements.push(<p key={"p" + elements.length} className={elements.length > 0 ? "mt-3" : ""}>{renderBold(currentPara.join("\n"))}</p>);
+                      currentPara = [];
+                    }
+                  } else {
+                    currentPara.push(l);
+                  }
+                }
+                if (currentPara.length > 0) {
+                  elements.push(<p key={"p" + elements.length} className={elements.length > 0 ? "mt-3" : ""}>{renderBold(currentPara.join("\n"))}</p>);
+                }
+                return elements;
+              })()}
+            </div>
+          );
+      }
     });
   }
 
@@ -639,7 +970,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
         }),
       });
 
-      if (!res.ok) throw new Error("Failed to fetch");
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => "");
+        throw new Error(`API error ${res.status}: ${errBody}`);
+      }
 
       const reader = res.body?.getReader();
       if (!reader) throw new Error("No reader");
@@ -669,6 +1003,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           if (line.startsWith("data: ")) {
             const data = line.slice(6).trim();
             if (data === "[DONE]") continue;
+            if (!data) continue;
             try {
               const parsed = JSON.parse(data);
               if (parsed.content) {
@@ -687,6 +1022,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                   ),
                 );
               }
+
             } catch {
               // skip malformed JSON
             }
@@ -1521,36 +1857,8 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                     }`}
                   >
                     {message.role === "assistant" && (message.type ?? active?.type) === "analysis" ? (
-                      <div className="flex flex-col gap-4">
-                        {stripThinkingTokens(message.content).replace(/\[ADVICE_COMPLETE\]/g, "").split(/\n+/).filter(Boolean).map((block, i) => {
-                          const numMatch = block.trim().match(/^(\d+)\.\s*/);
-                          if (numMatch) {
-                            const num = numMatch[1];
-                            const text = block.trim().replace(/^\d+\.\s*/, "");
-                            return (
-                              <div key={i} className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-4 py-3">
-                                <div className="flex gap-3">
-                                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-xs font-bold text-white/80">
-                                    {num}
-                                  </span>
-                                  <div className="whitespace-pre-wrap leading-relaxed">
-                                    {text.split(/\n\n+/).map((para, j) => (
-                                      <p key={j} className={j > 0 ? "mt-3" : ""}>{renderBold(para)}</p>
-                                    ))}
-                                  </div>
-                                </div>
-    </div>
-  );
-}
-
-  return (
-                            <div key={i} className="whitespace-pre-wrap leading-relaxed">
-                              {block.trim().split(/\n\n+/).map((para, j) => (
-                                <p key={j} className={j > 0 ? "mt-3" : ""}>{renderBold(para)}</p>
-                              ))}
-                            </div>
-                          );
-                         })}
+                      <div className="flex flex-col gap-2">
+                        {renderContentBlocks(parseContent(stripThinkingTokens(message.content).replace(/\[ADVICE_COMPLETE\]/g, "")))}
                       </div>
                     ) : message.role === "user" && message.documentName ? (
                       <div className="flex items-center gap-2">
