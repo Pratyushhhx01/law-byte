@@ -18,7 +18,29 @@ const CHAT_SYSTEM_PROMPT = `You are Lawbite AI, an Indian legal assistant. ONLY 
 
 const ANALYSIS_SYSTEM_PROMPT = `You are Lawbite AI, an Indian legal assistant. ONLY answer about Indian law. Never answer about laws of any other country. If not about Indian law, respond ONLY with: I can only provide information related to Indian law. Please ask a legal question concerning India. If the user's message is ONLY a greeting word (hi, hello, hey, namaste) with no legal question, reply ONLY with: Hello! How can I assist you with Indian legal matters today? Nothing else. Otherwise, answer the question directly without any greeting.
 
-Provide a thorough analysis. Use these structured formats depending on the query type:
+GENERAL RULE: Whenever a table would make the response clearer (comparisons, differences, multi-category data, timelines, pros/cons, lists of acts with their provisions, etc.), use a markdown table. Tables help users quickly scan and compare information at a glance. When creating a table, ALWAYS use pipe characters | between columns (example: | Aspect | Hindu Law | Muslim Law |). NEVER use tab characters between columns — tabs break the table rendering.
+
+CRITICAL FORMAT RULE — OVERVIEWS ACROSS PERSONAL LAWS:
+If the user asks about a topic that spans multiple personal laws (e.g., marriage, divorce, inheritance, adoption, succession, guardianship, maintenance) AND asks for a "complete overview", "comprehensive overview", or "all laws", you MUST follow this format INSTEAD OF all other formats below:
+- Start IMMEDIATELY with a markdown table. NO intro paragraphs. NO bold headings. NO definition-style lines.
+- The ENTIRE response is just the table + a short conclusion + Key Takeaways.
+- Column order: Hindu Law | Muslim Law | Christian Law | Parsi Law | Special Marriage Act
+- Each row = one aspect (Governing Act, Marriageable Age, Monogamy, Divorce, Maintenance, Adoption, Inheritance, etc.)
+- Fill EVERY cell with specific info for that personal law. Never leave blank or write "same as above".
+Example:
+| Aspect | Hindu Law | Muslim Law | Christian Law | Parsi Law | Special Marriage Act |
+| --- | --- | --- | --- | --- | --- |
+| Governing Act | Hindu Marriage Act, 1955 | Muslim Personal Law (Shariat) Application Act, 1937 | Indian Christian Marriage Act, 1872 / Indian Divorce Act, 1869 | Parsi Marriage and Divorce Act, 1936 | Special Marriage Act, 1954 |
+| Marriageable Age | 21 (male), 18 (female) | Puberty | 21 (male), 18 (female) | 21 (male), 18 (female) | 21 (male), 18 (female) |
+| Monogamy | Yes | Up to 4 wives | Yes | Yes | Yes |
+| Divorce | Mutual consent, cruelty, desertion | Talaq, DMDA 1939 | Mutual consent, adultery, cruelty | Mutual consent, cruelty, desertion | Mutual consent, cruelty, desertion |
+| Maintenance | Section 24/25, HMA 1955 | Section 125 CrPC | Section 36/37, IDA 1869 | Section 39/40, PMDA 1936 | Section 36/37, SMA 1954 |
+After the table: 2-3 sentence CONCLUSION. Then **Key Takeaways:** with 3-4 bullet points.
+FORBIDDEN when this rule applies: bold definition headers, numbered sections, separate paragraphs per personal law, or any format other than the table.
+
+---
+
+For ALL OTHER queries (not overview across personal laws), use these formats:
 
 1. DIFFERENCES / COMPARISONS — When comparing two or more items (e.g., "difference between IPC and CrPC"), output a markdown table with headers and rows separated by | pipes:
 | Aspect | Item A | Item B |
@@ -31,13 +53,14 @@ Follow the table with a brief note.
 
 3. WARNINGS / IMPORTANT NOTES — If the user asks about risks, consequences, dangers, penalties, or legal pitfalls, start your response with **Warning:** followed by a 1-line summary of the key risk. Then continue with numbered points as needed.
 
-4. DEFINITIONS — When defining a legal term, use: **Term:** definition.
+4. DEFINITIONS — When defining a legal term, bold the ENTIRE line including the content: **Term: definition text here.** Always use double asterisks ** for bold, NEVER single asterisks *. Example: **Marriageable Age: The legal age for marriage is 21 for males and 18 for females.** NOT *Marriageable Age:* or just **Term:** without the content in bold.
 
 5. SUMMARIES / KEY TAKEAWAYS — End complex explanations with **Key Takeaways:** followed by brief points.
 
 6. GENERAL ANALYSIS — Use numbered points (1. 2. 3.) with a blank line between each. End with a CONCLUSION paragraph.
 
-IMPORTANT: Never confuse sections (used in Acts/Codes) with articles (used in the Constitution). Never invent section numbers, article numbers, amendments, or case names. Only use facts from the legal knowledge provided.`;
+IMPORTANT: Never confuse sections (used in Acts/Codes) with articles (used in the Constitution). Never invent section numbers, article numbers, amendments, or case names. Only use facts from the legal knowledge provided.
+NEVER use single asterisks (*) for emphasis or formatting. Only use double asterisks (**) for bold text. Single asterisks cause rendering issues.`;
 
 const TALK_TO_AI_SYSTEM_PROMPT = `You are a concise Indian legal assistant. Respond in exactly 1 or 2 plain sentences. Never use lists, numbers, headings, or formatting. Just 1-2 short sentences.`;
 
@@ -892,7 +915,9 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const { messages, conversationType } = body as { messages?: unknown; conversationType?: string };
+    const { messages, conversationType: rawConversationType } = body as { messages?: unknown; conversationType?: string };
+    let conversationType = rawConversationType;
+    if (conversationType === "chat") conversationType = "talk-to-ai";
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return Response.json({ error: "messages must be a non-empty array" }, { status: 400 });
@@ -1028,13 +1053,23 @@ export async function POST(request: NextRequest) {
     const decoder = new TextDecoder();
 
     function truncateToTwoSentences(text: string): string {
-      const cleaned = text.replace(/\*{1,2}/g, "").replace(/^[-#>\d]+\.?\s*/gm, "").trim();
-      const matches = [...cleaned.matchAll(/[^.!?\n]+[.!?\n]+/g)];
-      if (matches.length >= 2) {
-        return matches.slice(0, 2).map(m => m[0].trim()).join(" ").trim();
+      const cleaned = text
+        .replace(/\*{1,2}/g, "")
+        .replace(/^(hello|hi|hey|good\s+morning|good\s+afternoon|good\s+evening|namaste|namaskar)[\s,!.]*/i, "")
+        .replace(/^(step|key takeaways|summary|conclusion|to summarize|in summary|warning|note|important)\s*\d*\s*:?\s*/gim, "")
+        .replace(/^[-#>\d]+\.?\s*/gm, "")
+        .replace(/^[A-Za-z\s,]+:\s*$/gm, "")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+      const sentences = [...cleaned.matchAll(/[A-Z][^.!?\n]+[.!?\n]+/g)];
+      if (sentences.length >= 2) {
+        return sentences.slice(0, 2).map(m => m[0].trim()).join(" ").trim();
       }
-      const firstMatch = cleaned.match(/^[^.!?\n]+[.!?\n]*/);
-      return firstMatch ? firstMatch[0].trim() : cleaned.replace(/\*{1,2}/g, "").trim();
+      if (sentences.length === 1) {
+        return sentences[0][0].trim();
+      }
+      const firstMatch = cleaned.match(/[A-Z][^.!?\n]*[.!?\n]*/);
+      return firstMatch ? firstMatch[0].trim() : "";
     }
 
     const stream = new ReadableStream({
@@ -1055,28 +1090,28 @@ export async function POST(request: NextRequest) {
             if (done) break;
 
             const chunk = decoder.decode(value, { stream: true });
-            if (isTalkToAi) {
-              fullContent += chunk;
-            } else {
-              sseBuffer += chunk;
-              const parts = sseBuffer.split("\n");
-              sseBuffer = parts.pop() ?? "";
+            sseBuffer += chunk;
+            const parts = sseBuffer.split("\n");
+            sseBuffer = parts.pop() ?? "";
 
-              for (const line of parts) {
-                if (line.startsWith("data: ")) {
-                  const data = line.slice(6).trim();
-                  if (data === "[DONE]" || !data) continue;
-                  try {
-                    const parsed = JSON.parse(data);
-                    const content = parsed.choices?.[0]?.delta?.content;
-                    if (content) {
+            for (const line of parts) {
+              if (line.startsWith("data: ")) {
+                const data = line.slice(6).trim();
+                if (data === "[DONE]" || !data) continue;
+                try {
+                  const parsed = JSON.parse(data);
+                  const content = parsed.choices?.[0]?.delta?.content;
+                  if (content) {
+                    if (isTalkToAi) {
+                      fullContent += content;
+                    } else {
                       const cleaned = stripThinkingTokens(content);
                       if (cleaned) {
                         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: cleaned })}\n\n`));
                       }
                     }
-                  } catch { /* skip */ }
-                }
+                  }
+                } catch { /* skip */ }
               }
             }
           }
@@ -1087,6 +1122,7 @@ export async function POST(request: NextRequest) {
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: truncated })}\n\n`));
             }
           }
+
 
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         } catch (error) {

@@ -200,16 +200,17 @@ const freshConversation: Conversation = {
 
 export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const [user, setUser] = useState<ChatUser>(initialUser);
-  const [conversations, setConversations] = useState<Conversation[]>(() => {
+  const [conversations, setConversations] = useState<Conversation[]>([freshConversation, ...initialConversations]);
+  const [activeId, setActiveId] = useState<string>(freshConversation.id);
+  useEffect(() => {
     const saved = loadConversations();
-    if (saved && saved.length > 0) return saved;
-    return [freshConversation, ...initialConversations];
-  });
-  const [activeId, setActiveId] = useState<string>(() => {
-    const saved = loadConversations();
-    if (saved && saved.length > 0) return saved[0].id;
-    return freshConversation.id;
-  });
+    if (saved && saved.length > 0) {
+      setTimeout(() => {
+        setConversations(saved);
+        setActiveId(saved[0].id);
+      }, 0);
+    }
+  }, []);
   const [draft, setDraft] = useState("");
   const [isThinking, setIsThinking] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -383,19 +384,12 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     if (cleaned.startsWith("**") && !cleaned.includes("**", 2)) {
       return <strong className="font-semibold text-white">{cleaned.slice(2)}</strong>;
     }
-    if (cleaned.startsWith("*") && !cleaned.includes("*", 1) && cleaned.length > 1) {
-      return <strong className="font-semibold text-white">{cleaned.slice(1)}</strong>;
-    }
-    const parts = cleaned.split(/(\*{1,2}[^*]+\*{1,2})/g);
+    const parts = cleaned.split(/(\*{2}[^*]+\*{2})/g);
     return parts.map((part, i) => {
       if (part.startsWith("**") && part.endsWith("**")) {
         return <strong key={i} className="font-semibold text-white">{part.slice(2, -2)}</strong>;
       }
-      if (part.startsWith("*") && part.endsWith("*") && part.length > 1) {
-        return <strong key={i} className="font-semibold text-white">{part.slice(1, -1)}</strong>;
-      }
       if (part.endsWith("**") && !part.startsWith("**")) return part.slice(0, -2);
-      if (part.endsWith("*") && !part.startsWith("*") && part.length > 1) return part.slice(0, -1);
       return part;
     });
   }
@@ -485,6 +479,25 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
         tableLines.length = 0;
       }
 
+      const tabLines: string[] = [];
+      if (line.includes("\t")) {
+        while (i < lines.length) {
+          const l = lines[i];
+          if (!l.includes("\t")) break;
+          tabLines.push(l);
+          i++;
+        }
+        if (tabLines.length >= 2) {
+          const headers = tabLines[0].split("\t").map((h) => h.trim()).filter(Boolean);
+          const rows = tabLines.slice(1).map((r) => r.split("\t").map((c) => c.trim()).filter(Boolean));
+          if (headers.length >= 2 && rows.length > 0 && rows[0].length >= 2) {
+            blocks.push({ type: "table", headers, rows });
+            continue;
+          }
+        }
+        tabLines.length = 0;
+      }
+
       const defMatch = line.match(/^\*\*([^*]+?)[:\u2013\u2014\-]\s+(.+)/);
       if (defMatch) {
         let content = defMatch[2];
@@ -528,6 +541,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       while (i < lines.length) {
         const next = lines[i];
         if (!next.trim() || next.trim().startsWith("**") || next.trim().startsWith("|")) break;
+        if (/^\d+\.?\s/.test(next.trim())) break;
         textContent += "\n" + next;
         i++;
       }
@@ -542,12 +556,12 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       switch (block.type) {
         case "table":
           return (
-            <div key={bi} className="my-3 overflow-x-auto rounded-lg border border-white/[0.08] bg-white/[0.02]">
+            <div key={bi} className="my-3 overflow-x-auto rounded-xl border border-white/[0.08] bg-white/[0.02] shadow-sm">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-white/[0.08]">
+                  <tr className="border-b border-white/[0.08] bg-white/[0.04]">
                     {block.headers.map((h, hi) => (
-                      <th key={hi} className="px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-white/60 first:pl-4 last:pr-4">
+                      <th key={hi} className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-white/70 first:pl-5 last:pr-5">
                         {renderBold(h)}
                       </th>
                     ))}
@@ -555,9 +569,9 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 </thead>
                 <tbody>
                   {block.rows.map((row, ri) => (
-                    <tr key={ri} className="border-b border-white/[0.04] last:border-0">
+                    <tr key={ri} className={`border-b border-white/[0.04] last:border-0 ${ri % 2 === 1 ? "bg-white/[0.03]" : ""}`}>
                       {row.map((cell, ci) => (
-                        <td key={ci} className="px-3 py-2 text-white/80 first:pl-4 last:pr-4 first:font-medium first:text-white/90">
+                        <td key={ci} className={`px-4 py-3 leading-snug first:pl-5 last:pr-5 ${ci === 0 ? "font-semibold text-white/90" : "text-white/75"}`}>
                           {renderBold(cell)}
                         </td>
                       ))}
@@ -665,10 +679,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
         default:
           const textContent = (block as { type: "text"; content: string }).content;
-          const numMatch = textContent.trim().match(/^(\d+)\.\s*/);
+          const numMatch = textContent.trim().match(/^(\d+)\.?\s*/);
           if (numMatch) {
             const num = numMatch[1];
-            const text = textContent.trim().replace(/^\d+\.\s*/, "");
+            const text = textContent.trim().replace(/^\d+\.?\s*/, "");
             return (
               <div key={bi} className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-4 py-3">
                 <div className="flex gap-3">
@@ -676,7 +690,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                     {num}
                   </span>
                   <div className="whitespace-pre-wrap leading-relaxed">
-                    {text.split(/\n\n+/).map((para, j) => (
+                    {text.split(/\n+/).map((para, j) => (
                       <p key={j} className={j > 0 ? "mt-3" : ""}>{renderBold(para)}</p>
                     ))}
                   </div>
@@ -1856,11 +1870,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                         : "border border-white/10 bg-white/[0.03] text-white/85"
                     }`}
                   >
-                    {message.role === "assistant" && (message.type ?? active?.type) === "analysis" ? (
-                      <div className="flex flex-col gap-2">
-                        {renderContentBlocks(parseContent(stripThinkingTokens(message.content).replace(/\[ADVICE_COMPLETE\]/g, "")))}
-                      </div>
-                    ) : message.role === "user" && message.documentName ? (
+                    {message.role === "user" && message.documentName ? (
                       <div className="flex items-center gap-2">
                         <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-black/60" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -1868,13 +1878,17 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                         </svg>
                         <span className="text-sm font-medium">{message.documentName}</span>
                       </div>
-                    ) : (
+                    ) : message.role === "user" ? (
                       <div className="whitespace-pre-wrap leading-relaxed">
-                        {stripThinkingTokens(message.content).replace(/\[ADVICE_COMPLETE\]/g, "").split(/\n\n+/).map((para, i) => (
+                        {typeof message.content === "string" ? message.content.split(/\n\n+/).map((para, i) => (
                           <p key={i} className={i > 0 ? "mt-3" : ""}>{renderBold(para)}</p>
-                        ))}
-                        {message.role === "assistant" && ((message.type ?? active?.type) === "review" || (message.type ?? active?.type) === "draft" || message.content.includes("[ADVICE_COMPLETE]")) && (
-                          <p className="mt-4 text-xs italic text-white/40 border-t border-white/10 pt-3">
+                        )) : JSON.stringify(message.content)}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        {renderContentBlocks(parseContent(stripThinkingTokens(message.content).replace(/\[ADVICE_COMPLETE\]/g, "")))}
+                        {((message.type ?? active?.type) === "review" || (message.type ?? active?.type) === "draft" || message.content.includes("[ADVICE_COMPLETE]")) && (
+                          <p className="mt-2 text-xs italic text-white/40 border-t border-white/10 pt-3">
                             This is an AI-generated analysis for reference purposes. Please consult a practicing lawyer before making any legal decisions.
                           </p>
                         )}
