@@ -33,10 +33,11 @@ Example:
 | Governing Act | Hindu Marriage Act, 1955 | Muslim Personal Law (Shariat) Application Act, 1937 | Indian Christian Marriage Act, 1872 / Indian Divorce Act, 1869 | Parsi Marriage and Divorce Act, 1936 | Special Marriage Act, 1954 |
 | Marriageable Age | 21 (male), 18 (female) | Puberty | 21 (male), 18 (female) | 21 (male), 18 (female) | 21 (male), 18 (female) |
 | Monogamy | Yes | Up to 4 wives | Yes | Yes | Yes |
-| Divorce | Mutual consent, cruelty, desertion | Talaq, DMDA 1939 | Mutual consent, adultery, cruelty | Mutual consent, cruelty, desertion | Mutual consent, cruelty, desertion |
+| Divorce | Mutual consent, cruelty, desertion | Talaq (husband), judicial divorce (DMDA 1939), triple talaq criminalized (MWP Act, 2019) | Mutual consent, adultery, cruelty | Mutual consent, cruelty, desertion | Mutual consent, cruelty, desertion |
 | Maintenance | Section 24/25, HMA 1955 | Section 125 CrPC | Section 36/37, IDA 1869 | Section 39/40, PMDA 1936 | Section 36/37, SMA 1954 |
 After the table: 2-3 sentence CONCLUSION. Then **Key Takeaways:** with 3-4 bullet points.
 FORBIDDEN when this rule applies: bold definition headers, numbered sections, separate paragraphs per personal law, or any format other than the table.
+NOTE: The example above is just a TEMPLATE showing structure. Do NOT copy its content verbatim. Use current, accurate legal information for every cell.
 
 ---
 
