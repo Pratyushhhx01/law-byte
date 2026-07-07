@@ -1886,7 +1886,38 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                       </div>
                     ) : (
                       <div className="flex flex-col gap-2">
-                        {renderContentBlocks(parseContent(stripThinkingTokens(message.content).replace(/\[ADVICE_COMPLETE\]/g, "")))}
+                        {(() => {
+                          const msgType = message.type ?? active?.type;
+                          const cleaned = stripThinkingTokens(message.content).replace(/\[ADVICE_COMPLETE\]/g, "");
+                          if (msgType === "draft" && cleaned.trim()) {
+                            return (
+                              <div className="w-full overflow-x-auto">
+                                <div className="whitespace-pre-wrap font-mono text-sm leading-relaxed text-white/90">
+                                  {cleaned.split(/\n{2,}/).map((para, i) => {
+                                    const trimmed = para.trim();
+                                    const isHeading = /^(LEGAL NOTICE|NOTICE|FIRST INFORMATION REPORT|FIR DRAFT|CONSUMER COMPLAINT|RTI APPLICATION|WILL|AFFIDAVIT|PETITION|CONTRACT|AGREEMENT)\b/i.test(trimmed);
+                                    const isSignature = /^(Yours faithfully|Yours sincerely|Thanking you)/i.test(trimmed);
+                                    const isLabel = /^(Date|From|To|Subject|Sir\/Madam):/i.test(trimmed);
+                                    return (
+                                      <p key={i} className={`${i > 0 ? "mt-4" : ""} ${isHeading ? "text-center text-base font-bold tracking-wide text-white" : ""} ${isSignature ? "mt-8" : ""} ${isLabel ? "font-semibold text-white/80" : ""}`}>
+                                        {trimmed}
+                                      </p>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          }
+                          const blocks = parseContent(cleaned);
+                          if (!cleaned.trim() || blocks.length === 0) {
+                            return (
+                              <p className="text-sm italic text-white/50">
+                                No content was generated. This may happen if the AI service is temporarily unavailable. Please try again.
+                              </p>
+                            );
+                          }
+                          return renderContentBlocks(blocks);
+                        })()}
                         {((message.type ?? active?.type) === "review" || (message.type ?? active?.type) === "draft" || message.content.includes("[ADVICE_COMPLETE]")) && (
                           <p className="mt-2 text-xs italic text-white/40 border-t border-white/10 pt-3">
                             This is an AI-generated analysis for reference purposes. Please consult a practicing lawyer before making any legal decisions.
