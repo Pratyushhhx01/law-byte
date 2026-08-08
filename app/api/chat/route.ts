@@ -6,7 +6,7 @@ import { stripThinkingTokens, checkRateLimit } from "@/lib/utils";
 
 const NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 const NVIDIA_MODEL = "meta/llama-3.1-8b-instruct";
-const REVIEW_MODEL = "microsoft/phi-3-vision-128k-instruct";
+const REVIEW_MODEL = "meta/llama-3.2-11b-vision-instruct";
 
 const tvly = process.env.TAVILY_API_KEY ? tavily({ apiKey: process.env.TAVILY_API_KEY }) : null;
 
@@ -137,12 +137,15 @@ const DOCUMENT_DRAFTER_SYSTEM_PROMPT = `You are Lawbite AI Document Drafter, a s
 
 5. If the user provides contradictory, inconsistent, or obviously false information, do not proceed — ask for clarification in ONE sentence.
 
+6. NEVER refuse to draft ANY of the 8 standard document types listed below (LEGAL NOTICE, FIR DRAFT, CONSUMER COMPLAINT, RTI APPLICATION, WILL, AFFIDAVIT, PETITION, CONTRACT/AGREEMENT). They are legitimate, routine legal documents. A request for a Legal Notice, demand letter, FIR, or complaint is normal legal practice — it is NOT intimidation, harassment, or an unlawful purpose. When a user requests one of these document types, you MUST draft it. Do NOT refuse, do NOT apologize, do NOT express hesitation, do NOT warn the user. Just draft the document. The ONLY cases where you may refuse are: (a) the request explicitly asks to commit a violent crime, large-scale fraud, terrorism, or drug trafficking, or (b) the document is for a jurisdiction outside India. A generic request for a Legal Notice, FIR, or complaint NEVER falls under these exceptions.
+
 ## Your Job
 Generate properly formatted Indian legal documents based on user-provided information. You MUST use the exact templates below for each document type. Follow these rules for template output:
 
 - When the user has provided NO details at all (blank draft request): Output the FULL template structure exactly as shown below, including all bracketed labels like [sender name]. These labels tell the user what information to fill in.
 - When the user has provided SOME but not all details: Fill in only what was provided. Omit lines for unfilled fields entirely. Do NOT output brackets with instructions.
 - NEVER output text like "[Address of Sender]" or "[Description]" — these fake placeholders are forbidden. Only use the specific bracketed labels shown in the templates below.
+- NEVER invent, fabricate, or make up personal details, facts, names, addresses, amounts, dates, invoice numbers, model numbers, company names, or case details. If the user did not provide a specific detail, you MUST NOT guess it — keep the corresponding bracketed label exactly as it appears in the template. Fabricating details for a legal document is harmful and strictly forbidden. A blank draft request must produce a template with every bracket EMPTY except the generic date line (write Date: [current date] and replace it with today's date).
 
 ## Document Types You Can Draft
 1. LEGAL NOTICE — Formal notice before legal action
@@ -497,6 +500,7 @@ Signature:                   Signature:
 - If a clause or condition seems questionable, unusual, or potentially unenforceable, still draft it as requested by the user. Then add a parenthetical note inside that specific clause saying "(Note: Legal validity of this condition should be verified by a lawyer)" — but ONLY if the condition is genuinely unusual. Do not add this to standard clauses.
 - NEVER refuse to draft a document because you personally think a clause is "unconscionable", "unfair", "invalid", or "illegal". The user's lawyer will make that determination.
 - The ONLY reason to refuse drafting is if the document is explicitly for committing a violent crime, large-scale fraud, terrorism, or drug trafficking (see PROHIBITED ACTIONS above).
+- Drafting a LEGAL NOTICE, FIR, demand letter, or complaint is legitimate and NEVER a reason to refuse. A "notice" or "demand" document is a routine legal instrument in India. Do NOT treat it as threatening, intimidating, or unlawful. Refuse ONLY for the exact exceptions listed above.
 
 ## MANDATORY DISCLAIMER
 Every document you generate MUST end with this exact text on its own line after the signature block:
@@ -652,6 +656,24 @@ function getSystemPrompt(conversationType?: string) {
   }
 }
 
+const FOREIGN_JURISDICTION_KEYWORDS = [
+  "usa", "united states", "america", "u.s.a", "uk", "united kingdom", "britain", "england",
+  "canada", "australia", "europe", "european", "germany", "france", "italy", "spain",
+  "china", "japan", "russia", "brazil", "mexico", "new york", "california", "texas",
+  "canadian", "australian", "european union", "eu", "french", "german", "japanese",
+  "dubai", "uae", "singapore", "hong kong", "pakistan", "bangladesh", "nepal", "sri lanka",
+];
+
+function mentionsForeignJurisdiction(query: string): boolean {
+  const lower = query.toLowerCase();
+  return FOREIGN_JURISDICTION_KEYWORDS.some((kw) => {
+    if (kw.length <= 3) {
+      return new RegExp(`\\b${kw.replace(/\./g, "\\.")}\\b`).test(lower);
+    }
+    return lower.includes(kw);
+  });
+}
+
 async function classifyQuery(query: string): Promise<boolean> {
   const lower = query.toLowerCase();
   const currentYear = new Date().getFullYear();
@@ -692,8 +714,22 @@ async function webSearch(query: string): Promise<string> {
   }
 }
 
-const SECTION_PATTERN = /(?:section|s\.|sec)\s*(\d+[A-Za-z]?)/gi;
-const ARTICLE_PATTERN = /(?:article|art\.)\s*(\d+[A-Za-z]?)/gi;
+function extractRefNumbers(query: string): { sections: string[]; articles: string[] } {
+  const sections: string[] = [];
+  const articles: string[] = [];
+  const secRe = /(?:sections|section|sec\.?|s\.)\s+(\d+[A-Za-z]?(?:\s*(?:,|&|and)\s*\d+[A-Za-z]?)*)/gi;
+  const artRe = /(?:articles|article|art\.?)\s+(\d+[A-Za-z]?(?:\s*(?:,|&|and)\s*\d+[A-Za-z]?)*)/gi;
+  let m: RegExpExecArray | null;
+  while ((m = secRe.exec(query))) {
+    const nums = m[1].match(/\d+[A-Za-z]?/g);
+    if (nums) sections.push(...nums);
+  }
+  while ((m = artRe.exec(query))) {
+    const nums = m[1].match(/\d+[A-Za-z]?/g);
+    if (nums) articles.push(...nums);
+  }
+  return { sections, articles };
+}
 
 const actMap: Record<string, string> = {
   // Constitution & Polity
@@ -944,8 +980,7 @@ async function getLegalKnowledge(query: string): Promise<string> {
     const parts: string[] = [];
     const lower = query.toLowerCase();
 
-    const sectionMatches = [...query.matchAll(SECTION_PATTERN)];
-    const articleMatches = [...query.matchAll(ARTICLE_PATTERN)];
+    const { sections: sectionMatches, articles: articleMatches } = extractRefNumbers(query);
 
     let targetAct = "";
     for (const [key, val] of Object.entries(actMap)) {
@@ -953,8 +988,7 @@ async function getLegalKnowledge(query: string): Promise<string> {
     }
 
     if (targetAct && sectionMatches.length > 0) {
-      for (const match of sectionMatches) {
-        const secNum = match[1];
+      for (const secNum of sectionMatches) {
         const sec = await s3kb.getSection(targetAct, secNum);
         if (sec) parts.push(`[${targetAct.toUpperCase()} Section ${sec.section}] ${sec.title}: ${sec.text}`);
       }
@@ -963,31 +997,26 @@ async function getLegalKnowledge(query: string): Promise<string> {
     if (!targetAct && sectionMatches.length > 0) {
       const raw = await s3kb.getFullTextIndex();
       if (raw) {
+        const ids: string[] = [];
         for (const entry of raw) {
           const id = typeof entry === "string" ? entry : entry.id;
-          if (id === "constitution") continue;
-          for (const match of sectionMatches) {
-            const sec = await s3kb.getSection(id, match[1]);
+          if (id !== "constitution") ids.push(id);
+        }
+        for (const secNum of sectionMatches) {
+          for (const id of ids) {
+            const sec = await s3kb.getSection(id, secNum);
             if (sec) {
               parts.push(`[${id.toUpperCase()} Section ${sec.section}] ${sec.title}: ${sec.text}`);
               break;
             }
           }
-          if (parts.length > 0) break;
         }
       }
     }
 
-    if (targetAct === "constitution" && articleMatches.length > 0) {
-      for (const match of articleMatches) {
-        const sec = await s3kb.getSection("constitution", match[1]);
-        if (sec) parts.push(`[Constitution Article ${sec.section}] ${sec.title}: ${sec.text}`);
-      }
-    }
-
-    if (articleMatches.length > 0 && targetAct !== "constitution") {
-      for (const match of articleMatches) {
-        const sec = await s3kb.getSection("constitution", match[1]);
+    if (articleMatches.length > 0) {
+      for (const artNum of articleMatches) {
+        const sec = await s3kb.getSection("constitution", artNum);
         if (sec) parts.push(`[Constitution Article ${sec.section}] ${sec.title}: ${sec.text}`);
       }
     }
@@ -1131,10 +1160,47 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "NVIDIA_API_KEY is not configured" }, { status: 500 });
     }
 
-    const systemPrompt = getSystemPrompt(conversationType);
     const lastUserMessage = messages.filter((m: { role: string }) => m.role === "user").pop();
 
     const userQuery = lastUserMessage ? extractTextFromContent(lastUserMessage.content) : "";
+
+    const refs = extractRefNumbers(userQuery);
+    const refCount = refs.sections.length + refs.articles.length;
+    const multiRefQuery = refCount >= 2;
+
+    let systemPrompt = getSystemPrompt(conversationType);
+    if (conversationType === "talk-to-ai" && multiRefQuery) {
+      systemPrompt = `You are a concise Indian legal assistant. The user asked about ${refCount} legal sections/articles. Present the answer ONLY as a compact markdown table with EXACTLY 3 columns. Obey EVERY rule strictly:
+1. Header row must be exactly: | Section | Offence | Punishment |
+2. Separator row: | --- | --- | --- |
+3. ONE row per requested section/article, in the same order the user mentioned them. NEVER skip any, NEVER add a row for anything else.
+4. Offence cell: a short name or phrase, MAX 6 words. Never paste a definition, never list sub-clauses, never use a,b,c lists.
+5. Punishment cell: MAX 8 words (e.g. "Imprisonment up to 7 years + fine").
+6. Section cell: just the number (e.g. 103, 74, 245) or "Article 302" — no extra text.
+7. NEVER transpose the table, never add extra columns or extra rows, never add bold headers, bullets, numbered points, or paragraphs inside cells.
+8. After the table, add exactly ONE short closing sentence (max 15 words).
+No other formatting. If a cell would exceed the word limit, shorten it.`;
+    }
+
+    if (conversationType === "analysis" && multiRefQuery) {
+      systemPrompt = `You are Lawbite AI, an Indian legal assistant. The user asked about ${refCount} legal sections/articles. This is a DEEP ANALYSIS request — the response MUST be far more detailed than a quick chat reply. Produce THREE parts:
+
+PART 1 — QUICK REFERENCE TABLE (compact, for scanning):
+- Header row: | Section | Offence | Punishment |
+- Separator row: | --- | --- | --- |
+- ONE row per requested section/article, in the same order the user mentioned them. NEVER skip any.
+- Offence cell: short phrase, MAX 6 words. Punishment cell: MAX 8 words (e.g. "Imprisonment up to 7 years + fine").
+- NEVER transpose the table, never add "Aspect" columns or a column per section, never leave any cell blank.
+
+PART 2 — PER-SECTION ANALYSIS (the main substance; one block per section):
+- For EACH section, start with a bold header line like **Section 103 — <Offence name>**.
+- Then a short paragraph of 2-4 sentences explaining: what the section defines or prohibits, its key ingredients/elements, and the exact punishment. Use normal prose — never a,b,c sub-lists inside a table cell.
+
+PART 3 — KEY TAKEAWAYS:
+- End with **Key Takeaways:** followed by 3-4 concise bullet points summarizing the sections together.
+
+Never transpose tables, never leave a table cell blank, never invent section numbers or provisions. Only use facts from the legal knowledge provided.`;
+    }
 
     const greetingPattern = /^(hi|hello|hey|namaste|namaskar|good\s*(morning|afternoon|evening)|yo|sup|hii|helloo|hey there|hello there)\s*[!.]*$/i;
     if (userQuery && greetingPattern.test(userQuery.trim()) && conversationType !== "grill") {
@@ -1157,18 +1223,46 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    if (
+      userQuery &&
+      mentionsForeignJurisdiction(userQuery) &&
+      !/\b(india|indian|bharat|bharatiya|nri|domicile)\b/i.test(userQuery) &&
+      conversationType !== "grill" &&
+      conversationType !== "draft" &&
+      conversationType !== "review"
+    ) {
+      const refusal = "I can only provide information related to Indian law. Please ask a legal question concerning India.";
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: refusal })}\n\n`));
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+        },
+      });
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache, no-transform",
+          "Connection": "keep-alive",
+          "X-Accel-Buffering": "no",
+        },
+      });
+    }
+
     let needsSearch = false;
     if (userQuery) {
       needsSearch = await classifyQuery(userQuery);
     }
-
     let webSearchContext = "";
     if (needsSearch) {
       webSearchContext = await webSearch(userQuery);
     }
 
     const isTalkToAi = conversationType === "talk-to-ai";
-    const legalContext = (isTalkToAi || needsSearch) ? "" : await getLegalKnowledge(userQuery);
+    const isDraft = conversationType === "draft";
+    const isAnalysisMultiRef = conversationType === "analysis" && multiRefQuery;
+    const legalContext = (isTalkToAi && !multiRefQuery || needsSearch) ? "" : await getLegalKnowledge(userQuery);
 
     let finalSystemPrompt = systemPrompt;
     const contextParts: string[] = [];
@@ -1208,7 +1302,7 @@ export async function POST(request: NextRequest) {
         model,
         messages: messagesWithSystem,
         max_tokens: maxTokens,
-        temperature: 1.0,
+        temperature: (isTalkToAi && multiRefQuery) || isAnalysisMultiRef ? 0.3 : 1.0,
         top_p: 0.95,
         stream: true,
       }),
@@ -1243,6 +1337,69 @@ export async function POST(request: NextRequest) {
       return firstMatch ? firstMatch[0].trim() : "";
     }
 
+    function cleanTalkToAiContent(text: string): string {
+      return text
+        .replace(/\*{1,2}/g, "")
+        .split("\n")
+        .map((line) => line.replace(/^\s*[-+>#]\s+/, "").trim())
+        .join("\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+    }
+
+    function tightenMultiRefTable(text: string): string {
+      const MAX_OFFENCE_WORDS = 8;
+      const MAX_PUNISHMENT_WORDS = 10;
+      const lines = text.split("\n");
+      const out: string[] = [];
+      for (const line of lines) {
+        if (line.trim().startsWith("|") && line.trim().endsWith("|")) {
+          const cells = line.split("|").map((c) => c.trim());
+          const body = cells.slice(1, -1);
+          if (body.length === 3) {
+            const isSeparator = /^---/.test(body[0]);
+            const isHeader = /^section$/i.test(body[0]);
+            if (isHeader) {
+              out.push("| Section | Offence | Punishment |");
+              continue;
+            }
+            if (isSeparator) {
+              out.push("| --- | --- | --- |");
+              continue;
+            }
+            const cap = (s: string, n: number) => {
+              const w = s.split(/\s+/).filter(Boolean);
+              return w.length > n ? w.slice(0, n).join(" ") + "…" : s;
+            };
+            out.push(`| ${body[0]} | ${cap(body[1], MAX_OFFENCE_WORDS)} | ${cap(body[2], MAX_PUNISHMENT_WORDS)} |`);
+          } else {
+            out.push(line);
+          }
+        } else {
+          out.push(line);
+        }
+      }
+      return out.join("\n");
+    }
+
+    function isDraftRefusal(text: string): boolean {
+      const c = stripThinkingTokens(text).trim();
+      if (c.length > 400) return false;
+      return /(?:cannot|can't|unable to|am unable|cannot create|cannot draft|cannot provide|not able to|as an ai|intimidat|harass|unlawful|against (?:my|our) (?:guidelines|policy|principles)|refus)/i.test(c);
+    }
+
+    function isBlankDraftRequest(query: string): boolean {
+      return /^please draft a .+ with the following details:?\s*$/i.test(query.trim());
+    }
+
+    function isFabricatedBlankDraft(text: string): boolean {
+      const c = stripThinkingTokens(text).trim();
+      if (c.length < 100) return false;
+      const labels = new Set([...c.matchAll(/\[[^\]]+\]/g)].map((m) => m[0].toLowerCase()));
+      labels.delete("[current date]");
+      return labels.size < 2;
+    }
+
     const stream = new ReadableStream({
       cancel() { /* client disconnected, clean up */ },
       async start(controller) {
@@ -1273,7 +1430,7 @@ export async function POST(request: NextRequest) {
                   const parsed = JSON.parse(data);
                   const content = parsed.choices?.[0]?.delta?.content;
                   if (content) {
-                    if (isTalkToAi) {
+                    if (isTalkToAi || isDraft || isAnalysisMultiRef) {
                       fullContent += content;
                     } else {
                       const cleaned = stripThinkingTokens(content);
@@ -1288,9 +1445,86 @@ export async function POST(request: NextRequest) {
           }
 
           if (isTalkToAi) {
-            const truncated = truncateToTwoSentences(fullContent);
+            const truncated = multiRefQuery ? tightenMultiRefTable(cleanTalkToAiContent(fullContent)) : truncateToTwoSentences(fullContent);
             if (truncated) {
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: truncated })}\n\n`));
+            }
+          }
+
+          if (isAnalysisMultiRef) {
+            const tightened = tightenMultiRefTable(stripThinkingTokens(fullContent).trim());
+            if (tightened) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: tightened })}\n\n`));
+            }
+          }
+
+          if (isDraft) {
+            const draftContent = stripThinkingTokens(fullContent).trim();
+            const blankDraftRequest = isBlankDraftRequest(userQuery);
+            const needsRetry = isDraftRefusal(draftContent) || (blankDraftRequest && isFabricatedBlankDraft(draftContent));
+            if (needsRetry) {
+              console.warn("Draft guard triggered (refusal or fabricated details), retrying with override instruction");
+              const overrideMessage = isDraftRefusal(draftContent)
+                ? `The previous response was a refusal, which is not allowed. The user's document request is a legitimate, routine legal document (Legal Notice, FIR, Consumer Complaint, RTI, Will, Affidavit, Petition, or Contract) and MUST be drafted. Refusal is forbidden. Draft the complete document now using the exact template. Do not refuse, do not apologize, do not mention refusal.`
+                : `The user submitted a BLANK draft request with no details. You MUST output the FULL blank template exactly as defined in the system prompt, with EVERY bracketed placeholder label kept intact and empty (e.g. [complainant name], [opponent name], [address], [amount]). NEVER invent, fabricate, or fill in names, addresses, amounts, dates, invoice numbers, model numbers, or any other details — the user will fill them in. Do NOT provide an example or sample document. Output ONLY the blank template structure with its empty bracketed labels.`;
+              const retryMessages = [
+                { role: "system", content: finalSystemPrompt },
+                ...messages.filter((m: { role: string }) => m.role !== "system"),
+                { role: "user", content: userQuery },
+                { role: "assistant", content: draftContent },
+                { role: "user", content: overrideMessage },
+              ];
+              const retryRes = await fetch(NVIDIA_API_URL, {
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${apiKey}`,
+                  "Content-Type": "application/json",
+                  "Accept": "text/event-stream",
+                },
+                body: JSON.stringify({
+                  model,
+                  messages: retryMessages,
+                  max_tokens: maxTokens,
+                  temperature: 0.7,
+                  top_p: 0.95,
+                  stream: true,
+                }),
+              });
+              if (retryRes.ok && retryRes.body) {
+                let retryBuffer = "";
+                const retryReader = retryRes.body.getReader();
+                let retryContent = "";
+                while (true) {
+                  const { done, value } = await retryReader.read();
+                  if (done) break;
+                  const chunk = decoder.decode(value, { stream: true });
+                  retryBuffer += chunk;
+                  const parts = retryBuffer.split("\n");
+                  retryBuffer = parts.pop() ?? "";
+                  for (const line of parts) {
+                    if (line.startsWith("data: ")) {
+                      const data = line.slice(6).trim();
+                      if (data === "[DONE]" || !data) continue;
+                      try {
+                        const parsed = JSON.parse(data);
+                        const delta = parsed.choices?.[0]?.delta?.content;
+                        if (delta) retryContent += delta;
+                      } catch { /* skip */ }
+                    }
+                  }
+                }
+                const cleanedRetry = stripThinkingTokens(retryContent).trim();
+                const retryOk = cleanedRetry && !isDraftRefusal(cleanedRetry) && !(blankDraftRequest && isFabricatedBlankDraft(cleanedRetry));
+                if (retryOk) {
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: cleanedRetry })}\n\n`));
+                } else {
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: draftContent })}\n\n`));
+                }
+              } else {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: draftContent })}\n\n`));
+              }
+            } else if (draftContent) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: draftContent })}\n\n`));
             }
           }
 

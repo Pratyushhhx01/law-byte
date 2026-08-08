@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "eval": "node scripts/chat-eval.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

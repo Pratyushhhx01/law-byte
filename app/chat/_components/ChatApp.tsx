@@ -380,7 +380,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   }, [analysisAttachOpen]);
 
   function renderBold(text: string): ReactNode {
-    const cleaned = text.replace(/^[-*+>]{1,2}\s+/, "");
+    const cleaned = text
+      .split("\n")
+      .map((line) => line.replace(/^\s*[-*+>]{1,2}\s+/, ""))
+      .join("\n");
     if (cleaned.startsWith("**") && !cleaned.includes("**", 2)) {
       return <strong className="font-semibold text-white">{cleaned.slice(2)}</strong>;
     }
@@ -516,7 +519,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       if (summaryMatch) {
         const points: string[] = [];
         if (summaryMatch[2]) {
-          const s = summaryMatch[2].trim().replace(/^[-*]\s*/, "").trim();
+          const s = summaryMatch[2].trim().replace(/^\s*[-*+>]\s*/, "").trim();
           if (/[a-zA-Z0-9]/.test(s)) points.push(summaryMatch[2].trim());
         }
         i++;
@@ -524,7 +527,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           const next = lines[i].trim();
           if (!next) { i++; continue; }
           if (/^[*#|]/.test(next)) break;
-          if (/[a-zA-Z0-9]/.test(next.replace(/^[-*]\s*/, ""))) points.push(next);
+          if (/[a-zA-Z0-9]/.test(next.replace(/^\s*[-*+>]\s*/, ""))) points.push(next);
           i++;
         }
         if (points.length === 0) { continue; }
@@ -662,10 +665,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               </div>
               <div className="mt-2 space-y-1.5">
                 {block.content
-                  .filter((point) => /[a-zA-Z0-9]/.test(point.trim().replace(/^[-*]\s*/, "")))
+                  .filter((point) => /[a-zA-Z0-9]/.test(point.trim().replace(/^\s*[-*+>]\s*/, "")))
                   .map((point, pi) => {
                     const trimmed = point.trim();
-                    const text = trimmed.replace(/^[-*]{1,2}\s*/, "");
+                    const text = trimmed.replace(/^\s*[-*+>]{1,2}\s*/, "");
                     return (
                       <div key={pi} className="flex items-start gap-2 text-sm leading-relaxed text-white/80">
                         <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400/60" />
