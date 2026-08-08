@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/utils";
-import pdf from "pdf-parse";
+import { PDFParse } from "pdf-parse";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_TEXT_LENGTH = 8000;
@@ -48,7 +48,13 @@ export async function POST(request: NextRequest) {
     if (file.type === "application/pdf") {
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
-      const data = await pdf(buffer);
+      const parser = new PDFParse({ data: buffer });
+      let data;
+      try {
+        data = await parser.getText();
+      } finally {
+        await parser.destroy();
+      }
 
       let text = data.text?.trim() ?? "";
       const truncated = text.length > MAX_TEXT_LENGTH;
@@ -59,7 +65,7 @@ export async function POST(request: NextRequest) {
       return Response.json({
         text,
         fileName: file.name,
-        pageCount: data.numpages ?? 0,
+        pageCount: data.total ?? 0,
         truncated,
       });
     }
@@ -79,6 +85,11 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Unsupported file type" }, { status: 400 });
   } catch (error) {
     console.error("Review error:", error);
-    return Response.json({ error: "Failed to process file" }, { status: 500 });
+    const message =
+      error instanceof Error &&
+      /XRef|PDF|corrupt|invalid|parse|format/i.test(error.message)
+        ? "The PDF file is corrupted or could not be read. Please try a different PDF, or convert it to an image (PNG/JPEG) and upload that."
+        : "Failed to process file";
+    return Response.json({ error: message }, { status: 422 });
   }
 }
