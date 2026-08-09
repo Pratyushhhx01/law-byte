@@ -7,6 +7,22 @@ import { stripThinkingTokens, checkRateLimit } from "@/lib/utils";
 const NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 const NVIDIA_MODEL = "meta/llama-3.1-8b-instruct";
 const REVIEW_MODEL = "meta/llama-3.2-11b-vision-instruct";
+const NVIDIA_CONNECT_TIMEOUT_MS = 30_000;
+
+async function fetchNvidia(url: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), NVIDIA_CONNECT_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error("Timed out connecting to the AI service. Please try again.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 const tvly = process.env.TAVILY_API_KEY ? tavily({ apiKey: process.env.TAVILY_API_KEY }) : null;
 
@@ -1306,7 +1322,7 @@ Never transpose tables, never leave a table cell blank, never invent section num
     const hasMultimodalContent = Array.isArray(lastUserMessage?.content) && lastUserMessage.content.some((p: { type: string }) => p.type === "image_url");
     const model = (conversationType === "review" || hasMultimodalContent) ? REVIEW_MODEL : NVIDIA_MODEL;
 
-    const response = await fetch(NVIDIA_API_URL, {
+    const response = await fetchNvidia(NVIDIA_API_URL, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
@@ -1495,7 +1511,7 @@ Never transpose tables, never leave a table cell blank, never invent section num
       retryMessages.push({ role: "assistant", content: stripThinkingTokens(prevContent).trim() });
       retryMessages.push({ role: "user", content: overrideMessage });
       try {
-        const retryRes = await fetch(NVIDIA_API_URL, {
+        const retryRes = await fetchNvidia(NVIDIA_API_URL, {
           method: "POST",
           headers: {
             "Authorization": `Bearer ${apiKey}`,
@@ -1560,7 +1576,7 @@ Never transpose tables, never leave a table cell blank, never invent section num
             { role: "assistant", content: stripThinkingTokens(prevContent).trim() },
             { role: "user", content: overrideMessage },
           ];
-          const retryRes = await fetch(NVIDIA_API_URL, {
+          const retryRes = await fetchNvidia(NVIDIA_API_URL, {
             method: "POST",
             headers: {
               "Authorization": `Bearer ${apiKey}`,
@@ -1752,7 +1768,7 @@ Never transpose tables, never leave a table cell blank, never invent section num
                 { role: "assistant", content: draftContent },
                 { role: "user", content: overrideMessage },
               ];
-              const retryRes = await fetch(NVIDIA_API_URL, {
+              const retryRes = await fetchNvidia(NVIDIA_API_URL, {
                 method: "POST",
                 headers: {
                   "Authorization": `Bearer ${apiKey}`,

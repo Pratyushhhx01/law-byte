@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 
 export default function Error({
   error,
@@ -20,12 +21,20 @@ export default function Error({
         <p className="text-white/50 text-sm mb-6 max-w-md">
           An error occurred while loading this page. Please try again.
         </p>
-        <button
-          onClick={reset}
-          className="rounded-full bg-white text-black px-6 py-2.5 text-sm font-medium transition-colors hover:bg-white/90"
-        >
-          Try again
-        </button>
+        <div className="flex items-center justify-center gap-3">
+          <button
+            onClick={reset}
+            className="rounded-full bg-white text-black px-6 py-2.5 text-sm font-medium transition-colors hover:bg-white/90"
+          >
+            Try again
+          </button>
+          <Link
+            href="/"
+            className="rounded-full border border-white/20 px-6 py-2.5 text-sm font-medium transition-colors hover:bg-white/10"
+          >
+            Go home
+          </Link>
+        </div>
       </div>
     </div>
   );
