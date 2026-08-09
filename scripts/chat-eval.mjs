@@ -99,22 +99,27 @@ async function runAs(callback) {
 // ---------------------------------------------------------------- test battery
 const TESTS = [
   { id: "T01", mode: "chat", q: "What is BNS section 103?", kind: "single-section", expect: "section-info" },
-  { id: "T02", mode: "chat", q: "Explain BNS sections 103, 74 and 245.", kind: "multi-section", expect: "table" },
+  { id: "T02", mode: "chat", q: "Explain BNS sections 103, 74 and 245.", kind: "multi-section", expect: "table", refs: ["103", "74", "245"] },
   { id: "T03", mode: "chat", q: "What is BNS section 302?", kind: "wrong-number-trap", expect: "correct-bns-302" },
   { id: "T04", mode: "chat", q: "What is the definition of murder?", kind: "definition", expect: "definition" },
   { id: "T05", mode: "chat", q: "Difference between theft and extortion?", kind: "comparison", expect: "table" },
-  { id: "T06", mode: "chat", q: "How do I file an FIR in India?", kind: "procedure", expect: "steps" },
+  { id: "T06", mode: "analysis", q: "How do I file an FIR in India?", kind: "procedure", expect: "steps" },
   { id: "T07", mode: "chat", q: "What are the legal consequences of not paying income tax?", kind: "warning", expect: "warning" },
   { id: "T08", mode: "chat", q: "hi", kind: "greeting", expect: "greeting" },
   { id: "T09", mode: "chat", q: "What is the law on marijuana in the USA?", kind: "off-topic", expect: "indian-only-refusal" },
   { id: "T10", mode: "chat", q: "Who is the current Chief Justice of India?", kind: "current-affairs", expect: "web-search" },
-  { id: "T11", mode: "chat", q: "Give me a complete overview of divorce laws across all religions in India.", kind: "personal-law-overview", expect: "big-table" },
+  { id: "T11", mode: "analysis", q: "Give me a complete overview of divorce laws across all religions in India.", kind: "personal-law-overview", expect: "big-table" },
   { id: "T12", mode: "chat", q: "Tell me about dowry", kind: "vague", expect: "clear-answer" },
   { id: "T13", mode: "chat", q: "What does article 302 of the constitution say?", kind: "article-trap", expect: "no-such-article" },
   { id: "T14", mode: "analysis", q: "Analyze the legal consequences of a cheque bounce in India in detail.", kind: "analysis", expect: "numbered-analysis" },
   { id: "T15", mode: "grill", q: "I was involved in a road accident in Delhi last night. The other driver was drunk.", kind: "grill", expect: "single-question-back" },
   { id: "T16", mode: "draft", q: "Please draft a legal notice for unpaid rent with the following details:", kind: "draft-blank", expect: "blank-template" },
   { id: "T17", mode: "review", q: "Please review this rental agreement clause: 'The tenant shall pay a penalty equal to double the monthly rent for any delay beyond 3 days, and the landlord may lock the premises after 10 days of non-payment.'", kind: "review", expect: "risk-analysis" },
+  { id: "T18", mode: "chat", q: "what is section 308 302 and 354", kind: "multi-section-space", expect: "table", refs: ["308", "302", "354"] },
+  { id: "T19", mode: "chat", q: "what is section 308 302 354 and article 21", kind: "multi-ref-mixed", expect: "table", refs: ["308", "302", "354", "21"] },
+  { id: "T20", mode: "chat", q: "what is section 302 and 354", kind: "multi-section", expect: "table", refs: ["302", "354"] },
+  { id: "T21", mode: "analysis", q: "give a deep analysis of sections 302 304 308 and 354 of BNS", kind: "analysis-multi", expect: "table", refs: ["302", "304", "308", "354"] },
+  { id: "T22", mode: "chat", q: "what is section 308 302 354", kind: "multi-section-space", expect: "table", refs: ["308", "302", "354"] },
 ];
 
 // ---------------------------------------------------------------- API call
@@ -228,7 +233,7 @@ function verdict(t, s, text) {
 
   if (t.expect === "table" && !s.hasTable) {
     if (t.kind === "multi-section") problems.push("multi-section reply is not a table");
-    if (t.kind === "comparison" && !/difference|distinct|unlike/.test(low)) problems.push("comparison missing clear contrast");
+    if (t.kind === "comparison" && !/difference|distinct|unlike|whereas|while/.test(low)) problems.push("comparison missing clear contrast");
   }
   if (t.expect === "steps" && !s.hasSteps) {
     if (!/first|then|next|step/.test(low)) problems.push("procedure reply has no step markers");
@@ -255,6 +260,12 @@ function verdict(t, s, text) {
   }
   if (t.expect === "big-table" && !s.hasTable) problems.push("personal-law overview missing table");
   if (t.kind === "current-affairs" && s.words < 8) problems.push("web-search reply too thin");
+  if (s.words === 0) problems.push("empty response");
+  if (t.refs) {
+    for (const ref of t.refs) {
+      if (!new RegExp(`\\b${ref}\\b`).test(text)) problems.push(`missing requested ref ${ref}`);
+    }
+  }
 
   if (s.asl > 30) problems.push(`avg sentence ${s.asl} words (long)`);
   if (s.longSentences > 0) notes.push(`${s.longSentences} long sentence(s)`);

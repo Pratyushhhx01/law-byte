@@ -43,12 +43,18 @@ NOTE: The example above is just a TEMPLATE showing structure. Do NOT copy its co
 
 For ALL OTHER queries (not overview across personal laws), use these formats:
 
+GLOBAL TABLE CELL RULES (apply to EVERY table you output below):
+- Fill EVERY cell with specific, distinct content for that item. NEVER leave a cell blank or empty.
+- NEVER write "same as above", "same as previous", "ditto", "-", "—", "N/A", or "Nil" in a cell.
+- If an item genuinely has no applicable value, write "Not specified in [relevant Act]".
+- Keep each cell concise (ideally under ~15 words). If a value is long, shorten it to a phrase — never leave the cell blank, and never dump a long paragraph (a "log") into a cell.
+
 1. DIFFERENCES / COMPARISONS — When comparing two or more items (e.g., "difference between IPC and CrPC"), output a markdown table with headers and rows separated by | pipes:
 | Aspect | Item A | Item B |
 | --- | --- | --- |
 | Purpose | ... | ... |
 | Scope | ... | ... |
-Follow the table with a brief note.
+Follow the table with a brief note. Every cell in every row must contain item-specific content for that exact item — never a blank cell, never "same as above".
 
 2. PROCEDURES / STEPS — When explaining how to do something, use format: **Step 1:** text. **Step 2:** text. etc. Each step on a new line.
 
@@ -120,7 +126,13 @@ IMPORTANT: Always use the CURRENT law when answering. If a law has been replaced
 
 NEVER use single asterisks (*) for emphasis or formatting. Only use double asterisks (**) for bold text. Single asterisks cause rendering issues.`;
 
-const TALK_TO_AI_SYSTEM_PROMPT = `You are a concise Indian legal assistant. Respond in exactly 1 or 2 plain sentences. Never use lists, numbers, headings, or formatting. Just 1-2 short sentences.`;
+const TALK_TO_AI_SYSTEM_PROMPT = `You are a concise Indian legal assistant. Respond in exactly 1 or 2 plain sentences. Never use lists, numbers, headings, or formatting. Just 1-2 short sentences.
+
+EXCEPTION: If the user explicitly asks for a comparison shown in a table (or a "difference" table), you MAY output a compact markdown table — header row, separator row (| --- | --- |), and ONE row per item — followed by one short closing sentence (max 12 words). Every cell MUST contain specific content for that exact item; never leave a cell blank and never write "same as above".
+
+Always use CURRENT Indian law. The Indian Penal Code 1860, CrPC 1973 and Indian Evidence Act 1872 were REPLACED on 1 July 2024 by the Bharatiya Nyaya Sanhita (BNS) 2023, Bharatiya Nagarik Suraksha Sanhita (BNSS) 2023 and Bharatiya Sakshya Adhiniyam (BSA) 2023 respectively. Answer current matters under the new laws. NEVER tell a user "not BNS" or treat the IPC as currently in force.
+
+Never mention, suggest, or advertise app features, modes, buttons, or other features (never say "try the Deep Analysis feature" or similar).`;
 
 const DOCUMENT_DRAFTER_SYSTEM_PROMPT = `You are Lawbite AI Document Drafter, a specialized Indian legal document drafting assistant.
 
@@ -717,8 +729,10 @@ async function webSearch(query: string): Promise<string> {
 function extractRefNumbers(query: string): { sections: string[]; articles: string[] } {
   const sections: string[] = [];
   const articles: string[] = [];
-  const secRe = /(?:sections|section|sec\.?|s\.)\s+(\d+[A-Za-z]?(?:\s*(?:,|&|and)\s*\d+[A-Za-z]?)*)/gi;
-  const artRe = /(?:articles|article|art\.?)\s+(\d+[A-Za-z]?(?:\s*(?:,|&|and)\s*\d+[A-Za-z]?)*)/gi;
+  const num = "\\d+[A-Za-z]?";
+  const sep = "(?:\\s*(?:,|&|and|or)\\s*|\\s+)";
+  const secRe = new RegExp(`(?:sections|section|sec\\.?|s\\.)\\s+(${num}(?:${sep}${num})*)`, "gi");
+  const artRe = new RegExp(`(?:articles|article|art\\.?)\\s+(${num}(?:${sep}${num})*)`, "gi");
   let m: RegExpExecArray | null;
   while ((m = secRe.exec(query))) {
     const nums = m[1].match(/\d+[A-Za-z]?/g);
@@ -1261,6 +1275,7 @@ Never transpose tables, never leave a table cell blank, never invent section num
 
     const isTalkToAi = conversationType === "talk-to-ai";
     const isDraft = conversationType === "draft";
+    const isAnalysis = conversationType === "analysis";
     const isAnalysisMultiRef = conversationType === "analysis" && multiRefQuery;
     const legalContext = (isTalkToAi && !multiRefQuery || needsSearch) ? "" : await getLegalKnowledge(userQuery);
 
@@ -1353,33 +1368,103 @@ Never transpose tables, never leave a table cell blank, never invent section num
       const lines = text.split("\n");
       const out: string[] = [];
       for (const line of lines) {
-        if (line.trim().startsWith("|") && line.trim().endsWith("|")) {
-          const cells = line.split("|").map((c) => c.trim());
-          const body = cells.slice(1, -1);
-          if (body.length === 3) {
-            const isSeparator = /^---/.test(body[0]);
-            const isHeader = /^section$/i.test(body[0]);
-            if (isHeader) {
-              out.push("| Section | Offence | Punishment |");
-              continue;
-            }
-            if (isSeparator) {
-              out.push("| --- | --- | --- |");
-              continue;
-            }
-            const cap = (s: string, n: number) => {
-              const w = s.split(/\s+/).filter(Boolean);
-              return w.length > n ? w.slice(0, n).join(" ") + "…" : s;
-            };
-            out.push(`| ${body[0]} | ${cap(body[1], MAX_OFFENCE_WORDS)} | ${cap(body[2], MAX_PUNISHMENT_WORDS)} |`);
-          } else {
-            out.push(line);
-          }
-        } else {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("|")) {
           out.push(line);
+          continue;
         }
+        // Reconstruct a well-formed 3-column row even when the model dropped the trailing pipe.
+        const cells = trimmed.split("|").map((c) => c.trim());
+        const body = trimmed.endsWith("|") ? cells.slice(1, -1) : cells.slice(1);
+        if (body.length !== 3) {
+          out.push(line);
+          continue;
+        }
+        const isSeparator = /^---/.test(body[0]);
+        const isHeader = /^section$/i.test(body[0]);
+        if (isHeader) {
+          out.push("| Section | Offence | Punishment |");
+          continue;
+        }
+        if (isSeparator) {
+          out.push("| --- | --- | --- |");
+          continue;
+        }
+        const cap = (s: string, n: number) => {
+          const w = s.split(/\s+/).filter(Boolean);
+          return w.length > n ? w.slice(0, n).join(" ") + "…" : s;
+        };
+        out.push(`| ${body[0]} | ${cap(body[1], MAX_OFFENCE_WORDS)} | ${cap(body[2], MAX_PUNISHMENT_WORDS)} |`);
       }
       return out.join("\n");
+    }
+
+    function extractTableRowRefs(text: string): string[] {
+      const refs: string[] = [];
+      for (const line of text.split("\n")) {
+        const t = line.trim();
+        if (!t.startsWith("|") || !t.endsWith("|")) continue;
+        const cells = t.split("|").map((c) => c.trim());
+        const body = cells.slice(1, -1);
+        if (body.length === 0) continue;
+        const first = body[0];
+        if (/^---/.test(first) || /^section$/i.test(first)) continue;
+        const m = first.match(/\d+[A-Za-z]?/);
+        if (m) refs.push(m[0].toUpperCase());
+      }
+      return refs;
+    }
+
+    function normalizeTableRows(text: string): string {
+      return text
+        .split("\n")
+        .map((line) => {
+          const t = line.trim();
+          if (!t.startsWith("|")) return line;
+          const cells = t.split("|").map((c) => c.trim());
+          const body = t.endsWith("|") ? cells.slice(1, -1) : cells.slice(1);
+          if (body.length < 2) return line;
+          return `| ${body.join(" | ")} |`;
+        })
+        .join("\n");
+    }
+
+    function findBlankTableCells(text: string): string[] {
+      const placeholderRe = /^\s*(?:[-–—]{1,4}|n\/?a\.?|nil|none|not applicable|same as (?:above|previous|the (?:above|previous))|ditto)\s*$/i;
+      const problems: string[] = [];
+      let header: string[] | null = null;
+      let afterSeparator = false;
+      for (const line of text.split("\n")) {
+        const t = line.trim();
+        if (!t.startsWith("|")) {
+          header = null;
+          afterSeparator = false;
+          continue;
+        }
+        const cells = t.split("|").map((c) => c.trim());
+        const body = t.endsWith("|") ? cells.slice(1, -1) : cells.slice(1);
+        if (body.length < 2) continue;
+        if (/^---/.test(body[0]) || /^===/.test(body[0])) {
+          if (!header) header = body.map(() => "");
+          afterSeparator = true;
+          continue;
+        }
+        if (!header) {
+          header = body;
+          afterSeparator = false;
+          continue;
+        }
+        if (!afterSeparator) continue;
+        const rowLabel = body[0] || "(unnamed row)";
+        for (let ci = 1; ci < body.length; ci++) {
+          const cell = body[ci];
+          if (!cell || placeholderRe.test(cell)) {
+            const colLabel = header[ci] || `column ${ci + 1}`;
+            problems.push(`"${rowLabel}" / "${colLabel}"`);
+          }
+        }
+      }
+      return problems;
     }
 
     function isDraftRefusal(text: string): boolean {
@@ -1400,6 +1485,132 @@ Never transpose tables, never leave a table cell blank, never invent section num
       return labels.size < 2;
     }
 
+    async function retryMultiRefTable(missingRefs: string[], allRefs: string[], prevContent: string): Promise<string | null> {
+      const lastUserMsg = messagesWithSystem.filter((m: { role: string }) => m.role === "user").slice(-1)[0];
+      const overrideMessage = `The previous response omitted these requested section(s)/article(s): ${missingRefs.join(", ")}. This is not acceptable. Reproduce the ENTIRE compact markdown table again with EXACTLY ONE row for EACH of: ${allRefs.join(", ")} — in the order listed. NEVER skip any, never add extra rows. Header: | Section | Offence | Punishment |. Offence cell: max 6 words. Punishment cell: max 8 words. After the table add exactly ONE short closing sentence (max 15 words). Nothing else.`;
+      const retryMessages: { role: string; content: unknown }[] = [
+        { role: "system", content: finalSystemPrompt },
+      ];
+      if (lastUserMsg) retryMessages.push(lastUserMsg);
+      retryMessages.push({ role: "assistant", content: stripThinkingTokens(prevContent).trim() });
+      retryMessages.push({ role: "user", content: overrideMessage });
+      try {
+        const retryRes = await fetch(NVIDIA_API_URL, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream",
+          },
+          body: JSON.stringify({
+            model,
+            messages: retryMessages,
+            max_tokens: maxTokens,
+            temperature: 0.3,
+            top_p: 0.95,
+            stream: true,
+          }),
+        });
+        if (!retryRes.ok || !retryRes.body) return null;
+        let buffer = "";
+        let retryContent = "";
+        const retryReader = retryRes.body.getReader();
+        while (true) {
+          const { done, value } = await retryReader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split("\n");
+          buffer = parts.pop() ?? "";
+          for (const line of parts) {
+            if (line.startsWith("data: ")) {
+              const data = line.slice(6).trim();
+              if (data === "[DONE]" || !data) continue;
+              try {
+                const parsed = JSON.parse(data);
+                const delta = parsed.choices?.[0]?.delta?.content;
+                if (delta) retryContent += delta;
+              } catch { /* skip */ }
+            }
+          }
+        }
+        const cleaned = stripThinkingTokens(retryContent).trim();
+        if (!cleaned) return null;
+        const tightened = tightenMultiRefTable(cleanTalkToAiContent(cleaned));
+        const present = extractTableRowRefs(tightened);
+        if (allRefs.some((r) => !present.includes(r))) return null;
+        if (findBlankTableCells(tightened).length > 0) return null;
+        return tightened;
+      } catch (error) {
+        console.warn("Multi-ref retry failed:", (error as Error).message);
+        return null;
+      }
+    }
+
+    async function retryAnalysisContent(issueSummary: string, check: (text: string) => boolean, prevContent: string): Promise<string | null> {
+      const lastUserMsg = messagesWithSystem.filter((m: { role: string }) => m.role === "user").slice(-1)[0];
+      const overrideMessage = `The previous response is not acceptable: ${issueSummary}. Reproduce the ENTIRE analysis again with the same overall structure, fixing every issue. Rules: fill EVERY table cell with specific, distinct content — never leave a cell blank and never write "same as above", "same as previous", "ditto", "N/A", "-", or "Nil" (if an item has no value, write "Not specified in [relevant Act]"). Never skip any requested section or article. Keep cells concise.`;
+      const base: { role: string; content: string }[] = [
+        { role: "system", content: finalSystemPrompt },
+      ];
+      if (lastUserMsg) base.push(lastUserMsg as { role: string; content: string });
+      try {
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const retryMessages = [
+            ...base,
+            { role: "assistant", content: stripThinkingTokens(prevContent).trim() },
+            { role: "user", content: overrideMessage },
+          ];
+          const retryRes = await fetch(NVIDIA_API_URL, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+              "Accept": "text/event-stream",
+            },
+            body: JSON.stringify({
+              model,
+              messages: retryMessages,
+              max_tokens: maxTokens,
+              temperature: 0.3,
+              top_p: 0.95,
+              stream: true,
+            }),
+          });
+          if (!retryRes.ok || !retryRes.body) return null;
+          let buffer = "";
+          let retryContent = "";
+          const retryReader = retryRes.body.getReader();
+          while (true) {
+            const { done, value } = await retryReader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const parts = buffer.split("\n");
+            buffer = parts.pop() ?? "";
+            for (const line of parts) {
+              if (line.startsWith("data: ")) {
+                const data = line.slice(6).trim();
+                if (data === "[DONE]" || !data) continue;
+                try {
+                  const parsed = JSON.parse(data);
+                  const delta = parsed.choices?.[0]?.delta?.content;
+                  if (delta) retryContent += delta;
+                } catch { /* skip */ }
+              }
+            }
+          }
+          const cleaned = stripThinkingTokens(retryContent).trim();
+          if (!cleaned) return null;
+          const normalized = normalizeTableRows(cleaned);
+          if (check(normalized)) return normalized;
+          prevContent = normalized;
+        }
+        return null;
+      } catch (error) {
+        console.warn("Analysis retry failed:", (error as Error).message);
+        return null;
+      }
+    }
+
     const stream = new ReadableStream({
       cancel() { /* client disconnected, clean up */ },
       async start(controller) {
@@ -1411,6 +1622,11 @@ Never transpose tables, never leave a table cell blank, never invent section num
 
         let sseBuffer = "";
         let fullContent = "";
+        let emittedAny = false;
+        const emit = (content: string) => {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
+          emittedAny = true;
+        };
 
         try {
           while (true) {
@@ -1430,12 +1646,12 @@ Never transpose tables, never leave a table cell blank, never invent section num
                   const parsed = JSON.parse(data);
                   const content = parsed.choices?.[0]?.delta?.content;
                   if (content) {
-                    if (isTalkToAi || isDraft || isAnalysisMultiRef) {
+                    if (isTalkToAi || isDraft || isAnalysis) {
                       fullContent += content;
                     } else {
                       const cleaned = stripThinkingTokens(content);
                       if (cleaned) {
-                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: cleaned })}\n\n`));
+                        emit(cleaned);
                       }
                     }
                   }
@@ -1445,24 +1661,86 @@ Never transpose tables, never leave a table cell blank, never invent section num
           }
 
           if (isTalkToAi) {
-            const truncated = multiRefQuery ? tightenMultiRefTable(cleanTalkToAiContent(fullContent)) : truncateToTwoSentences(fullContent);
+            const rawContent = cleanTalkToAiContent(fullContent);
+            const explicitTableRequest = /(comparison|compare|difference|differences|in a table|as a table|\btable\b)/i.test(userQuery);
+            let truncated: string | null = null;
+            if (multiRefQuery) {
+              truncated = tightenMultiRefTable(rawContent);
+            } else if (explicitTableRequest && /^\s*\|/.test(rawContent)) {
+              truncated = normalizeTableRows(rawContent);
+            } else {
+              truncated = truncateToTwoSentences(fullContent);
+            }
+            if (truncated && /^\s*\|/.test(truncated)) {
+              const requestedRefs = [...refs.sections, ...refs.articles].map((r) => r.toUpperCase());
+              const presentRefs = extractTableRowRefs(truncated);
+              const missingRefs = requestedRefs.filter((r) => !presentRefs.includes(r));
+              const blankCells = findBlankTableCells(truncated);
+              if (missingRefs.length > 0 || blankCells.length > 0) {
+                if (multiRefQuery) {
+                  const retried = await retryMultiRefTable(missingRefs, requestedRefs, fullContent);
+                  if (retried) truncated = retried;
+                } else {
+                  const check = (t: string) => findBlankTableCells(normalizeTableRows(t)).length === 0;
+                  const issue = blankCells.length > 0
+                    ? `left table cells blank or as placeholders ("same as above", "N/A", "-", "Nil"): ${blankCells.slice(0, 5).join(", ")}${blankCells.length > 5 ? ` (+${blankCells.length - 5} more)` : ""}`
+                    : "omitted requested item(s)";
+                  const retried = await retryAnalysisContent(issue, check, fullContent);
+                  if (retried) truncated = normalizeTableRows(retried);
+                }
+              }
+            }
             if (truncated) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: truncated })}\n\n`));
+              emit(truncated);
             }
           }
 
-          if (isAnalysisMultiRef) {
-            const tightened = tightenMultiRefTable(stripThinkingTokens(fullContent).trim());
-            if (tightened) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: tightened })}\n\n`));
+          if (isAnalysis) {
+            let analysis = stripThinkingTokens(fullContent).trim();
+            if (analysis) {
+              if (isAnalysisMultiRef) {
+                analysis = tightenMultiRefTable(analysis);
+              }
+              const requestedRefs = [...refs.sections, ...refs.articles].map((r) => r.toUpperCase());
+              const issues: string[] = [];
+              if (requestedRefs.length > 0) {
+                const presentRefs = isAnalysisMultiRef ? extractTableRowRefs(analysis) : [];
+                const missingRefs = requestedRefs.filter((r) => !presentRefs.includes(r));
+                if (missingRefs.length > 0) {
+                  issues.push(`omitted these requested section(s)/article(s): ${missingRefs.join(", ")}`);
+                }
+              }
+              const blankCells = findBlankTableCells(analysis);
+              if (blankCells.length > 0) {
+                issues.push(`left table cells blank or as placeholders ("same as above", "N/A", "-", "Nil"): ${blankCells.slice(0, 5).join(", ")}${blankCells.length > 5 ? ` (+${blankCells.length - 5} more)` : ""}`);
+              }
+              if (issues.length > 0) {
+                const check = (text: string) => {
+                  const normalized = isAnalysisMultiRef ? tightenMultiRefTable(text) : text;
+                  const blankCellsNow = findBlankTableCells(normalized);
+                  if (blankCellsNow.length > 0) return false;
+                  if (requestedRefs.length > 0) {
+                    const presentNow = isAnalysisMultiRef ? extractTableRowRefs(normalized) : [];
+                    if (requestedRefs.some((r) => !presentNow.includes(r))) return false;
+                  }
+                  return true;
+                };
+                const retried = await retryAnalysisContent(issues.join("; "), check, fullContent);
+                if (retried) analysis = retried;
+              }
+              emit(analysis);
             }
           }
 
           if (isDraft) {
-            const draftContent = stripThinkingTokens(fullContent).trim();
+            let draftContent = stripThinkingTokens(fullContent).trim();
             const blankDraftRequest = isBlankDraftRequest(userQuery);
-            const needsRetry = isDraftRefusal(draftContent) || (blankDraftRequest && isFabricatedBlankDraft(draftContent));
-            if (needsRetry) {
+            let attempt = 0;
+            const MAX_DRAFT_RETRIES = 3;
+            while (
+              attempt < MAX_DRAFT_RETRIES &&
+              (isDraftRefusal(draftContent) || (blankDraftRequest && isFabricatedBlankDraft(draftContent)))
+            ) {
               console.warn("Draft guard triggered (refusal or fabricated details), retrying with override instruction");
               const overrideMessage = isDraftRefusal(draftContent)
                 ? `The previous response was a refusal, which is not allowed. The user's document request is a legitimate, routine legal document (Legal Notice, FIR, Consumer Complaint, RTI, Will, Affidavit, Petition, or Contract) and MUST be drafted. Refusal is forbidden. Draft the complete document now using the exact template. Do not refuse, do not apologize, do not mention refusal.`
@@ -1514,20 +1792,24 @@ Never transpose tables, never leave a table cell blank, never invent section num
                   }
                 }
                 const cleanedRetry = stripThinkingTokens(retryContent).trim();
-                const retryOk = cleanedRetry && !isDraftRefusal(cleanedRetry) && !(blankDraftRequest && isFabricatedBlankDraft(cleanedRetry));
-                if (retryOk) {
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: cleanedRetry })}\n\n`));
+                if (cleanedRetry) {
+                  draftContent = cleanedRetry;
                 } else {
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: draftContent })}\n\n`));
+                  break;
                 }
               } else {
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: draftContent })}\n\n`));
+                break;
               }
-            } else if (draftContent) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: draftContent })}\n\n`));
+              attempt++;
             }
+            if (draftContent) emit(draftContent);
           }
 
+
+          if (!emittedAny && fullContent.trim()) {
+            const fallback = cleanTalkToAiContent(stripThinkingTokens(fullContent)).trim();
+            if (fallback) emit(fallback);
+          }
 
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         } catch (error) {
