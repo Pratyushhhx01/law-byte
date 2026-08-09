@@ -1351,6 +1351,8 @@ Never transpose tables, never leave a table cell blank, never invent section num
     function truncateToTwoSentences(text: string): string {
       const cleaned = text
         .replace(/\*{1,2}/g, "")
+        .replace(/^\s*\|.*$/gm, "")
+        .replace(/\|/g, "")
         .replace(/^(hello|hi|hey|good\s+morning|good\s+afternoon|good\s+evening|namaste|namaskar)[\s,!.]*/i, "")
         .replace(/^(step|key takeaways|summary|conclusion|to summarize|in summary|warning|note|important)\s*\d*\s*:?\s*/gim, "")
         .replace(/^[-#>\d]+\.?\s*/gm, "")
