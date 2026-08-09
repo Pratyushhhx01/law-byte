@@ -43,10 +43,10 @@ export default function Footer() {
       <div className="mx-auto max-w-6xl px-6 py-20">
         <div className="grid gap-12 lg:grid-cols-12">
           <div className="lg:col-span-4">
-            <a href="#" className="inline-flex items-center gap-2.5 text-sm font-semibold">
+            <Link href="/" className="inline-flex items-center gap-2.5 text-sm font-semibold">
               <LogoIcon className="h-7 w-7" />
               <span>Lawbite</span>
-            </a>
+            </Link>
             <p className="mt-5 max-w-sm text-sm leading-relaxed text-white/55">
               AI-powered Indian legal assistant. Get instant answers from
               40+ bare acts, structured analysis, and real-time web search.

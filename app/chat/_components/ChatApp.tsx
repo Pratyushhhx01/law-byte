@@ -100,53 +100,48 @@ const initialConversations: Conversation[] = [
       {
         id: "m-1-1",
         role: "user",
-        content:
-          "Help me draft a mutual NDA for a new vendor relationship based in California.",
+        content: "What is the punishment for theft under the Bharatiya Nyaya Sanhita?",
       },
       {
         id: "m-1-2",
         role: "assistant",
-        content:
-          "Happy to help. A few quick questions before I draft: (1) governing jurisdiction — California or Delaware? (2) term of the confidentiality obligation (typical is 2–5 years)? (3) are there specific carve-outs you need (e.g., independently developed, publicly available)?",
+        content: "Under Section 303 of the BNS (formerly IPC Section 378), theft is punishable with imprisonment of either description for up to 3 years, or with a fine, or both. For a first conviction, the term may extend to 7 years in cases of theft in a building, vessel, or public conveyance (Section 303(2)).",
       },
       {
         id: "m-1-3",
         role: "user",
-        content: "California, 3 years, standard carve-outs are fine.",
+        content: "What if the theft is committed at night?",
       },
       {
         id: "m-1-4",
         role: "assistant",
-        content:
-          "Got it. I will draft a mutual NDA with a 3-year confidentiality term, California governing law, and the standard four carve-outs (publicly known, independently developed, lawfully obtained, required by law). Sharing the first draft in a moment.",
+        content: "If theft is committed after 8 p.m. and before 6 a.m. (in a building, tent, or vessel used for human habitation), the BNS provides enhanced punishment — imprisonment for up to 7 years, along with a fine.",
       },
     ],
   },
   {
     id: "c-2",
-    title: "Review merger clause",
-    preview: "Material adverse change…",
+    title: "Tenant eviction rights",
+    preview: "Eviction notice…",
     type: "chat",
     createdAt: Date.now() - 1000 * 60 * 60 * 3,
     messages: [
       {
         id: "m-2-1",
         role: "user",
-        content:
-          "Can you review the MAC clause in this merger agreement for any red flags?",
+        content: "My tenant has stopped paying rent for 4 months. How do I get him evicted?",
       },
       {
         id: "m-2-2",
         role: "assistant",
-        content:
-          "Send the clause and I will walk through the definition, the carve-outs, and the disproportionate-impact qualifier. I will flag anything that could shift risk to your side of the deal.",
+        content: "Start by serving a written demand notice requiring payment of arrears within a specified period (often 15 days). If the tenant fails to comply, you can file for eviction under the rent control law of your state (e.g., the Rent Control Act applicable where the property is located), or under Section 106 of the Transfer of Property Act, 1882 after terminating the tenancy. A police complaint is not the correct route for a rent dispute — this is a civil matter.",
       },
     ],
   },
   {
     id: "c-3",
-    title: "Compare vendor agreements",
-    preview: "Settlement, indemnity…",
+    title: "Void vs voidable contract",
+    preview: "Contract basics…",
     type: "chat",
     createdAt: Date.now() - 1000 * 60 * 60 * 24 * 3,
     messages: [
@@ -158,28 +153,26 @@ const initialConversations: Conversation[] = [
       {
         id: "m-3-2",
         role: "assistant",
-        content:
-          "A void contract is treated as if it never existed — no enforceable obligations on either side, and either party can raise the issue. A voidable contract is valid until the injured party elects to rescind (for example, contracts entered into under duress, fraud, or with a minor). Once rescinded, it is treated as void.",
+        content: "A void contract is treated as if it never existed — no enforceable obligations on either side, and either party can raise the issue. A voidable contract is valid until the injured party elects to rescind (for example, contracts entered into under duress, fraud, or with a minor). Once rescinded, it is treated as void.",
       },
     ],
   },
   {
     id: "c-4",
-    title: "Trademark availability",
-    preview: "USPTO search, classes…",
+    title: "Filing an FIR",
+    preview: "FIR procedure…",
     type: "chat",
     createdAt: Date.now() - 1000 * 60 * 60 * 24 * 15,
     messages: [
       {
         id: "m-4-1",
         role: "user",
-        content: "Walk me through the steps to register a trademark in the US.",
+        content: "How do I file an FIR in India?",
       },
       {
         id: "m-4-2",
         role: "assistant",
-        content:
-          "The high-level flow: (1) search the USPTO database for conflicts in your class, (2) file an intent-to-use or use-in-commerce application, (3) respond to any office actions, (4) publish for opposition, (5) register. Want me to draft the search query for a specific mark?",
+        content: "You can file an FIR at the police station having jurisdiction over the place where the offence occurred. The police are duty-bound to register it under the BNSS if the information discloses a cognizable offence — they cannot refuse. If the local police refuse, you can write to the Superintendent of Police or approach the Magistrate under Section 156(3) of the CrPC (now the BNSS). Since July 2024, zero FIR and e-FIR options are available across most states.",
       },
     ],
   },
@@ -572,12 +565,15 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 </thead>
                 <tbody>
                   {block.rows.map((row, ri) => (
-                    <tr key={ri} className={`border-b border-white/[0.04] last:border-0 ${ri % 2 === 1 ? "bg-white/[0.03]" : ""}`}>
-                      {row.map((cell, ci) => (
-                        <td key={ci} className={`px-4 py-3 leading-snug first:pl-5 last:pr-5 ${ci === 0 ? "font-semibold text-white/90" : "text-white/75"}`}>
-                          {renderBold(cell)}
-                        </td>
-                      ))}
+                    <tr key={ri} className={`border-b border-white/[0.04] last:border-0 transition-colors hover:bg-white/[0.04] ${ri % 2 === 1 ? "bg-white/[0.03]" : ""}`}>
+                      {block.headers.map((_, ci) => {
+                        const cell = row[ci] ?? "";
+                        return (
+                          <td key={ci} className={`px-4 py-3 leading-snug align-top first:pl-5 last:pr-5 ${ci === 0 ? "font-semibold text-white/90" : "text-white/75"}`}>
+                            {cell ? renderBold(cell) : ""}
+                          </td>
+                        );
+                      })}
                     </tr>
                   ))}
                 </tbody>

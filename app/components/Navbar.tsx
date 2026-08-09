@@ -54,13 +54,13 @@ export default function Navbar() {
             : "border-white/10 bg-black/40 backdrop-blur-md"
         }`}
       >
-        <a
-          href="#"
+        <Link
+          href="/"
           className="group flex items-center gap-2.5 text-sm font-semibold tracking-tight"
         >
           <LogoIcon className="h-7 w-7" />
           <span className="text-white">Lawbite</span>
-        </a>
+        </Link>
 
         <ul className="hidden items-center gap-1 text-sm text-white/70 md:flex">
           {links.map((link) => (
