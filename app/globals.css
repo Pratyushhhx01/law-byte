@@ -32,8 +32,11 @@
   --animate-float: float 6s ease-in-out infinite;
   --animate-border-spin: border-spin 6s linear infinite;
   --animate-grid-pan: grid-pan 18s linear infinite;
-  --animate-popover-in: popover-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
-  --animate-popover-out: popover-out 0.15s cubic-bezier(0.4, 0, 1, 1) both;
+  --animate-message-in: message-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-modal-in: modal-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-dropdown-in: dropdown-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-dropdown-up: dropdown-up 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-overlay-in: fade-in 0.2s ease-out both;
 }
 
 @keyframes marquee {
@@ -87,25 +90,47 @@
   }
 }
 
-@keyframes popover-in {
+@keyframes message-in {
   from {
     opacity: 0;
-    transform: translateX(12px) scale(0.96);
+    transform: translateY(10px) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translateX(0) scale(1);
+    transform: translateY(0) scale(1);
   }
 }
 
-@keyframes popover-out {
+@keyframes modal-in {
   from {
-    opacity: 1;
-    transform: translateX(0) scale(1);
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
   }
   to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes dropdown-in {
+  from {
     opacity: 0;
-    transform: translateX(8px) scale(0.97);
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes dropdown-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -331,4 +356,15 @@ body {
   syntax: "<angle>";
   initial-value: 0deg;
   inherits: false;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

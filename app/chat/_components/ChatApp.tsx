@@ -1380,7 +1380,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </span>
 
             {menuOpen && (
-              <div className="absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-xl border border-white/10 bg-[#141414] shadow-2xl">
+              <div className="animate-dropdown-in absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-xl border border-white/10 bg-[#141414] shadow-2xl">
                 <button type="button" onClick={(e) => { e.stopPropagation(); startRename(conv.id, conv.title); setContextMenuId(null); }} className="flex w-full items-center gap-3 px-3.5 py-2.5 text-[13px] text-white/70 transition-colors hover:bg-white/[0.06] hover:text-white">
                   <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                   Rename
@@ -1823,7 +1823,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                     return (
                       <Fragment key={message.id}>
                         {response && (
-                          <li className="flex justify-start">
+                          <li className="animate-message-in flex justify-start">
                             <div className="max-w-[85%] rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm leading-relaxed text-white/70 sm:text-[15px]">
                               <div className="whitespace-pre-wrap leading-relaxed">
                                 {response.split(/\n\n+/).map((para, i) => (
@@ -1834,7 +1834,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                           </li>
                         )}
                         {question && (
-                          <li className="flex justify-start">
+                          <li className="animate-message-in flex justify-start">
                             <div className="max-w-[85%] rounded-2xl border border-amber-400/20 bg-amber-400/[0.06] px-4 py-3 text-sm leading-relaxed sm:text-[15px]">
                               <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-amber-400/70">
                                 <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1858,7 +1858,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 return (
                 <li
                   key={message.id}
-                  className={`flex ${
+                  className={`animate-message-in flex ${
                     message.role === "user" ? "justify-end" : "justify-start"
                   }`}
                 >
@@ -1929,7 +1929,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 );
               })}
               {isThinking ? (
-                <li className="flex justify-start">
+                <li className="animate-message-in flex justify-start">
                   <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/70">
                     <span className="flex gap-1" aria-hidden>
                       <span className="h-1.5 w-1.5 animate-pulse-soft rounded-full bg-white/60" />
@@ -1947,7 +1947,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 </li>
               ) : null}
               {showSuggestion && !isThinking && (
-                <li className="flex justify-start">
+                <li className="animate-message-in flex justify-start">
                   <div className="max-w-[85%] rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm leading-relaxed text-white/85 sm:text-[15px]">
                     <p>
                       {(() => {
@@ -2135,7 +2135,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                           )}
                         </button>
                         {analysisAttachOpen && !fileUploading && (
-                          <div className="absolute bottom-full -left-12 mb-6 w-44 overflow-hidden rounded-lg border border-amber-400/10 bg-black/80 backdrop-blur-xl shadow-xl z-50">
+                          <div className="animate-dropdown-up absolute bottom-full -left-12 mb-6 w-44 overflow-hidden rounded-lg border border-amber-400/10 bg-black/80 backdrop-blur-xl shadow-xl z-50">
                             <button
                               type="button"
                               onClick={() => {
@@ -2348,8 +2348,8 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                             </svg>
                           )}
                         </button>
-                        {chatAttachOpen && !fileUploading && (
-                          <div className="absolute bottom-full -left-12 mb-6 w-44 overflow-hidden rounded-lg border border-white/10 bg-black/80 backdrop-blur-xl shadow-xl z-50">
+{chatAttachOpen && !fileUploading && (
+                          <div className="animate-dropdown-up absolute bottom-full -left-12 mb-6 w-44 overflow-hidden rounded-lg border border-white/10 bg-black/80 backdrop-blur-xl shadow-xl z-50">
                             <button
                               type="button"
                               onClick={() => {
@@ -3045,7 +3045,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                     </svg>
                   </button>
                   {draftDocTypeOpen && (
-                    <div className="absolute bottom-full -left-2 mb-6 w-52 overflow-hidden rounded-lg border border-blue-400/10 bg-black/80 backdrop-blur-xl shadow-xl z-50">
+                    <div className="animate-dropdown-up absolute bottom-full -left-2 mb-6 w-52 overflow-hidden rounded-lg border border-blue-400/10 bg-black/80 backdrop-blur-xl shadow-xl z-50">
                       {[
                         { id: "legal-notice", label: "Legal Notice" },
                         { id: "fir-draft", label: "FIR Draft" },
@@ -3118,7 +3118,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                     )}
                   </button>
                   {chatAttachOpen && !fileUploading && (
-                    <div className="absolute bottom-full -left-12 mb-6 w-44 overflow-hidden rounded-lg border border-white/10 bg-black/80 backdrop-blur-xl shadow-xl z-50">
+                    <div className="animate-dropdown-up absolute bottom-full -left-12 mb-6 w-44 overflow-hidden rounded-lg border border-white/10 bg-black/80 backdrop-blur-xl shadow-xl z-50">
                       <button
                         type="button"
                         onClick={() => {
@@ -3195,7 +3195,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                     )}
                   </button>
                   {reviewAttachOpen && !reviewFileUploading && (
-                    <div className="absolute bottom-full -left-12 mb-6 w-44 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-800 shadow-xl z-50">
+                    <div className="animate-dropdown-up absolute bottom-full -left-12 mb-6 w-44 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-800 shadow-xl z-50">
                       <button
                         type="button"
                         onClick={() => {
@@ -3281,11 +3281,11 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
       {confirmAction && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          className="animate-overlay-in fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm"
           onClick={() => setConfirmAction(null)}
         >
           <div
-            className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
+            className="animate-modal-in w-full max-w-sm rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
@@ -3342,11 +3342,11 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
       {settingsOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          className="animate-overlay-in fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
           onClick={() => setSettingsOpen(false)}
         >
           <div
-            className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
+            className="animate-modal-in relative w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-6 flex items-center justify-between">
@@ -3531,11 +3531,11 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
       {upgradeOpen && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          className="animate-overlay-in fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm"
           onClick={() => setUpgradeOpen(false)}
         >
           <div
-            className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
+            className="animate-modal-in w-full max-w-lg rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-6 flex items-center justify-between">
@@ -3619,11 +3619,11 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
       {disclaimerOpen && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          className="animate-overlay-in fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm"
           onClick={() => setDisclaimerOpen(false)}
         >
           <div
-            className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
+            className="animate-modal-in w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-5 flex items-center justify-between">
@@ -3696,11 +3696,11 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
       {myCasesOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          className="animate-overlay-in fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
           onClick={() => setMyCasesOpen(false)}
         >
           <div
-            className="relative flex max-h-[80vh] w-full max-w-lg flex-col rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
+            className="animate-modal-in relative flex max-h-[80vh] w-full max-w-lg flex-col rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-6 flex items-center justify-between">
@@ -3876,11 +3876,11 @@ function EditProfileModal({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+      className="animate-overlay-in fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
+        className="animate-modal-in w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-6 flex items-center justify-between">
@@ -3998,11 +3998,11 @@ function ReportBugModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+      className="animate-overlay-in fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
+        className="animate-modal-in w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-5 flex items-center justify-between">
