@@ -10,12 +10,20 @@ import { stripThinkingTokens } from "@/lib/utils";
 
 type Role = "user" | "assistant";
 
+type Citation = {
+  type: "act" | "web";
+  label: string;
+  snippet: string;
+  url?: string;
+};
+
 type Message = {
   id: string;
   role: Role;
   content: string;
   type?: ConversationType;
   documentName?: string;
+  citations?: Citation[];
 };
 
 type ChatUser = {
@@ -193,16 +201,50 @@ const freshConversation: Conversation = {
 
 export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const [user, setUser] = useState<ChatUser>(initialUser);
-  const [conversations, setConversations] = useState<Conversation[]>([freshConversation, ...initialConversations]);
+  const [conversations, setConversations] = useState<Conversation[]>(() => {
+    const demos = initialConversations.map((c) => ({
+      ...c,
+      id: newId("demo"),
+      messages: c.messages.map((m) => ({ ...m, id: newId("dm") })),
+    }));
+    return [freshConversation, ...demos];
+  });
   const [activeId, setActiveId] = useState<string>(freshConversation.id);
+  const [syncStatus, setSyncStatus] = useState<"idle" | "synced">("idle");
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    const saved = loadConversations();
-    if (saved && saved.length > 0) {
-      setTimeout(() => {
-        setConversations(saved);
-        setActiveId(saved[0].id);
-      }, 0);
-    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/conversations", { method: "GET" });
+        if (!res.ok) throw new Error(`status ${res.status}`);
+        const data = await res.json();
+        if (cancelled) return;
+        const server: Conversation[] = data.conversations ?? [];
+        if (server.length > 0) {
+          setConversations(server);
+          setActiveId(server[0].id);
+        } else {
+          const local = loadConversations();
+          if (local && local.length > 0) {
+            setConversations(local);
+            setActiveId(local[0].id);
+          }
+        }
+      } catch {
+        if (cancelled) return;
+        const local = loadConversations();
+        if (local && local.length > 0) {
+          setConversations(local);
+          setActiveId(local[0].id);
+        }
+      } finally {
+        if (!cancelled) setSyncStatus("synced");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
   const [draft, setDraft] = useState("");
   const [isThinking, setIsThinking] = useState(false);
@@ -229,6 +271,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const [confirmAction, setConfirmAction] = useState<{ type: "clearHistory"; section?: ConversationType } | { type: "deleteConversation"; id: string } | null>(null);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [disclaimerOpen, setDisclaimerOpen] = useState(false);
+  const [citationOpen, setCitationOpen] = useState<Citation | null>(null);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [bugOpen, setBugOpen] = useState(false);
   const [selectedDocType, setSelectedDocType] = useState<string | null>(null);
@@ -282,6 +325,21 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   useEffect(() => {
     saveConversations(conversations);
   }, [conversations]);
+
+  useEffect(() => {
+    if (syncStatus !== "synced") return;
+    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    syncTimerRef.current = setTimeout(() => {
+      fetch("/api/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversations }),
+      }).catch(() => {});
+    }, 1200);
+    return () => {
+      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    };
+  }, [conversations, syncStatus]);
 
   useEffect(() => {
     if (!plusMenuOpen) return;
@@ -1035,7 +1093,21 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                   ),
                 );
               }
-
+              if (Array.isArray(parsed.citations)) {
+                const citations = parsed.citations as Citation[];
+                setConversations((prev) =>
+                  prev.map((c) =>
+                    c.id === activeId
+                      ? {
+                          ...c,
+                          messages: c.messages.map((m) =>
+                            m.id === assistantId ? { ...m, citations } : m,
+                          ),
+                        }
+                      : c,
+                  ),
+                );
+              }
             } catch {
               // skip malformed JSON
             }
@@ -1158,6 +1230,15 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     window.location.href = "/signin";
   }
 
+  function syncDeleteServer(ids: string[]) {
+    if (ids.length === 0) return;
+    fetch("/api/conversations", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    }).catch(() => {});
+  }
+
   function deleteConversation(id: string) {
     setConversations((prev) => {
       const deleted = prev.find((c) => c.id === id);
@@ -1169,6 +1250,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       }
       return next;
     });
+    syncDeleteServer([id]);
   }
 
   function togglePin(id: string) {
@@ -1200,6 +1282,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
   function clearHistory(section?: ConversationType) {
     if (section === undefined) {
+      const removedIds = conversations.map((c) => c.id);
       const types: ConversationType[] = ["talk-to-ai", "analysis", "grill", "draft", "review"];
       const freshConversations: Conversation[] = types.map((type) => ({
         id: newId(type === "analysis" ? "a" : type === "talk-to-ai" ? "t" : type === "grill" ? "g" : type === "review" ? "r" : "d"),
@@ -1213,9 +1296,13 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       setActiveId(freshConversations[0].id);
       setMode("talk-to-ai");
       setContextMenuId(null);
+      syncDeleteServer(removedIds);
       return;
     }
     const clearType = section ?? active?.type ?? "talk-to-ai";
+    const removedIds = conversations
+      .filter((c) => c.type === clearType || (clearType === "talk-to-ai" && c.type === "chat"))
+      .map((c) => c.id);
     const prefix = clearType === "analysis" ? "a" : clearType === "talk-to-ai" ? "t" : clearType === "grill" ? "g" : clearType === "review" ? "r" : clearType === "draft" ? "d" : "c";
     const fresh: Conversation = {
       id: newId(prefix),
@@ -1228,6 +1315,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     setConversations((prev) => [fresh, ...prev.filter((c) => c.type !== clearType && !(clearType === "talk-to-ai" && c.type === "chat"))]);
     setActiveId(fresh.id);
     setContextMenuId(null);
+    syncDeleteServer(removedIds);
   }
 
   function shareConversation(conv: Conversation, platform?: string) {
@@ -1917,6 +2005,34 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                           }
                           return renderContentBlocks(blocks);
                         })()}
+                        {message.citations && message.citations.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-white/35">Sources</span>
+                            {message.citations.map((cit, i) => (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => setCitationOpen(cit)}
+                                className="inline-flex max-w-full items-center gap-1 rounded-full border border-white/15 bg-white/[0.05] px-2.5 py-1 text-[11px] font-medium text-white/75 transition-colors hover:border-white/30 hover:text-white"
+                              >
+                                <svg viewBox="0 0 24 24" className="h-3 w-3 shrink-0 text-blue-400/70" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  {cit.type === "web" ? (
+                                    <>
+                                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                                    </>
+                                  ) : (
+                                    <>
+                                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                      <polyline points="14 2 14 8 20 8" />
+                                    </>
+                                  )}
+                                </svg>
+                                <span className="truncate">{cit.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                         {((message.type ?? active?.type) === "review" || (message.type ?? active?.type) === "draft" || message.content.includes("[ADVICE_COMPLETE]")) && (
                           <p className="mt-2 text-xs italic text-white/40 border-t border-white/10 pt-3">
                             This is an AI-generated analysis for reference purposes. Please consult a practicing lawyer before making any legal decisions.
@@ -3673,6 +3789,83 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 className="rounded-lg bg-white/[0.06] px-4 py-2 text-sm text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white"
               >
                 Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {citationOpen && (
+        <div
+          className="animate-overlay-in fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => setCitationOpen(null)}
+        >
+          <div
+            className="animate-modal-in w-full max-w-lg rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <svg viewBox="0 0 24 24" className="h-4 w-4 text-blue-400/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  {citationOpen.type === "web" ? (
+                    <>
+                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                    </>
+                  ) : (
+                    <>
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                    </>
+                  )}
+                </svg>
+                <h2 className="text-sm font-semibold tracking-tight text-white">
+                  {citationOpen.type === "web" ? "Web source" : "Legal source"}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCitationOpen(null)}
+                className="rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white"
+                aria-label="Close"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="mb-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+              <p className="text-sm font-medium text-white/90">{citationOpen.label}</p>
+              {citationOpen.url && (
+                <p className="mt-1 break-all text-xs text-blue-400/80">{citationOpen.url}</p>
+              )}
+            </div>
+
+            <div className="max-h-[40vh] overflow-y-auto rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/70">
+                {citationOpen.snippet || "No preview available for this source."}
+              </p>
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-2">
+              {citationOpen.url && (
+                <a
+                  href={citationOpen.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg px-4 py-2 text-sm font-medium text-blue-400/90 transition-colors hover:bg-blue-500/10 hover:text-blue-300"
+                >
+                  Open source ↗
+                </a>
+              )}
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setCitationOpen(null)}
+                className="rounded-lg bg-white/[0.06] px-4 py-2 text-sm text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white"
+              >
+                Close
               </button>
             </div>
           </div>

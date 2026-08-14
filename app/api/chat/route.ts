@@ -718,10 +718,17 @@ async function classifyQuery(query: string): Promise<boolean> {
   return false;
 }
 
-async function webSearch(query: string): Promise<string> {
+type Citation = {
+  type: "act" | "web";
+  label: string;
+  snippet: string;
+  url?: string;
+};
+
+async function webSearch(query: string): Promise<{ context: string; citations: Citation[] }> {
   if (!tvly) {
     console.warn("Tavily API key not configured, skipping web search");
-    return "";
+    return { context: "", citations: [] };
   }
   try {
     const response = await tvly.search(query, {
@@ -735,10 +742,25 @@ async function webSearch(query: string): Promise<string> {
       ?.map((r: { title: string; content: string }) => `${r.title}: ${r.content}`)
       .join("\n") || "";
 
-    return `Web Search Results:\n${answer}\n\nSources:\n${results}`;
+    const citations: Citation[] = (response.results ?? [])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .filter((r: any) => r.url)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((r: any): Citation => ({
+        type: "web",
+        label: r.title || new URL(r.url).hostname.replace(/^www\./, ""),
+        snippet: (r.content || "").slice(0, 200),
+        url: r.url,
+      }))
+      .slice(0, 4);
+
+    return {
+      context: `Web Search Results:\n${answer}\n\nSources:\n${results}`,
+      citations,
+    };
   } catch (error) {
     console.error("Tavily search error:", error);
-    return "";
+    return { context: "", citations: [] };
   }
 }
 
@@ -1005,7 +1027,32 @@ const fullTextActs = new Set([
   "indian-telegraph-act", "census-act", "epidemic-diseases-act",
 ]);
 
-async function getLegalKnowledge(query: string): Promise<string> {
+function displayActName(act: string): string {
+  const overrides: Record<string, string> = {
+    "bharatiya-nyaya-sanhita": "BNS",
+    "bharatiya-nagrik-suraksha-sanhita": "BNSS",
+    "bharatiya-sakshya-adhiniyam": "BSA",
+    "bharatiya-sakshya-adhiniyam-2023": "BSA",
+    "code-of-civil-procedure": "CPC",
+    "code-of-criminal-procedure": "CrPC",
+    "indian-penal-code": "IPC",
+    constitution: "Constitution",
+    "transfer-of-property-act": "Transfer of Property Act",
+    "consumer-protection-act-amended": "Consumer Protection Act",
+    "prevention-of-corruption-amended-act": "Prevention of Corruption Act",
+    "code-on-wages": "Code on Wages",
+    "information-technology-amended-act": "IT Act",
+  };
+  if (overrides[act]) return overrides[act];
+  return act
+    .split("-")
+    .map((w) => w.replace(/^\d/, ""))
+    .filter(Boolean)
+    .join(" ");
+}
+
+async function getLegalKnowledge(query: string): Promise<{ context: string; citations: Citation[] }> {
+  const citations: Citation[] = [];
   try {
     const parts: string[] = [];
     const lower = query.toLowerCase();
@@ -1020,7 +1067,10 @@ async function getLegalKnowledge(query: string): Promise<string> {
     if (targetAct && sectionMatches.length > 0) {
       for (const secNum of sectionMatches) {
         const sec = await s3kb.getSection(targetAct, secNum);
-        if (sec) parts.push(`[${targetAct.toUpperCase()} Section ${sec.section}] ${sec.title}: ${sec.text}`);
+        if (sec) {
+          parts.push(`[${targetAct.toUpperCase()} Section ${sec.section}] ${sec.title}: ${sec.text}`);
+          citations.push({ type: "act", label: `${displayActName(targetAct)} § ${sec.section}`, snippet: `${sec.title}: ${sec.text}` });
+        }
       }
     }
 
@@ -1037,6 +1087,7 @@ async function getLegalKnowledge(query: string): Promise<string> {
             const sec = await s3kb.getSection(id, secNum);
             if (sec) {
               parts.push(`[${id.toUpperCase()} Section ${sec.section}] ${sec.title}: ${sec.text}`);
+              citations.push({ type: "act", label: `${displayActName(id)} § ${sec.section}`, snippet: `${sec.title}: ${sec.text}` });
               break;
             }
           }
@@ -1047,14 +1098,20 @@ async function getLegalKnowledge(query: string): Promise<string> {
     if (articleMatches.length > 0) {
       for (const artNum of articleMatches) {
         const sec = await s3kb.getSection("constitution", artNum);
-        if (sec) parts.push(`[Constitution Article ${sec.section}] ${sec.title}: ${sec.text}`);
+        if (sec) {
+          parts.push(`[Constitution Article ${sec.section}] ${sec.title}: ${sec.text}`);
+          citations.push({ type: "act", label: `Constitution Art. ${sec.section}`, snippet: `${sec.title}: ${sec.text}` });
+        }
       }
     }
 
     if (targetAct && parts.length === 0) {
       if (fullTextActs.has(targetAct)) {
         const full = await s3kb.getFullText(targetAct);
-        if (full) parts.push(`[${targetAct.toUpperCase()} Full Text]\n${full.substring(0, 3000)}...`);
+        if (full) {
+          parts.push(`[${targetAct.toUpperCase()} Full Text]\n${full.substring(0, 3000)}...`);
+          citations.push({ type: "act", label: displayActName(targetAct), snippet: full.substring(0, 3000) });
+        }
       } else {
         const secList = await s3kb.getSectionList(targetAct);
         if (secList) {
@@ -1071,7 +1128,10 @@ async function getLegalKnowledge(query: string): Promise<string> {
           }
           if (bestMatch && bestScore > 0) {
             const sec = await s3kb.getSection(targetAct, bestMatch.section);
-            if (sec) parts.push(`[${targetAct.toUpperCase()} Section ${sec.section}] ${sec.title}: ${sec.text}`);
+            if (sec) {
+              parts.push(`[${targetAct.toUpperCase()} Section ${sec.section}] ${sec.title}: ${sec.text}`);
+              citations.push({ type: "act", label: `${displayActName(targetAct)} § ${sec.section}`, snippet: `${sec.title}: ${sec.text}` });
+            }
           }
         }
       }
@@ -1087,7 +1147,10 @@ async function getLegalKnowledge(query: string): Promise<string> {
         for (const r of searchResults.slice(0, 5)) {
           const sec = await s3kb.getSection(r.act, r.section);
           const text = sec ? sec.text : "";
-          if (text) parts.push(`[${r.act.toUpperCase()} ${r.section}] ${r.title}: ${text}`);
+          if (text) {
+            parts.push(`[${r.act.toUpperCase()} ${r.section}] ${r.title}: ${text}`);
+            citations.push({ type: "act", label: `${displayActName(r.act)} § ${r.section}`, snippet: `${r.title}: ${text}` });
+          }
         }
       }
     }
@@ -1103,14 +1166,20 @@ async function getLegalKnowledge(query: string): Promise<string> {
       if (ref.keywords.some(k => lower.includes(k))) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const data = await s3kb.getReference<any>(ref.key);
-        if (data) parts.push(`\n[${ref.label}]:\n${JSON.stringify(data, null, 2)}`);
+        if (data) {
+          parts.push(`\n[${ref.label}]:\n${JSON.stringify(data, null, 2)}`);
+          citations.push({ type: "act", label: ref.label, snippet: JSON.stringify(data, null, 2) });
+        }
       }
     }
 
-    return parts.length > 0 ? `Legal Knowledge Base:\n${parts.join("\n\n")}` : "";
+    return {
+      context: parts.length > 0 ? `Legal Knowledge Base:\n${parts.join("\n\n")}` : "",
+      citations,
+    };
   } catch (error) {
     console.error("S3 knowledge error:", error);
-    return "";
+    return { context: "", citations };
   }
 }
 
@@ -1285,15 +1354,28 @@ Never transpose tables, never leave a table cell blank, never invent section num
       needsSearch = await classifyQuery(userQuery);
     }
     let webSearchContext = "";
+    let citations: Citation[] = [];
     if (needsSearch) {
-      webSearchContext = await webSearch(userQuery);
+      const web = await webSearch(userQuery);
+      webSearchContext = web.context;
+      citations = web.citations;
     }
 
     const isTalkToAi = conversationType === "talk-to-ai";
     const isDraft = conversationType === "draft";
     const isAnalysis = conversationType === "analysis";
     const isAnalysisMultiRef = conversationType === "analysis" && multiRefQuery;
-    const legalContext = (isTalkToAi && !multiRefQuery || needsSearch) ? "" : await getLegalKnowledge(userQuery);
+    const legal = (isTalkToAi && !multiRefQuery || needsSearch) ? { context: "", citations: [] as Citation[] } : await getLegalKnowledge(userQuery);
+    const legalContext = legal.context;
+    citations = [...citations, ...legal.citations];
+
+    const seen = new Set<string>();
+    citations = citations.filter((c) => {
+      const key = `${c.type}:${c.label}:${c.url ?? ""}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 
     let finalSystemPrompt = systemPrompt;
     const contextParts: string[] = [];
@@ -1827,6 +1909,12 @@ Never transpose tables, never leave a table cell blank, never invent section num
           if (!emittedAny && fullContent.trim()) {
             const fallback = cleanTalkToAiContent(stripThinkingTokens(fullContent)).trim();
             if (fallback) emit(fallback);
+          }
+
+          if (citations.length > 0) {
+            try {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ citations })}\n\n`));
+            } catch { /* skip */ }
           }
 
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));

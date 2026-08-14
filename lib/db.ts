@@ -11,5 +11,20 @@ const pool = new Pool({
 
 const dialect = new PostgresDialect({ pool });
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export const db = new Kysely<{}>({ dialect });
+interface ConversationTable {
+  id: string;
+  userId: string;
+  title: string;
+  preview: string;
+  type: string;
+  pinned: boolean;
+  messages: unknown;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface Database {
+  conversation: ConversationTable;
+}
+
+export const db = new Kysely<Database>({ dialect });
