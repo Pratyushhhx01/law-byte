@@ -1821,22 +1821,30 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               New Chat
             </button>
             <div className="relative">
-              <button
-                type="button"
-                onClick={() => setNotificationsOpen(!notificationsOpen)}
-                className="relative rounded-full p-2 text-white/60 transition-colors hover:bg-white/5 hover:text-white"
-                aria-label="Notifications"
-              >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                </svg>
-                {upcomingReminders.length > 0 && (
-                  <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
-                    {upcomingReminders.length}
-                  </span>
-                )}
-              </button>
+              {(() => {
+                const minDays = upcomingReminders.length > 0 ? Math.min(...upcomingReminders.map((r) => r.daysLeft)) : -1;
+                const bellGlow = minDays <= 1 ? "animate-bell-glow-red" : minDays <= 3 ? "animate-bell-glow-amber" : minDays <= 7 ? "animate-bell-glow-green" : "";
+                const bellColor = minDays <= 1 ? "text-red-400" : minDays <= 3 ? "text-amber-400" : minDays <= 7 ? "text-emerald-400" : "text-white/60";
+                const badgeBg = minDays <= 1 ? "bg-red-500" : minDays <= 3 ? "bg-amber-500" : "bg-emerald-500";
+                return (
+                  <button
+                    type="button"
+                    onClick={() => setNotificationsOpen(!notificationsOpen)}
+                    className={`relative rounded-full p-2 transition-colors hover:bg-white/5 hover:text-white ${bellGlow} ${upcomingReminders.length > 0 ? bellColor : "text-white/60"}`}
+                    aria-label="Notifications"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                    </svg>
+                    {upcomingReminders.length > 0 && (
+                      <span className={`absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full ${badgeBg} text-[9px] font-bold text-white`}>
+                        {upcomingReminders.length}
+                      </span>
+                    )}
+                  </button>
+                );
+              })()}
               {notificationsOpen && (
                 <div className="animate-dropdown-in absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-xl border border-white/10 bg-[#141414] shadow-2xl">
                   <div className="border-b border-white/[0.06] px-4 py-3">
