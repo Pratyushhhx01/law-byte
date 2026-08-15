@@ -1619,15 +1619,20 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </svg>
             <span>My Cases</span>
           </button>
+        </div>
+
+        <div className="mx-4 my-3 border-t border-white/10" />
+
+        <div className="px-4 space-y-1">
           <button
             type="button"
             onClick={() => setHistoryOpen(true)}
-            className="flex w-full items-center gap-2 rounded-full border border-white/15 bg-white px-4 py-2 text-sm font-medium text-black transition-transform duration-300 hover:scale-[1.01]"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white"
           >
             <svg
               aria-hidden
               viewBox="0 0 24 24"
-              className="h-4 w-4"
+              className="h-4 w-4 shrink-0"
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
@@ -1641,12 +1646,12 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           </button>
           <Link
             href="/calculators"
-            className="flex w-full items-center gap-2 rounded-full border border-white/15 bg-white px-4 py-2 text-sm font-medium text-black transition-transform duration-300 hover:scale-[1.01]"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white"
           >
             <svg
               aria-hidden
               viewBox="0 0 24 24"
-              className="h-4 w-4"
+              className="h-4 w-4 shrink-0"
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
@@ -1665,12 +1670,12 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           </Link>
           <Link
             href="/reminders"
-            className="flex w-full items-center gap-2 rounded-full border border-white/15 bg-white px-4 py-2 text-sm font-medium text-black transition-transform duration-300 hover:scale-[1.01]"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white"
           >
             <svg
               aria-hidden
               viewBox="0 0 24 24"
-              className="h-4 w-4"
+              className="h-4 w-4 shrink-0"
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
