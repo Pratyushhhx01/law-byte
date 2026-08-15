@@ -5,14 +5,13 @@ import { useState } from "react";
 export default function InterestCalculator() {
   const [principal, setPrincipal] = useState("");
   const [rate, setRate] = useState("");
-  const [timeYears, setTimeYears] = useState("");
   const [timeMonths, setTimeMonths] = useState("");
   const [compound, setCompound] = useState(false);
   const [frequency, setFrequency] = useState<"yearly" | "half-yearly" | "quarterly" | "monthly">("yearly");
 
   const P = parseFloat(principal) || 0;
   const R = parseFloat(rate) || 0;
-  const T = (parseFloat(timeYears) || 0) + (parseFloat(timeMonths) || 0) / 12;
+  const T = (parseFloat(timeMonths) || 0) / 12;
 
   let simpleInterest = 0;
   let compoundInterest = 0;
@@ -85,29 +84,14 @@ export default function InterestCalculator() {
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="time-years" className="block text-sm font-medium text-white/70">
-                  Time Period — Years
-                </label>
-                <input
-                  id="time-years"
-                  type="number"
-                  min="0"
-                  placeholder="e.g. 3"
-                  value={timeYears}
-                  onChange={(e) => setTimeYears(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white placeholder:text-white/35 focus:border-white/30 focus:outline-none"
-                />
-              </div>
-              <div className="space-y-2">
                 <label htmlFor="time-months" className="block text-sm font-medium text-white/70">
-                  Time Period — Months
+                  Time Period (Months)
                 </label>
                 <input
                   id="time-months"
                   type="number"
                   min="0"
-                  max="11"
-                  placeholder="e.g. 6"
+                  placeholder="e.g. 36"
                   value={timeMonths}
                   onChange={(e) => setTimeMonths(e.target.value)}
                   className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white placeholder:text-white/35 focus:border-white/30 focus:outline-none"
