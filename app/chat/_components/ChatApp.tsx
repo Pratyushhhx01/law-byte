@@ -253,6 +253,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyTab, setHistoryTab] = useState<"all" | ConversationType>("all");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [showClearNotifications, setShowClearNotifications] = useState(false);
   const [upcomingReminders, setUpcomingReminders] = useState<{ id: string; title: string; deadlineAt: string; type: string; daysLeft: number }[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -1573,6 +1574,23 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [notificationsOpen]);
 
+  async function clearAllNotifications() {
+    try {
+      await Promise.all(
+        upcomingReminders.map((r) =>
+          fetch("/api/reminders", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: r.id, completed: true }),
+          })
+        )
+      );
+      setUpcomingReminders([]);
+      setShowClearNotifications(false);
+      setNotificationsOpen(false);
+    } catch { /* ignore */ }
+  }
+
   const [now, setNow] = useState(0);
   useEffect(() => {
     const id = setTimeout(() => setNow(Date.now()), 0);
@@ -1890,13 +1908,31 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                       ))}
                     </div>
                   )}
-                  <Link
-                    href="/reminders"
-                    onClick={() => setNotificationsOpen(false)}
-                    className="block border-t border-white/[0.06] px-4 py-2.5 text-center text-[11px] text-white/40 transition-colors hover:bg-white/[0.04] hover:text-white/60"
-                  >
-                    View all reminders
-                  </Link>
+                  <div className="flex items-center border-t border-white/[0.06]">
+                    <Link
+                      href="/reminders"
+                      onClick={() => setNotificationsOpen(false)}
+                      className="flex-1 px-4 py-2.5 text-center text-[11px] text-white/40 transition-colors hover:bg-white/[0.04] hover:text-white/60"
+                    >
+                      View all reminders
+                    </Link>
+                    {upcomingReminders.length > 0 && (
+                      <>
+                        <div className="h-5 w-px bg-white/[0.06]" />
+                        <button
+                          type="button"
+                          onClick={() => setShowClearNotifications(true)}
+                          className="px-4 py-2.5 text-[11px] text-white/40 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                          title="Clear all notifications"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                          </svg>
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -3573,6 +3609,37 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 className="rounded-lg bg-red-500/20 px-4 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/30"
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showClearNotifications && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowClearNotifications(false)}>
+          <div
+            className="animate-overlay-in mx-4 w-full max-w-sm rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-sm font-semibold text-white">Clear Notifications</h3>
+            <p className="mt-2 text-sm text-white/50">
+              This will mark all {upcomingReminders.length} upcoming reminder{upcomingReminders.length !== 1 ? "s" : ""} as completed. They will no longer appear in the notification bell.
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowClearNotifications(false)}
+                className="rounded-lg px-4 py-2 text-sm text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                autoFocus
+                onClick={clearAllNotifications}
+                className="rounded-lg bg-red-500/20 px-4 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/30"
+              >
+                Clear All
               </button>
             </div>
           </div>
