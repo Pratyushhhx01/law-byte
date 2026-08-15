@@ -174,9 +174,10 @@ export default function RemindersApp() {
                   value={type}
                   onChange={(e) => setType(e.target.value)}
                   className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white focus:border-white/30 focus:outline-none"
+                  style={{ colorScheme: "dark" }}
                 >
                   {REMINDER_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
+                    <option key={t.value} value={t.value} style={{ backgroundColor: "#111", color: "#fff" }}>{t.label}</option>
                   ))}
                 </select>
               </div>
