@@ -2298,7 +2298,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                         value={draft}
                         onChange={(e) => setDraft(e.target.value)}
                         onKeyDown={onKeyDown}
-                        placeholder={pendingAttachment ? "Ask about this document, or send to review as-is…" : "Message Lawbite…"}
+                        placeholder={pendingAttachment ? "Ask about this document, or send to review as-is…" : "Message Lawbite… (English or हिंदी)"}
                         rows={1}
                         className="min-h-[40px] max-h-40 w-full resize-none bg-transparent px-3 py-2 text-sm leading-relaxed text-white placeholder:text-white/35 focus:outline-none"
                       />
@@ -2512,7 +2512,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                         value={draft}
                         onChange={(e) => setDraft(e.target.value)}
                         onKeyDown={onKeyDown}
-                        placeholder={pendingAttachment ? "Ask about this document, or send to review as-is…" : "Message Lawbite…"}
+                        placeholder={pendingAttachment ? "Ask about this document, or send to review as-is…" : "Message Lawbite… (English or हिंदी)"}
                         rows={1}
                         className="min-h-[40px] max-h-40 w-full resize-none bg-transparent px-3 py-2 text-sm leading-relaxed text-white placeholder:text-white/35 focus:outline-none"
                       />
@@ -2575,7 +2575,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                         value={draft}
                         onChange={(e) => setDraft(e.target.value)}
                         onKeyDown={onKeyDown}
-                        placeholder={pendingAttachment ? "Ask about this document, or send to review as-is…" : "Message Lawbite…"}
+                        placeholder={pendingAttachment ? "Ask about this document, or send to review as-is…" : "Message Lawbite… (English or हिंदी)"}
                         rows={1}
                         className="min-h-[40px] max-h-40 w-full resize-none bg-transparent px-3 py-2 text-sm leading-relaxed text-white placeholder:text-white/35 focus:outline-none"
                       />
@@ -3006,6 +3006,9 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                     matter. I will keep the context of this conversation for the
                     duration of the session.
                   </p>
+                  <p className="mt-2 text-xs text-white/35">
+                    आप हिंदी में भी पूछ सकते हैं — Try: &quot;मेरे कर्मचारी को बिना नोटिस के निकाल दिया, क्या करूं?&quot;
+                  </p>
                 </>
               )}
             </div>
@@ -3361,7 +3364,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder={pendingAttachment ? "Ask about this document, or send to review as-is…" : "Message Lawbite…"}
+              placeholder={pendingAttachment ? "Ask about this document, or send to review as-is…" : "Message Lawbite… (English or हिंदी)"}
               rows={1}
               className="min-h-[40px] max-h-40 w-full resize-none bg-transparent px-3 py-2 text-sm leading-relaxed text-white placeholder:text-white/35 focus:outline-none"
             />
