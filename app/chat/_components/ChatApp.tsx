@@ -8,6 +8,7 @@ import { signOut } from "@/lib/auth-client";
 import LogoIcon from "../../components/LogoIcon";
 import { stripThinkingTokens } from "@/lib/utils";
 import { CalculatorLimitsModal, CalculatorInterestModal } from "./CalculatorModals";
+import { RemindersModal } from "./RemindersModal";
 
 type Role = "user" | "assistant";
 
@@ -257,6 +258,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const [showClearNotifications, setShowClearNotifications] = useState(false);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [activeCalculator, setActiveCalculator] = useState<"limits" | "interest" | null>(null);
+  const [remindersOpen, setRemindersOpen] = useState(false);
   const [dismissedNotifications, setDismissedNotifications] = useState<{ id: string; threshold: number }[]>(() => {
     try {
       const stored = localStorage.getItem("lawbite-dismissed-notifications");
@@ -1747,8 +1749,9 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </svg>
             <span>Calculators</span>
           </button>
-          <Link
-            href="/reminders"
+          <button
+            type="button"
+            onClick={() => setRemindersOpen(true)}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white"
           >
             <svg
@@ -1765,7 +1768,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               <polyline points="12 6 12 12 16 14" />
             </svg>
             <span>Reminders</span>
-          </Link>
+          </button>
         </div>
 
         <div className="mt-auto border-t border-white/10 px-4 py-3">
@@ -1927,13 +1930,13 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                     </div>
                   )}
                   <div className="flex items-center border-t border-white/[0.06]">
-                    <Link
-                      href="/reminders"
-                      onClick={() => setNotificationsOpen(false)}
+                    <button
+                      type="button"
+                      onClick={() => { setNotificationsOpen(false); setRemindersOpen(true); }}
                       className="flex-1 px-4 py-2.5 text-center text-[11px] text-white/40 transition-colors hover:bg-white/[0.04] hover:text-white/60"
                     >
                       View all reminders
-                    </Link>
+                    </button>
                     {upcomingReminders.length > 0 && (
                       <>
                         <div className="h-5 w-px bg-white/[0.06]" />
@@ -3901,6 +3904,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
       {activeCalculator === "interest" && (
         <CalculatorInterestModal onClose={() => setActiveCalculator(null)} onBack={() => { setActiveCalculator(null); setCalculatorOpen(true); }} />
+      )}
+
+      {remindersOpen && (
+        <RemindersModal onClose={() => setRemindersOpen(false)} />
       )}
 
       {settingsOpen && (
