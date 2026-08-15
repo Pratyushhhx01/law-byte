@@ -269,6 +269,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
+  const notificationRef = useRef<HTMLDivElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const conversationsRef = useRef<Conversation[]>([]);
   const escCountRef = useRef(0);
@@ -1561,6 +1562,17 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     })();
   }, []);
 
+  useEffect(() => {
+    if (!notificationsOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (notificationRef.current && !notificationRef.current.contains(e.target as Node)) {
+        setNotificationsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [notificationsOpen]);
+
   const [now, setNow] = useState(0);
   useEffect(() => {
     const id = setTimeout(() => setNow(Date.now()), 0);
@@ -1820,7 +1832,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               </svg>
               New Chat
             </button>
-            <div className="relative">
+            <div className="relative" ref={notificationRef}>
               {(() => {
                 const minDays = upcomingReminders.length > 0 ? Math.min(...upcomingReminders.map((r) => r.daysLeft)) : -1;
                 const bellGlow = minDays <= 1 ? "animate-bell-glow-red" : minDays <= 3 ? "animate-bell-glow-amber" : minDays <= 7 ? "animate-bell-glow-green" : "";
