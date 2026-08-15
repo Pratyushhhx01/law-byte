@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
 interface Reminder {
@@ -18,22 +18,6 @@ const REMINDER_TYPES = [
   { value: "limitation", label: "Limitation Period" },
   { value: "other", label: "Other" },
 ];
-
-const STORAGE_KEY = "lawbite-reminders";
-
-function loadReminders(): Reminder[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveReminders(reminders: Reminder[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(reminders));
-}
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-IN", {
@@ -70,41 +54,67 @@ function statusLabel(days: number): string {
 }
 
 export default function RemindersApp() {
-  const [reminders, setReminders] = useState<Reminder[]>(() => loadReminders());
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState("");
   const [deadlineAt, setDeadlineAt] = useState("");
   const [type, setType] = useState("other");
 
-  function persist(next: Reminder[]) {
-    setReminders(next);
-    saveReminders(next);
-  }
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/reminders");
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          setReminders(data);
+        }
+      } catch { /* ignore */ }
+      if (!cancelled) setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
-  function addReminder(e: React.FormEvent) {
+  async function addReminder(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim() || !deadlineAt) return;
-    const reminder: Reminder = {
-      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-      title: title.trim(),
-      deadlineAt,
-      type,
-      completed: false,
-      createdAt: new Date().toISOString(),
-    };
-    persist([...reminders, reminder].sort((a, b) => new Date(a.deadlineAt).getTime() - new Date(b.deadlineAt).getTime()));
-    setTitle("");
-    setDeadlineAt("");
-    setType("other");
-    setShowForm(false);
+
+    try {
+      const res = await fetch("/api/reminders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: title.trim(), deadlineAt, type }),
+      });
+      if (res.ok) {
+        const newReminder = await res.json();
+        setReminders((prev) => [...prev, newReminder].sort((a, b) => new Date(a.deadlineAt).getTime() - new Date(b.deadlineAt).getTime()));
+        setTitle("");
+        setDeadlineAt("");
+        setType("other");
+        setShowForm(false);
+      }
+    } catch { /* ignore */ }
   }
 
-  function toggleComplete(id: string) {
-    persist(reminders.map((r) => (r.id === id ? { ...r, completed: !r.completed } : r)));
+  async function toggleComplete(id: string, completed: boolean) {
+    try {
+      await fetch("/api/reminders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, completed: !completed }),
+      });
+      setReminders((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, completed: !completed } : r))
+      );
+    } catch { /* ignore */ }
   }
 
-  function deleteReminder(id: string) {
-    persist(reminders.filter((r) => r.id !== id));
+  async function deleteReminder(id: string) {
+    try {
+      await fetch(`/api/reminders?id=${id}`, { method: "DELETE" });
+      setReminders((prev) => prev.filter((r) => r.id !== id));
+    } catch { /* ignore */ }
   }
 
   const active = reminders.filter((r) => !r.completed);
@@ -115,8 +125,8 @@ export default function RemindersApp() {
       <header className="border-b border-white/10 bg-black/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
-            <Link href="/" className="text-sm text-white/50 hover:text-white transition-colors">
-              ← Home
+            <Link href="/chat" className="text-sm text-white/50 hover:text-white transition-colors">
+              ← Back to Chat
             </Link>
             <h1 className="text-lg font-semibold">Deadline Reminder</h1>
           </div>
@@ -132,7 +142,7 @@ export default function RemindersApp() {
 
       <main className="mx-auto max-w-3xl px-6 py-8">
         <p className="mb-8 text-sm text-white/40">
-          Track court dates, filing deadlines, and limitation periods. All data is stored locally in your browser.
+          Track court dates, filing deadlines, and limitation periods. You&apos;ll be notified 7, 3, and 1 day before each deadline.
         </p>
 
         {showForm && (
@@ -163,6 +173,7 @@ export default function RemindersApp() {
                   onChange={(e) => setDeadlineAt(e.target.value)}
                   required
                   className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white focus:border-white/30 focus:outline-none"
+                  style={{ colorScheme: "dark" }}
                 />
               </div>
               <div>
@@ -191,7 +202,9 @@ export default function RemindersApp() {
           </form>
         )}
 
-        {reminders.length === 0 ? (
+        {loading ? (
+          <div className="py-20 text-center text-sm text-white/40">Loading reminders...</div>
+        ) : reminders.length === 0 ? (
           <div className="py-20 text-center">
             <p className="text-sm text-white/40">No reminders yet.</p>
             <p className="mt-2 text-xs text-white/25">Add a reminder to track court dates and filing deadlines.</p>
@@ -213,7 +226,7 @@ export default function RemindersApp() {
                       >
                         <button
                           type="button"
-                          onClick={() => toggleComplete(r.id)}
+                          onClick={() => toggleComplete(r.id, r.completed)}
                           className="h-5 w-5 shrink-0 rounded-full border border-white/20 transition-colors hover:border-white/40"
                         />
                         <div className="flex-1 min-w-0">
@@ -258,7 +271,7 @@ export default function RemindersApp() {
                     >
                       <button
                         type="button"
-                        onClick={() => toggleComplete(r.id)}
+                        onClick={() => toggleComplete(r.id, r.completed)}
                         className="h-5 w-5 shrink-0 rounded-full border border-emerald-400/40 bg-emerald-400/20 flex items-center justify-center"
                       >
                         <svg viewBox="0 0 24 24" className="h-3 w-3 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">

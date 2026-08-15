@@ -252,6 +252,8 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyTab, setHistoryTab] = useState<"all" | ConversationType>("all");
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [upcomingReminders, setUpcomingReminders] = useState<{ id: string; title: string; deadlineAt: string; type: string; daysLeft: number }[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
@@ -1530,6 +1532,35 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   );
 }
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/reminders");
+        if (res.ok) {
+          const reminders = await res.json();
+          const now = new Date();
+          now.setHours(0, 0, 0, 0);
+          const upcoming = reminders
+            .filter((r: { completed: boolean; deadlineAt: string }) => {
+              if (r.completed) return false;
+              const deadline = new Date(r.deadlineAt);
+              deadline.setHours(0, 0, 0, 0);
+              const days = Math.round((deadline.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+              return days >= 0 && days <= 7;
+            })
+            .map((r: { id: string; title: string; deadlineAt: string; type: string }) => {
+              const deadline = new Date(r.deadlineAt);
+              deadline.setHours(0, 0, 0, 0);
+              const days = Math.round((deadline.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+              return { ...r, daysLeft: days };
+            })
+            .sort((a: { daysLeft: number }, b: { daysLeft: number }) => a.daysLeft - b.daysLeft);
+          setUpcomingReminders(upcoming);
+        }
+      } catch { /* ignore */ }
+    })();
+  }, []);
+
   const [now, setNow] = useState(0);
   useEffect(() => {
     const id = setTimeout(() => setNow(Date.now()), 0);
@@ -1789,6 +1820,66 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               </svg>
               New Chat
             </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setNotificationsOpen(!notificationsOpen)}
+                className="relative rounded-full p-2 text-white/60 transition-colors hover:bg-white/5 hover:text-white"
+                aria-label="Notifications"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+                {upcomingReminders.length > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+                    {upcomingReminders.length}
+                  </span>
+                )}
+              </button>
+              {notificationsOpen && (
+                <div className="animate-dropdown-in absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-xl border border-white/10 bg-[#141414] shadow-2xl">
+                  <div className="border-b border-white/[0.06] px-4 py-3">
+                    <p className="text-xs font-medium text-white/70">Upcoming Deadlines</p>
+                  </div>
+                  {upcomingReminders.length === 0 ? (
+                    <div className="px-4 py-6 text-center">
+                      <p className="text-xs text-white/35">No upcoming deadlines</p>
+                    </div>
+                  ) : (
+                    <div className="max-h-72 overflow-y-auto">
+                      {upcomingReminders.map((r) => (
+                        <div
+                          key={r.id}
+                          className={`flex items-center gap-3 border-b border-white/[0.04] px-4 py-3 transition-colors hover:bg-white/[0.03] ${
+                            r.daysLeft <= 1 ? "bg-red-500/[0.06]" : r.daysLeft <= 3 ? "bg-amber-500/[0.04]" : ""
+                          }`}
+                        >
+                          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                            r.daysLeft <= 1 ? "bg-red-500/20 text-red-400" : r.daysLeft <= 3 ? "bg-amber-500/20 text-amber-400" : "bg-emerald-500/20 text-emerald-400"
+                          }`}>
+                            {r.daysLeft}d
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-medium text-white/80">{r.title}</p>
+                            <p className="mt-0.5 text-[10px] text-white/35">
+                              {r.daysLeft === 0 ? "Due today" : r.daysLeft === 1 ? "Tomorrow" : `${r.daysLeft} days left`}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <Link
+                    href="/reminders"
+                    onClick={() => setNotificationsOpen(false)}
+                    className="block border-t border-white/[0.06] px-4 py-2.5 text-center text-[11px] text-white/40 transition-colors hover:bg-white/[0.04] hover:text-white/60"
+                  >
+                    View all reminders
+                  </Link>
+                </div>
+              )}
+            </div>
             <div
               aria-hidden
               className="hidden h-2 w-2 rounded-full bg-emerald-400 sm:block"
