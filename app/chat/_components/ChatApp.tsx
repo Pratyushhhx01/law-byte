@@ -2048,7 +2048,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                             ))}
                           </div>
                         )}
-                        {message.role === "assistant" && message.id && !message.id.startsWith("assistant-") && !feedbackGiven[message.id] && (
+                        {message.role === "assistant" && message.id && !message.id.startsWith("assistant-") && !feedbackGiven[message.id] && !message.content.includes("How can I assist you with Indian legal matters") && (
                           <div className="mt-3 border-t border-white/[0.06] pt-3">
                             <div className="flex items-center gap-2">
                               <span className="text-[11px] text-white/30">Helpful?</span>
