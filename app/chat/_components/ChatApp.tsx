@@ -250,6 +250,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const [draft, setDraft] = useState("");
   const [isThinking, setIsThinking] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [historyTab, setHistoryTab] = useState<"all" | ConversationType>("all");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
@@ -1537,18 +1538,23 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     <div className="relative flex h-screen w-full overflow-hidden bg-black text-white">
       <div
         aria-hidden
-        className={`fixed inset-0 z-30 bg-black/60 backdrop-blur-sm transition-opacity duration-300 md:hidden ${
+        className={`fixed inset-0 z-30 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${
           sidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
         onClick={() => setSidebarOpen(false)}
       />
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-white/10 bg-black transition-transform duration-300 md:static md:translate-x-0 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        className={`fixed inset-0 z-40 flex items-center justify-center transition-opacity duration-300 ${
+          sidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       >
-        <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+        <div
+          className={`flex w-full max-w-lg flex-col rounded-2xl border border-white/10 bg-[#0a0a0a] shadow-2xl transition-all duration-300 max-h-[80vh] ${
+            sidebarOpen ? "scale-100" : "scale-95"
+          }`}
+        >
+          <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
           <Link
             href="/"
             aria-label="Lawbite home"
@@ -1619,10 +1625,28 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           </button>
         </div>
 
+        <div className="flex gap-1 border-b border-white/10 px-4 pt-3">
+          {(["all", "talk-to-ai", "analysis", "draft", "review"] as const).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setHistoryTab(tab)}
+              className={`rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors ${
+                historyTab === tab
+                  ? "bg-white/10 text-white"
+                  : "text-white/40 hover:text-white/70"
+              }`}
+            >
+              {tab === "all" ? "All" : tab === "talk-to-ai" ? "Talk to AI" : tab === "analysis" ? "Analysis" : tab === "draft" ? "Drafter" : "Review"}
+            </button>
+          ))}
+        </div>
+
         <nav
           aria-label="History"
           className="mt-4 flex-1 overflow-y-auto px-2 pb-4"
         >
+          {(historyTab === "all" || historyTab === "talk-to-ai") && (
           <div className="mb-4">
             <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-white/35">Talk to AI</p>
             {groupConversations("talk-to-ai", now).map((group) => (
@@ -1649,8 +1673,9 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               Clear history
             </button>
           </div>
+          )}
 
-          {groupConversations("analysis", now).length > 0 && (
+          {(historyTab === "all" || historyTab === "analysis") && groupConversations("analysis", now).length > 0 && (
             <div className="mb-4">
               <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-white/35">In-depth Analysis</p>
               {groupConversations("analysis", now).map((group) => (
@@ -1679,7 +1704,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </div>
           )}
 
-          {groupConversations("grill", now).length > 0 && (
+          {(historyTab === "all" || historyTab === "grill") && groupConversations("grill", now).length > 0 && (
             <div className="mb-4">
               <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-amber-400/60">My Cases</p>
               {groupConversations("grill", now).map((group) => (
@@ -1708,7 +1733,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </div>
           )}
 
-          {groupConversations("draft", now).length > 0 && (
+          {(historyTab === "all" || historyTab === "draft") && groupConversations("draft", now).length > 0 && (
             <div className="mb-4">
               <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-blue-400/60">Document Drafter</p>
               {groupConversations("draft", now).map((group) => (
@@ -1737,7 +1762,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </div>
           )}
 
-          {groupConversations("review", now).length > 0 && (
+          {(historyTab === "all" || historyTab === "review") && groupConversations("review", now).length > 0 && (
             <div className="mb-4">
               <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-emerald-400/60">Document Reviewer</p>
               {groupConversations("review", now).map((group) => (
@@ -1766,8 +1791,11 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </div>
           )}
 
-          {groupConversations("analysis", now).length === 0 && groupConversations("grill", now).length === 0 && groupConversations("draft", now).length === 0 && groupConversations("review", now).length === 0 && (
+          {historyTab === "all" && groupConversations("talk-to-ai", now).length === 0 && groupConversations("analysis", now).length === 0 && groupConversations("grill", now).length === 0 && groupConversations("draft", now).length === 0 && groupConversations("review", now).length === 0 && (
             <p className="px-3 py-8 text-center text-xs text-white/35">No conversations yet</p>
+          )}
+          {historyTab !== "all" && groupConversations(historyTab, now).length === 0 && (
+            <p className="px-3 py-8 text-center text-xs text-white/35">No conversations in this category</p>
           )}
         </nav>
 
@@ -1835,6 +1863,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </div>
           </div>
         </div>
+        </div>
       </aside>
 
       <main className={`flex min-w-0 flex-1 flex-col ${(mode === "analysis" || mode === "talk-to-ai" || mode === "grill") ? "bg-black/80" : ""}`}>
@@ -1843,21 +1872,23 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}
-              className="rounded-full p-2 text-white/70 transition-colors hover:bg-white/5 hover:text-white md:hidden"
-              aria-label="Open conversations"
+              className="flex items-center gap-2 rounded-full border border-white/15 px-3 py-1.5 text-xs font-medium text-white/70 transition-colors hover:bg-white/5 hover:text-white"
+              aria-label="Open history"
             >
               <svg
                 aria-hidden
                 viewBox="0 0 24 24"
-                className="h-5 w-5"
+                className="h-4 w-4"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <path d="M3 6h18M3 12h18M3 18h18" />
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
               </svg>
+              History
             </button>
             <div className="min-w-0">
               <h1 className="truncate text-sm font-semibold tracking-tight sm:text-base">
