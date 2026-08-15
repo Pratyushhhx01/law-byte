@@ -1,5 +1,5 @@
 import { Pool } from "pg";
-import { Kysely, PostgresDialect } from "kysely";
+import { Kysely, PostgresDialect, Generated } from "kysely";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -23,8 +23,29 @@ interface ConversationTable {
   updatedAt: Date;
 }
 
+interface FeedbackTable {
+  id: Generated<string>;
+  userId: string;
+  messageId: string;
+  rating: string;
+  comment: string | null;
+  createdAt: Generated<Date>;
+}
+
+interface ReminderTable {
+  id: Generated<string>;
+  userId: string;
+  title: string;
+  deadlineAt: Date;
+  type: string;
+  completed: boolean | null;
+  createdAt: Generated<Date>;
+}
+
 interface Database {
   conversation: ConversationTable;
+  feedback: FeedbackTable;
+  reminder: ReminderTable;
 }
 
 export const db = new Kysely<Database>({ dialect });
