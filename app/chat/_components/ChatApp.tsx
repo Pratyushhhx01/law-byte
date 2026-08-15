@@ -250,6 +250,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const [draft, setDraft] = useState("");
   const [isThinking, setIsThinking] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [historyTab, setHistoryTab] = useState<"all" | ConversationType>("all");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -1538,23 +1539,18 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     <div className="relative flex h-screen w-full overflow-hidden bg-black text-white">
       <div
         aria-hidden
-        className={`fixed inset-0 z-30 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${
+        className={`fixed inset-0 z-30 bg-black/60 backdrop-blur-sm transition-opacity duration-300 md:hidden ${
           sidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
         onClick={() => setSidebarOpen(false)}
       />
 
       <aside
-        className={`fixed inset-0 z-40 flex items-center justify-center transition-opacity duration-300 ${
-          sidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-white/10 bg-black transition-transform duration-300 md:static md:translate-x-0 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}
       >
-        <div
-          className={`flex w-full max-w-lg flex-col rounded-2xl border border-white/10 bg-[#0a0a0a] shadow-2xl transition-all duration-300 max-h-[80vh] ${
-            sidebarOpen ? "scale-100" : "scale-95"
-          }`}
-        >
-          <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+        <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
           <Link
             href="/"
             aria-label="Lawbite home"
@@ -1567,7 +1563,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             type="button"
             onClick={() => setSidebarOpen(false)}
             className="rounded-full p-1.5 text-white/60 transition-colors hover:bg-white/5 hover:text-white md:hidden"
-            aria-label="Close conversations"
+            aria-label="Close sidebar"
           >
             <svg
               aria-hidden
@@ -1584,7 +1580,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           </button>
         </div>
 
-        <div className="px-4 pt-4">
+        <div className="px-4 pt-4 space-y-2">
           <button
             type="button"
             onClick={startNewChat}
@@ -1607,7 +1603,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           <button
             type="button"
             onClick={() => setMyCasesOpen(true)}
-            className="mt-2 flex w-full items-center gap-2 rounded-full border border-white/15 bg-white px-4 py-2 text-sm font-medium text-black transition-transform duration-300 hover:scale-[1.01]"
+            className="flex w-full items-center gap-2 rounded-full border border-white/15 bg-white px-4 py-2 text-sm font-medium text-black transition-transform duration-300 hover:scale-[1.01]"
           >
             <svg
               aria-hidden
@@ -1623,183 +1619,29 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </svg>
             <span>My Cases</span>
           </button>
+          <button
+            type="button"
+            onClick={() => setHistoryOpen(true)}
+            className="flex w-full items-center gap-2 rounded-full border border-white/15 bg-white px-4 py-2 text-sm font-medium text-black transition-transform duration-300 hover:scale-[1.01]"
+          >
+            <svg
+              aria-hidden
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            <span>History</span>
+          </button>
         </div>
 
-        <div className="flex gap-1 border-b border-white/10 px-4 pt-3">
-          {(["all", "talk-to-ai", "analysis", "draft", "review"] as const).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setHistoryTab(tab)}
-              className={`rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors ${
-                historyTab === tab
-                  ? "bg-white/10 text-white"
-                  : "text-white/40 hover:text-white/70"
-              }`}
-            >
-              {tab === "all" ? "All" : tab === "talk-to-ai" ? "Talk to AI" : tab === "analysis" ? "Analysis" : tab === "draft" ? "Drafter" : "Review"}
-            </button>
-          ))}
-        </div>
-
-        <nav
-          aria-label="History"
-          className="mt-4 flex-1 overflow-y-auto px-2 pb-4"
-        >
-          {(historyTab === "all" || historyTab === "talk-to-ai") && (
-          <div className="mb-4">
-            <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-white/35">Talk to AI</p>
-            {groupConversations("talk-to-ai", now).map((group) => (
-              <div key={group.label} className="mb-2">
-                <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
-                <ul className="space-y-0.5 text-sm">
-                  {group.items.map((conv) => (
-                    <li key={conv.id} className="relative" onMouseEnter={() => setHoveredId(conv.id)} onMouseLeave={() => setHoveredId(null)}>
-                      {renderConvItem(conv)}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => setConfirmAction({ type: "clearHistory", section: "talk-to-ai" })}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
-            >
-              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="3 6 5 6 21 6" />
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-              </svg>
-              Clear history
-            </button>
-          </div>
-          )}
-
-          {(historyTab === "all" || historyTab === "analysis") && groupConversations("analysis", now).length > 0 && (
-            <div className="mb-4">
-              <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-white/35">In-depth Analysis</p>
-              {groupConversations("analysis", now).map((group) => (
-                <div key={group.label} className="mb-2">
-                  <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
-                  <ul className="space-y-0.5 text-sm">
-                    {group.items.map((conv) => (
-                      <li key={conv.id} className="relative" onMouseEnter={() => setHoveredId(conv.id)} onMouseLeave={() => setHoveredId(null)}>
-                        {renderConvItem(conv)}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={() => setConfirmAction({ type: "clearHistory", section: "analysis" })}
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
-              >
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                </svg>
-                Clear history
-              </button>
-            </div>
-          )}
-
-          {(historyTab === "all" || historyTab === "grill") && groupConversations("grill", now).length > 0 && (
-            <div className="mb-4">
-              <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-amber-400/60">My Cases</p>
-              {groupConversations("grill", now).map((group) => (
-                <div key={group.label} className="mb-2">
-                  <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
-                  <ul className="space-y-0.5 text-sm">
-                    {group.items.map((conv) => (
-                      <li key={conv.id} className="relative" onMouseEnter={() => setHoveredId(conv.id)} onMouseLeave={() => setHoveredId(null)}>
-                        {renderConvItem(conv)}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={() => setConfirmAction({ type: "clearHistory", section: "grill" })}
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
-              >
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                </svg>
-                Clear history
-              </button>
-            </div>
-          )}
-
-          {(historyTab === "all" || historyTab === "draft") && groupConversations("draft", now).length > 0 && (
-            <div className="mb-4">
-              <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-blue-400/60">Document Drafter</p>
-              {groupConversations("draft", now).map((group) => (
-                <div key={group.label} className="mb-2">
-                  <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
-                  <ul className="space-y-0.5 text-sm">
-                    {group.items.map((conv) => (
-                      <li key={conv.id} className="relative" onMouseEnter={() => setHoveredId(conv.id)} onMouseLeave={() => setHoveredId(null)}>
-                        {renderConvItem(conv)}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={() => setConfirmAction({ type: "clearHistory", section: "draft" })}
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
-              >
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                </svg>
-                Clear history
-              </button>
-            </div>
-          )}
-
-          {(historyTab === "all" || historyTab === "review") && groupConversations("review", now).length > 0 && (
-            <div className="mb-4">
-              <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-emerald-400/60">Document Reviewer</p>
-              {groupConversations("review", now).map((group) => (
-                <div key={group.label} className="mb-2">
-                  <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
-                  <ul className="space-y-0.5 text-sm">
-                    {group.items.map((conv) => (
-                      <li key={conv.id} className="relative" onMouseEnter={() => setHoveredId(conv.id)} onMouseLeave={() => setHoveredId(null)}>
-                        {renderConvItem(conv)}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={() => setConfirmAction({ type: "clearHistory", section: "review" })}
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
-              >
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                </svg>
-                Clear history
-              </button>
-            </div>
-          )}
-
-          {historyTab === "all" && groupConversations("talk-to-ai", now).length === 0 && groupConversations("analysis", now).length === 0 && groupConversations("grill", now).length === 0 && groupConversations("draft", now).length === 0 && groupConversations("review", now).length === 0 && (
-            <p className="px-3 py-8 text-center text-xs text-white/35">No conversations yet</p>
-          )}
-          {historyTab !== "all" && groupConversations(historyTab, now).length === 0 && (
-            <p className="px-3 py-8 text-center text-xs text-white/35">No conversations in this category</p>
-          )}
-        </nav>
-
-        <div className="border-t border-white/10 px-4 py-3">
+        <div className="mt-auto border-t border-white/10 px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 min-w-0">
               {user.image ? (
@@ -1827,15 +1669,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 className="shrink-0 rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white"
                 aria-label="Settings"
               >
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-3.5 w-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="3" />
                   <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
                 </svg>
@@ -1846,15 +1680,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 className="shrink-0 rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white"
                 aria-label="Sign out"
               >
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-3.5 w-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                   <polyline points="16 17 21 12 16 7" />
                   <line x1="21" y1="12" x2="9" y2="12" />
@@ -1862,7 +1688,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               </button>
             </div>
           </div>
-        </div>
         </div>
       </aside>
 
@@ -1872,23 +1697,21 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}
-              className="flex items-center gap-2 rounded-full border border-white/15 px-3 py-1.5 text-xs font-medium text-white/70 transition-colors hover:bg-white/5 hover:text-white"
-              aria-label="Open history"
+              className="rounded-full p-2 text-white/70 transition-colors hover:bg-white/5 hover:text-white md:hidden"
+              aria-label="Open sidebar"
             >
               <svg
                 aria-hidden
                 viewBox="0 0 24 24"
-                className="h-4 w-4"
+                className="h-5 w-5"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
+                <path d="M3 6h18M3 12h18M3 18h18" />
               </svg>
-              History
             </button>
             <div className="min-w-0">
               <h1 className="truncate text-sm font-semibold tracking-tight sm:text-base">
@@ -3593,6 +3416,191 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 Delete
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {historyOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setHistoryOpen(false)}>
+          <div
+            className="animate-overlay-in flex w-full max-w-lg flex-col rounded-2xl border border-white/10 bg-[#0a0a0a] shadow-2xl max-h-[80vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+              <h2 className="text-sm font-semibold">History</h2>
+              <button
+                type="button"
+                onClick={() => setHistoryOpen(false)}
+                className="rounded-full p-1.5 text-white/60 transition-colors hover:bg-white/5 hover:text-white"
+                aria-label="Close history"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex gap-1 border-b border-white/10 px-4 pt-3">
+              {(["all", "talk-to-ai", "analysis", "draft", "review"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setHistoryTab(tab)}
+                  className={`rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors ${
+                    historyTab === tab ? "bg-white/10 text-white" : "text-white/40 hover:text-white/70"
+                  }`}
+                >
+                  {tab === "all" ? "All" : tab === "talk-to-ai" ? "Talk to AI" : tab === "analysis" ? "Analysis" : tab === "draft" ? "Drafter" : "Review"}
+                </button>
+              ))}
+            </div>
+            <nav aria-label="History" className="flex-1 overflow-y-auto px-2 py-4">
+              {(historyTab === "all" || historyTab === "talk-to-ai") && (
+                <div className="mb-4">
+                  <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-white/35">Talk to AI</p>
+                  {groupConversations("talk-to-ai", now).map((group) => (
+                    <div key={group.label} className="mb-2">
+                      <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
+                      <ul className="space-y-0.5 text-sm">
+                        {group.items.map((conv) => (
+                          <li key={conv.id} className="relative" onMouseEnter={() => setHoveredId(conv.id)} onMouseLeave={() => setHoveredId(null)}>
+                            {renderConvItem(conv)}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setConfirmAction({ type: "clearHistory", section: "talk-to-ai" })}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                    Clear history
+                  </button>
+                </div>
+              )}
+              {(historyTab === "all" || historyTab === "analysis") && groupConversations("analysis", now).length > 0 && (
+                <div className="mb-4">
+                  <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-white/35">In-depth Analysis</p>
+                  {groupConversations("analysis", now).map((group) => (
+                    <div key={group.label} className="mb-2">
+                      <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
+                      <ul className="space-y-0.5 text-sm">
+                        {group.items.map((conv) => (
+                          <li key={conv.id} className="relative" onMouseEnter={() => setHoveredId(conv.id)} onMouseLeave={() => setHoveredId(null)}>
+                            {renderConvItem(conv)}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setConfirmAction({ type: "clearHistory", section: "analysis" })}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                    Clear history
+                  </button>
+                </div>
+              )}
+              {(historyTab === "all" || historyTab === "grill") && groupConversations("grill", now).length > 0 && (
+                <div className="mb-4">
+                  <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-amber-400/60">My Cases</p>
+                  {groupConversations("grill", now).map((group) => (
+                    <div key={group.label} className="mb-2">
+                      <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
+                      <ul className="space-y-0.5 text-sm">
+                        {group.items.map((conv) => (
+                          <li key={conv.id} className="relative" onMouseEnter={() => setHoveredId(conv.id)} onMouseLeave={() => setHoveredId(null)}>
+                            {renderConvItem(conv)}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setConfirmAction({ type: "clearHistory", section: "grill" })}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                    Clear history
+                  </button>
+                </div>
+              )}
+              {(historyTab === "all" || historyTab === "draft") && groupConversations("draft", now).length > 0 && (
+                <div className="mb-4">
+                  <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-blue-400/60">Document Drafter</p>
+                  {groupConversations("draft", now).map((group) => (
+                    <div key={group.label} className="mb-2">
+                      <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
+                      <ul className="space-y-0.5 text-sm">
+                        {group.items.map((conv) => (
+                          <li key={conv.id} className="relative" onMouseEnter={() => setHoveredId(conv.id)} onMouseLeave={() => setHoveredId(null)}>
+                            {renderConvItem(conv)}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setConfirmAction({ type: "clearHistory", section: "draft" })}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                    Clear history
+                  </button>
+                </div>
+              )}
+              {(historyTab === "all" || historyTab === "review") && groupConversations("review", now).length > 0 && (
+                <div className="mb-4">
+                  <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-emerald-400/60">Document Reviewer</p>
+                  {groupConversations("review", now).map((group) => (
+                    <div key={group.label} className="mb-2">
+                      <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
+                      <ul className="space-y-0.5 text-sm">
+                        {group.items.map((conv) => (
+                          <li key={conv.id} className="relative" onMouseEnter={() => setHoveredId(conv.id)} onMouseLeave={() => setHoveredId(null)}>
+                            {renderConvItem(conv)}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setConfirmAction({ type: "clearHistory", section: "review" })}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                    Clear history
+                  </button>
+                </div>
+              )}
+              {historyTab === "all" && groupConversations("talk-to-ai", now).length === 0 && groupConversations("analysis", now).length === 0 && groupConversations("grill", now).length === 0 && groupConversations("draft", now).length === 0 && groupConversations("review", now).length === 0 && (
+                <p className="px-3 py-8 text-center text-xs text-white/35">No conversations yet</p>
+              )}
+              {historyTab !== "all" && groupConversations(historyTab, now).length === 0 && (
+                <p className="px-3 py-8 text-center text-xs text-white/35">No conversations in this category</p>
+              )}
+            </nav>
           </div>
         </div>
       )}
