@@ -168,56 +168,27 @@ export default function InterestCalculator() {
 
             {P > 0 && R > 0 && T > 0 && (
               <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-6">
-                <div className="grid gap-6 sm:grid-cols-2">
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-[0.2em] text-white/40">
-                      Simple Interest
-                    </p>
-                    <p className="mt-2 text-3xl font-semibold text-white">
-                      ₹{formatCurrency(simpleInterest)}
-                    </p>
-                    <p className="mt-1 text-sm text-white/50">
-                      Total: ₹{formatCurrency(totalSimple)}
-                    </p>
-                    <div className="mt-4 space-y-2 text-sm">
-                      <div className="flex justify-between text-white/50">
-                        <span>Principal</span>
-                        <span className="font-medium text-white/70">₹{formatCurrency(P)}</span>
-                      </div>
-                      <div className="flex justify-between text-white/50">
-                        <span>Interest</span>
-                        <span className="font-medium text-white/70">₹{formatCurrency(simpleInterest)}</span>
-                      </div>
-                      <div className="border-t border-white/[0.06] pt-2 flex justify-between text-white/70">
-                        <span className="font-medium">Total</span>
-                        <span className="font-semibold text-white">₹{formatCurrency(totalSimple)}</span>
-                      </div>
-                    </div>
+                <p className="text-xs font-medium uppercase tracking-[0.2em] text-white/40">
+                  {compound ? "Compound Interest" : "Simple Interest"}
+                </p>
+                <p className="mt-2 text-3xl font-semibold text-white">
+                  ₹{formatCurrency(compound ? compoundInterest : simpleInterest)}
+                </p>
+                <p className="mt-1 text-sm text-white/50">
+                  Total: ₹{formatCurrency(compound ? totalCompound : totalSimple)}
+                </p>
+                <div className="mt-4 space-y-2 text-sm">
+                  <div className="flex justify-between text-white/50">
+                    <span>Principal</span>
+                    <span className="font-medium text-white/70">₹{formatCurrency(P)}</span>
                   </div>
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-[0.2em] text-white/40">
-                      Compound Interest
-                    </p>
-                    <p className="mt-2 text-3xl font-semibold text-white">
-                      ₹{formatCurrency(compoundInterest)}
-                    </p>
-                    <p className="mt-1 text-sm text-white/50">
-                      Total: ₹{formatCurrency(totalCompound)}
-                    </p>
-                    <div className="mt-4 space-y-2 text-sm">
-                      <div className="flex justify-between text-white/50">
-                        <span>Principal</span>
-                        <span className="font-medium text-white/70">₹{formatCurrency(P)}</span>
-                      </div>
-                      <div className="flex justify-between text-white/50">
-                        <span>Interest</span>
-                        <span className="font-medium text-white/70">₹{formatCurrency(compoundInterest)}</span>
-                      </div>
-                      <div className="border-t border-white/[0.06] pt-2 flex justify-between text-white/70">
-                        <span className="font-medium">Total</span>
-                        <span className="font-semibold text-white">₹{formatCurrency(totalCompound)}</span>
-                      </div>
-                    </div>
+                  <div className="flex justify-between text-white/50">
+                    <span>Interest</span>
+                    <span className="font-medium text-white/70">₹{formatCurrency(compound ? compoundInterest : simpleInterest)}</span>
+                  </div>
+                  <div className="border-t border-white/[0.06] pt-2 flex justify-between text-white/70">
+                    <span className="font-medium">Total</span>
+                    <span className="font-semibold text-white">₹{formatCurrency(compound ? totalCompound : totalSimple)}</span>
                   </div>
                 </div>
 
