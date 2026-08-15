@@ -23,27 +23,8 @@ interface ConversationTable {
   updatedAt: Date;
 }
 
-interface UserTable {
-  id: string;
-  email: string;
-  name: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  emailVerified: boolean;
-  image: string | null;
-  plan: string;
-}
-
-interface UserDailyUsageTable {
-  userId: string;
-  date: Date;
-  count: number;
-}
-
 interface Database {
   conversation: ConversationTable;
-  "user": UserTable;
-  user_daily_usage: UserDailyUsageTable;
 }
 
 export const db = new Kysely<Database>({ dialect });

@@ -2,8 +2,6 @@ import { NextRequest } from "next/server";
 import { tavily } from "@tavily/core";
 import { s3kb } from "@/lib/s3";
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { sql } from "kysely";
 import { stripThinkingTokens, checkRateLimit } from "@/lib/utils";
 
 const NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
@@ -1351,42 +1349,6 @@ Never transpose tables, never leave a table cell blank, never invent section num
       });
     }
 
-    const PLUS_MODES = new Set(["analysis", "grill", "draft", "review"]);
-    const PLAN_DAILY_LIMITS: Record<string, number> = { free: 20, plus: -1 };
-
-    const userRow = await db
-      .selectFrom("user")
-      .select("plan")
-      .where("id", "=", session.user.id)
-      .executeTakeFirst();
-    const plan = (userRow?.plan as string) || "free";
-    const dailyLimit = PLAN_DAILY_LIMITS[plan] ?? 20;
-
-    if (conversationType && PLUS_MODES.has(conversationType) && plan !== "plus") {
-      return Response.json(
-        { error: "plan_required", mode: conversationType },
-        { status: 403 }
-      );
-    }
-
-      if (dailyLimit >= 0) {
-      const today = new Date();
-      const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-      const usage = await db
-        .selectFrom("user_daily_usage")
-        .select("count")
-        .where("userId", "=", session.user.id)
-        .where("date", "=", sql<Date>`${dateStr}::date`)
-        .executeTakeFirst();
-      const usedToday = usage?.count ?? 0;
-      if (usedToday >= dailyLimit) {
-        return Response.json(
-          { error: "daily_limit", usedToday, limit: dailyLimit, message: "You've used all your messages today. Upgrade to Plus for unlimited." },
-          { status: 429, headers: { "Retry-After": "86400" } }
-        );
-      }
-    }
-
     let needsSearch = false;
     if (userQuery) {
       needsSearch = await classifyQuery(userQuery);
@@ -1953,20 +1915,6 @@ Never transpose tables, never leave a table cell blank, never invent section num
             try {
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ citations })}\n\n`));
             } catch { /* skip */ }
-          }
-
-          if (dailyLimit >= 0) {
-            try {
-              const todayInc = new Date();
-              const dateInc = `${todayInc.getFullYear()}-${String(todayInc.getMonth() + 1).padStart(2, "0")}-${String(todayInc.getDate()).padStart(2, "0")}`;
-              await db
-                .insertInto("user_daily_usage")
-                .values({ userId: session.user.id, date: sql<Date>`${dateInc}::date`, count: 1 })
-                .onConflict((oc) =>
-                  oc.columns(["userId", "date"]).doUpdateSet({ count: sql`user_daily_usage.count + 1` })
-                )
-                .execute();
-            } catch { /* skip — non-critical */ }
           }
 
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));

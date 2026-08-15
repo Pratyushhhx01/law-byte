@@ -271,7 +271,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const escTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ type: "clearHistory"; section?: ConversationType } | { type: "deleteConversation"; id: string } | null>(null);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
-  const [usage, setUsage] = useState<{ plan: string; usedToday: number; limitToday: number; remaining: number } | null>(null);
   const [disclaimerOpen, setDisclaimerOpen] = useState(false);
   const [citationOpen, setCitationOpen] = useState<Citation | null>(null);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
@@ -294,28 +293,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const [fileUploading, setFileUploading] = useState(false);
   const [draftDocTypeOpen, setDraftDocTypeOpen] = useState(false);
   const draftDocTypeMenuRef = useRef<HTMLDivElement | null>(null);
-
-  async function fetchUsage() {
-    try {
-      const res = await fetch("/api/usage");
-      if (!res.ok) return;
-      const data = await res.json();
-      setUsage(data);
-    } catch { /* ignore */ }
-  }
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/usage");
-        if (!res.ok || cancelled) return;
-        const data = await res.json();
-        if (!cancelled) setUsage(data);
-      } catch { /* ignore */ }
-    })();
-    return () => { cancelled = true; };
-  }, []);
 
   const active = conversations.find((c) => c.id === activeId) ?? conversations[0];
 
@@ -1066,39 +1043,8 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       });
 
       if (!res.ok) {
-        let errBody: Record<string, unknown> = {};
-        try { errBody = await res.json(); } catch { /* ignore */ }
-        if (res.status === 403 && errBody.error === "plan_required") {
-          setUpgradeOpen(true);
-          setConversations((prev) =>
-            prev.map((c) =>
-              c.id === activeId
-                ? { ...c, messages: c.messages.filter((m) => m.id !== assistantId) }
-                : c,
-            ),
-          );
-          return;
-        }
-        if (res.status === 429 && errBody.error === "daily_limit") {
-          fetchUsage();
-          setConversations((prev) =>
-            prev.map((c) =>
-              c.id === activeId
-                ? {
-                    ...c,
-                    messages: c.messages.map((m) =>
-                      m.id === assistantId
-                        ? { ...m, content: "You've used all your messages today. Upgrade to Plus for unlimited." }
-                        : m,
-                    ),
-                  }
-                : c,
-            ),
-          );
-          setUpgradeOpen(true);
-          return;
-        }
-        throw new Error(`API error ${res.status}: ${JSON.stringify(errBody)}`);
+        const errBody = await res.text().catch(() => "");
+        throw new Error(`API error ${res.status}: ${errBody}`);
       }
 
       const reader = res.body?.getReader();
@@ -1192,7 +1138,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     } finally {
       abortRef.current = null;
       setIsThinking(false);
-      fetchUsage();
 
       // Auto-save completed grill sessions
       if (mode === "grill") {
@@ -2375,14 +2320,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                       <kbd className="rounded border border-white/15 px-1">Enter</kbd> for
                       a new line.
                     </p>
-                    {usage && usage.limitToday > 0 && (
-                      <p className={`mx-auto mt-1 text-[11px] ${usage.remaining <= 3 ? "text-amber-400/70" : "text-white/35"}`}>
-                        {usage.remaining} of {usage.limitToday} messages left today
-                        {usage.remaining <= 0 && (
-                          <button type="button" onClick={() => setUpgradeOpen(true)} className="ml-1 underline hover:text-white/60">Upgrade</button>
-                        )}
-                      </p>
-                    )}
                   </div>
                 </div>
               ) : mode === "talk-to-ai" || mode === "chat" ? (
@@ -2597,14 +2534,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                       <kbd className="rounded border border-white/15 px-1">Enter</kbd> for
                       a new line.
                     </p>
-                    {usage && usage.limitToday > 0 && (
-                      <p className={`mx-auto mt-1 text-[11px] ${usage.remaining <= 3 ? "text-amber-400/70" : "text-white/35"}`}>
-                        {usage.remaining} of {usage.limitToday} messages left today
-                        {usage.remaining <= 0 && (
-                          <button type="button" onClick={() => setUpgradeOpen(true)} className="ml-1 underline hover:text-white/60">Upgrade</button>
-                        )}
-                      </p>
-                    )}
                   </div>
                 </div>
               ) : mode === "grill" ? (
@@ -3791,7 +3720,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 </div>
               <button
                 type="button"
-                onClick={() => { setUpgradeOpen(false); alert("Checkout coming soon — Stripe integration planned."); }}
+                onClick={() => setUpgradeOpen(false)}
                 className="mt-5 w-full rounded-lg bg-white py-2 text-sm font-medium text-black transition-colors hover:bg-white/90"
               >
                 Upgrade now
