@@ -7,6 +7,7 @@ import type { FormEvent, KeyboardEvent, ReactNode } from "react";
 import { signOut } from "@/lib/auth-client";
 import LogoIcon from "../../components/LogoIcon";
 import { stripThinkingTokens } from "@/lib/utils";
+import { CalculatorLimitsModal, CalculatorInterestModal } from "./CalculatorModals";
 
 type Role = "user" | "assistant";
 
@@ -254,6 +255,8 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const [historyTab, setHistoryTab] = useState<"all" | ConversationType>("all");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [showClearNotifications, setShowClearNotifications] = useState(false);
+  const [calculatorOpen, setCalculatorOpen] = useState(false);
+  const [activeCalculator, setActiveCalculator] = useState<"limits" | "interest" | null>(null);
   const [dismissedNotifications, setDismissedNotifications] = useState<{ id: string; threshold: number }[]>(() => {
     try {
       const stored = localStorage.getItem("lawbite-dismissed-notifications");
@@ -1719,8 +1722,9 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </svg>
             <span>History</span>
           </button>
-          <Link
-            href="/calculators"
+          <button
+            type="button"
+            onClick={() => setCalculatorOpen(true)}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white"
           >
             <svg
@@ -1742,7 +1746,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               <line x1="8" y1="18" x2="16" y2="18" />
             </svg>
             <span>Calculators</span>
-          </Link>
+          </button>
           <Link
             href="/reminders"
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white"
@@ -3843,6 +3847,60 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </nav>
           </div>
         </div>
+      )}
+
+      {calculatorOpen && !activeCalculator && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setCalculatorOpen(false)}>
+          <div
+            className="animate-overlay-in mx-4 w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-white">Calculators</h3>
+            <p className="mt-1 text-sm text-white/50">Choose a calculator to open.</p>
+            <div className="mt-5 space-y-3">
+              <button
+                type="button"
+                onClick={() => setActiveCalculator("limits")}
+                className="flex w-full items-center gap-4 rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 text-left transition-all hover:border-white/20 hover:bg-white/[0.05]"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-blue-400">
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                </div>
+                <div>
+                  <span className="block text-sm font-medium text-white">Statute of Limitations</span>
+                  <span className="mt-0.5 block text-xs text-white/40">Find the deadline to file your case</span>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveCalculator("interest")}
+                className="flex w-full items-center gap-4 rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 text-left transition-all hover:border-white/20 hover:bg-white/[0.05]"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400">
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="4" width="20" height="16" rx="2" />
+                    <line x1="2" y1="10" x2="22" y2="10" />
+                  </svg>
+                </div>
+                <div>
+                  <span className="block text-sm font-medium text-white">Interest Calculator</span>
+                  <span className="mt-0.5 block text-xs text-white/40">Simple or compound interest on any amount</span>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeCalculator === "limits" && (
+        <CalculatorLimitsModal onClose={() => setActiveCalculator(null)} onBack={() => { setActiveCalculator(null); setCalculatorOpen(true); }} />
+      )}
+
+      {activeCalculator === "interest" && (
+        <CalculatorInterestModal onClose={() => setActiveCalculator(null)} onBack={() => { setActiveCalculator(null); setCalculatorOpen(true); }} />
       )}
 
       {settingsOpen && (
