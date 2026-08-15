@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 
 interface Reminder {
@@ -12,19 +12,28 @@ interface Reminder {
   createdAt: string;
 }
 
-interface User {
-  id: string;
-  name: string | null;
-  email: string;
-  image: string | null;
-}
-
 const REMINDER_TYPES = [
   { value: "hearing", label: "Court Hearing" },
   { value: "filing", label: "Filing Deadline" },
   { value: "limitation", label: "Limitation Period" },
   { value: "other", label: "Other" },
 ];
+
+const STORAGE_KEY = "lawbite-reminders";
+
+function loadReminders(): Reminder[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveReminders(reminders: Reminder[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(reminders));
+}
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-IN", {
@@ -42,96 +51,74 @@ function daysUntil(dateStr: string): number {
   return Math.round((target.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
 }
 
-function getStatusColor(days: number, completed: boolean): string {
-  if (completed) return "text-white/30";
+function getStatusColor(days: number): string {
   if (days < 0) return "text-red-400";
   if (days <= 7) return "text-amber-400";
   return "text-emerald-400";
 }
 
-function getStatusBg(days: number, completed: boolean): string {
-  if (completed) return "bg-white/[0.02] border-white/[0.06]";
+function getStatusBg(days: number): string {
   if (days < 0) return "bg-red-500/[0.06] border-red-500/20";
   if (days <= 7) return "bg-amber-500/[0.06] border-amber-500/20";
   return "bg-emerald-500/[0.06] border-emerald-500/20";
 }
 
-export default function RemindersApp({ user: _user }: { user: User }) {
-  const [reminders, setReminders] = useState<Reminder[]>([]);
-  const [loading, setLoading] = useState(true);
+function statusLabel(days: number): string {
+  if (days < 0) return `Overdue by ${Math.abs(days)} days`;
+  if (days === 0) return "Due today";
+  return `${days} days left`;
+}
+
+export default function RemindersApp() {
+  const [reminders, setReminders] = useState<Reminder[]>(() => loadReminders());
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState("");
   const [deadlineAt, setDeadlineAt] = useState("");
   const [type, setType] = useState("other");
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/reminders");
-        if (res.ok && !cancelled) {
-          const data = await res.json();
-          setReminders(data);
-        }
-      } catch { /* ignore */ }
-      if (!cancelled) setLoading(false);
-    })();
-    return () => { cancelled = true; };
-  }, []);
+  function persist(next: Reminder[]) {
+    setReminders(next);
+    saveReminders(next);
+  }
 
-  async function addReminder(e: React.FormEvent) {
+  function addReminder(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim() || !deadlineAt) return;
-
-    try {
-      const res = await fetch("/api/reminders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim(), deadlineAt, type }),
-      });
-      if (res.ok) {
-        const newReminder = await res.json();
-        setReminders((prev) => [...prev, newReminder].sort((a, b) => new Date(a.deadlineAt).getTime() - new Date(b.deadlineAt).getTime()));
-        setTitle("");
-        setDeadlineAt("");
-        setType("other");
-        setShowForm(false);
-      }
-    } catch { /* ignore */ }
+    const reminder: Reminder = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      title: title.trim(),
+      deadlineAt,
+      type,
+      completed: false,
+      createdAt: new Date().toISOString(),
+    };
+    persist([...reminders, reminder].sort((a, b) => new Date(a.deadlineAt).getTime() - new Date(b.deadlineAt).getTime()));
+    setTitle("");
+    setDeadlineAt("");
+    setType("other");
+    setShowForm(false);
   }
 
-  async function toggleComplete(id: string, completed: boolean) {
-    try {
-      await fetch("/api/reminders", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, completed: !completed }),
-      });
-      setReminders((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, completed: !completed } : r))
-      );
-    } catch { /* ignore */ }
+  function toggleComplete(id: string) {
+    persist(reminders.map((r) => (r.id === id ? { ...r, completed: !r.completed } : r)));
   }
 
-  async function deleteReminder(id: string) {
-    try {
-      await fetch(`/api/reminders?id=${id}`, { method: "DELETE" });
-      setReminders((prev) => prev.filter((r) => r.id !== id));
-    } catch { /* ignore */ }
+  function deleteReminder(id: string) {
+    persist(reminders.filter((r) => r.id !== id));
   }
 
-  const activeReminders = reminders.filter((r) => !r.completed);
-  const completedReminders = reminders.filter((r) => r.completed);
+  const active = reminders.filter((r) => !r.completed);
+  const completed = reminders.filter((r) => r.completed);
 
   return (
     <div className="min-h-screen bg-black text-white">
       <header className="border-b border-white/10 bg-black/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
+        <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
-            <Link href="/chat" className="text-sm text-white/50 hover:text-white transition-colors">
-              ← Back to Chat
+            <Link href="/" className="text-sm text-white/50 hover:text-white transition-colors">
+              ← Home
             </Link>
-            <h1 className="text-lg font-semibold">Reminders</h1>
+            <h1 className="text-lg font-semibold">Deadline Reminder</h1>
           </div>
           <button
             type="button"
@@ -143,7 +130,11 @@ export default function RemindersApp({ user: _user }: { user: User }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-6 py-8">
+      <main className="mx-auto max-w-3xl px-6 py-8">
+        <p className="mb-8 text-sm text-white/40">
+          Track court dates, filing deadlines, and limitation periods. All data is stored locally in your browser.
+        </p>
+
         {showForm && (
           <form onSubmit={addReminder} className="mb-8 rounded-xl border border-white/10 bg-white/[0.03] p-6 space-y-4">
             <div>
@@ -199,43 +190,37 @@ export default function RemindersApp({ user: _user }: { user: User }) {
           </form>
         )}
 
-        {loading ? (
-          <div className="py-20 text-center text-sm text-white/40">Loading reminders...</div>
-        ) : reminders.length === 0 ? (
+        {reminders.length === 0 ? (
           <div className="py-20 text-center">
             <p className="text-sm text-white/40">No reminders yet.</p>
             <p className="mt-2 text-xs text-white/25">Add a reminder to track court dates and filing deadlines.</p>
           </div>
         ) : (
           <>
-            {activeReminders.length > 0 && (
+            {active.length > 0 && (
               <section>
                 <h2 className="mb-4 text-xs font-medium uppercase tracking-[0.2em] text-white/40">
-                  Upcoming ({activeReminders.length})
+                  Upcoming ({active.length})
                 </h2>
                 <div className="space-y-3">
-                  {activeReminders.map((r) => {
+                  {active.map((r) => {
                     const days = daysUntil(r.deadlineAt);
                     return (
                       <div
                         key={r.id}
-                        className={`flex items-center gap-4 rounded-xl border p-4 transition-colors ${getStatusBg(days, false)}`}
+                        className={`flex items-center gap-4 rounded-xl border p-4 transition-colors ${getStatusBg(days)}`}
                       >
                         <button
                           type="button"
-                          onClick={() => toggleComplete(r.id, r.completed)}
+                          onClick={() => toggleComplete(r.id)}
                           className="h-5 w-5 shrink-0 rounded-full border border-white/20 transition-colors hover:border-white/40"
                         />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-white truncate">{r.title}</p>
                           <div className="mt-1 flex items-center gap-3 text-xs">
                             <span className="text-white/50">{formatDate(r.deadlineAt)}</span>
-                            <span className={`font-medium ${getStatusColor(days, false)}`}>
-                              {days < 0
-                                ? `Overdue by ${Math.abs(days)} days`
-                                : days === 0
-                                  ? "Due today"
-                                  : `${days} days left`}
+                            <span className={`font-medium ${getStatusColor(days)}`}>
+                              {statusLabel(days)}
                             </span>
                             <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/50">
                               {REMINDER_TYPES.find((t) => t.value === r.type)?.label || r.type}
@@ -259,20 +244,20 @@ export default function RemindersApp({ user: _user }: { user: User }) {
               </section>
             )}
 
-            {completedReminders.length > 0 && (
+            {completed.length > 0 && (
               <section className="mt-8">
                 <h2 className="mb-4 text-xs font-medium uppercase tracking-[0.2em] text-white/40">
-                  Completed ({completedReminders.length})
+                  Completed ({completed.length})
                 </h2>
                 <div className="space-y-2">
-                  {completedReminders.map((r) => (
+                  {completed.map((r) => (
                     <div
                       key={r.id}
                       className="flex items-center gap-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 opacity-50"
                     >
                       <button
                         type="button"
-                        onClick={() => toggleComplete(r.id, r.completed)}
+                        onClick={() => toggleComplete(r.id)}
                         className="h-5 w-5 shrink-0 rounded-full border border-emerald-400/40 bg-emerald-400/20 flex items-center justify-center"
                       >
                         <svg viewBox="0 0 24 24" className="h-3 w-3 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
