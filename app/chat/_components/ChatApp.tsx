@@ -1639,6 +1639,49 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </svg>
             <span>History</span>
           </button>
+          <Link
+            href="/calculators"
+            className="flex w-full items-center gap-2 rounded-full border border-white/15 bg-white px-4 py-2 text-sm font-medium text-black transition-transform duration-300 hover:scale-[1.01]"
+          >
+            <svg
+              aria-hidden
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="4" y="2" width="16" height="20" rx="2" />
+              <line x1="8" y1="6" x2="16" y2="6" />
+              <line x1="8" y1="10" x2="10" y2="10" />
+              <line x1="14" y1="10" x2="16" y2="10" />
+              <line x1="8" y1="14" x2="10" y2="14" />
+              <line x1="14" y1="14" x2="16" y2="14" />
+              <line x1="8" y1="18" x2="16" y2="18" />
+            </svg>
+            <span>Calculators</span>
+          </Link>
+          <Link
+            href="/reminders"
+            className="flex w-full items-center gap-2 rounded-full border border-white/15 bg-white px-4 py-2 text-sm font-medium text-black transition-transform duration-300 hover:scale-[1.01]"
+          >
+            <svg
+              aria-hidden
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            <span>Reminders</span>
+          </Link>
         </div>
 
         <div className="mt-auto border-t border-white/10 px-4 py-3">
