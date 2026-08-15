@@ -254,6 +254,14 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const [historyTab, setHistoryTab] = useState<"all" | ConversationType>("all");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [showClearNotifications, setShowClearNotifications] = useState(false);
+  const [dismissedNotifications, setDismissedNotifications] = useState<{ id: string; threshold: number }[]>(() => {
+    try {
+      const stored = localStorage.getItem("lawbite-dismissed-notifications");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
   const [upcomingReminders, setUpcomingReminders] = useState<{ id: string; title: string; deadlineAt: string; type: string; daysLeft: number }[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -1534,6 +1542,12 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   );
 }
 
+  function getNotificationThreshold(days: number): number {
+    if (days <= 1) return 1;
+    if (days <= 3) return 3;
+    return 7;
+  }
+
   useEffect(() => {
     (async () => {
       try {
@@ -1556,12 +1570,16 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               const days = Math.round((deadline.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
               return { ...r, daysLeft: days };
             })
+            .filter((r: { id: string; daysLeft: number }) => {
+              const threshold = getNotificationThreshold(r.daysLeft);
+              return !dismissedNotifications.some((d) => d.id === r.id && d.threshold === threshold);
+            })
             .sort((a: { daysLeft: number }, b: { daysLeft: number }) => a.daysLeft - b.daysLeft);
           setUpcomingReminders(upcoming);
         }
       } catch { /* ignore */ }
     })();
-  }, []);
+  }, [dismissedNotifications]);
 
   useEffect(() => {
     if (!notificationsOpen) return;
@@ -1574,21 +1592,17 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [notificationsOpen]);
 
-  async function clearAllNotifications() {
-    try {
-      await Promise.all(
-        upcomingReminders.map((r) =>
-          fetch("/api/reminders", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: r.id, completed: true }),
-          })
-        )
-      );
-      setUpcomingReminders([]);
-      setShowClearNotifications(false);
-      setNotificationsOpen(false);
-    } catch { /* ignore */ }
+  function clearAllNotifications() {
+    const newDismissed = upcomingReminders.map((r) => ({
+      id: r.id,
+      threshold: getNotificationThreshold(r.daysLeft),
+    }));
+    const updated = [...dismissedNotifications, ...newDismissed];
+    setDismissedNotifications(updated);
+    localStorage.setItem("lawbite-dismissed-notifications", JSON.stringify(updated));
+    setUpcomingReminders([]);
+    setShowClearNotifications(false);
+    setNotificationsOpen(false);
   }
 
   const [now, setNow] = useState(0);
@@ -3623,7 +3637,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           >
             <h3 className="text-sm font-semibold text-white">Clear Notifications</h3>
             <p className="mt-2 text-sm text-white/50">
-              This will mark all {upcomingReminders.length} upcoming reminder{upcomingReminders.length !== 1 ? "s" : ""} as completed. They will no longer appear in the notification bell.
+              This will dismiss all {upcomingReminders.length} notification{upcomingReminders.length !== 1 ? "s" : ""}. They will reappear when the deadline enters the next threshold (3 days, 1 day).
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <button
