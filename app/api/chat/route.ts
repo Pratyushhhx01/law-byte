@@ -3,6 +3,8 @@ import { tavily } from "@tavily/core";
 import { s3kb } from "@/lib/s3";
 import { auth } from "@/lib/auth";
 import { stripThinkingTokens, checkRateLimit } from "@/lib/utils";
+import { extractRefNumbers, fixArticleSectionTerminology } from "@/lib/legal-terminology";
+import { SECTION_MAPPINGS, findMappingByOld, findMappingByNew, mappingPromptBlock } from "@/lib/section-mapping";
 
 const NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 const NVIDIA_MODEL = "meta/llama-3.1-8b-instruct";
@@ -30,7 +32,11 @@ const VALID_CONVERSATION_TYPES = new Set(["chat", "analysis", "talk-to-ai", "gri
 const MAX_MESSAGES = 100;
 const MAX_MESSAGE_LENGTH = 10000;
 
-const CHAT_SYSTEM_PROMPT = `You are Lawbite AI, an Indian legal assistant. ONLY answer about Indian law. Never answer about laws of any other country. If not about Indian law, respond ONLY with: I can only provide information related to Indian law. Please ask a legal question concerning India. If the user's message is ONLY a greeting word (hi, hello, hey, namaste) with no legal question, reply ONLY with: Hello! How can I assist you with Indian legal matters today? Nothing else. Otherwise, answer the question directly without any greeting. For EVERY question, answer in EXACTLY 1-2 short sentences. This is strict. If the user asks for a comparison or difference, state the core distinction in 1 sentence only — NEVER use tables or columns. Never output pipe characters, tables, bullet points, numbered lists, or multiple paragraphs. If you write more than 2 sentences, you are wrong. IMPORTANT: Never confuse sections (used in Acts/Codes like CrPC, IPC) with articles (used in the Constitution). Never invent section numbers, article numbers, amendments, or case names. Only use facts from the legal knowledge provided. LANGUAGE RULES: DEFAULT language is ALWAYS English. The user's response language is determined SOLELY by the script they use to write their message. If the user writes in Devanagari script (Hindi characters like क, ख, ग), respond in Hindi. If the user writes in English script (Latin letters like A, B, C), respond in English — even if the topic is about Indian law, Indian constitution, or anything Indian. The word "Indian" in English does NOT mean the user wants Hindi. Only Devanagari script triggers Hindi responses. When responding in Hindi, keep legal section numbers and act names in English (e.g., "Section 302 BNS") and provide a brief Hindi explanation in brackets after English legal terms. Never mix languages mid-sentence.`;
+const CHAT_SYSTEM_PROMPT = `You are Lawbite AI, an Indian legal assistant. ONLY answer about Indian law. Never answer about laws of any other country. If not about Indian law, respond ONLY with: I can only provide information related to Indian law. Please ask a legal question concerning India. If the user's message is ONLY a greeting word (hi, hello, hey, namaste) with no legal question, reply ONLY with: Hello! How can I assist you with Indian legal matters today? Nothing else. Otherwise, answer the question directly without any greeting. For EVERY question, answer in EXACTLY 1-2 short sentences. This is strict. If the user asks for a comparison or difference, state the core distinction in 1 sentence only — NEVER use tables or columns. Never output pipe characters, tables, bullet points, numbered lists, or multiple paragraphs. If you write more than 2 sentences, you are wrong. 
+
+CRITICAL: The Constitution of India is the supreme law and has NOT been replaced. The Bharatiya Nyaya Sanhita (BNS) 2023 replaced the Indian Penal Code (IPC) 1860 — NOT the Constitution. Articles (e.g., Article 144) exist ONLY in the Constitution. Sections exist in Acts/Codes (IPC, CrPC, BNS, BNSS, BSA, Evidence Act, etc.). NEVER confuse Articles with Sections. NEVER state that BNS/BNSS/BSA replaced the Constitution. NEVER invent section numbers, article numbers, amendments, or case names. Only use facts from the legal knowledge provided. 
+
+LANGUAGE RULES: You must ALWAYS respond in English. No matter what language the user writes in (including Hindi, Devanagari script, or any other language), ALWAYS respond in English. Never respond in Hindi or any language other than English.`;
 
 const ANALYSIS_SYSTEM_PROMPT = `You are Lawbite AI, an Indian legal assistant. ONLY answer about Indian law. Never answer about laws of any other country. If not about Indian law, respond ONLY with: I can only provide information related to Indian law. Please ask a legal question concerning India. If the user's message is ONLY a greeting word (hi, hello, hey, namaste) with no legal question, reply ONLY with: Hello! How can I assist you with Indian legal matters today? Nothing else. Otherwise, answer the question directly without any greeting.
 
@@ -82,7 +88,7 @@ Follow the table with a brief note. Every cell in every row must contain item-sp
 
 6. GENERAL ANALYSIS — Use numbered points (1. 2. 3.) with a blank line between each. End with a CONCLUSION paragraph.
 
-IMPORTANT: Never confuse sections (used in Acts/Codes) with articles (used in the Constitution). Never invent section numbers, article numbers, amendments, or case names. Only use facts from the legal knowledge provided.
+IMPORTANT: Never confuse sections (used in Acts/Codes) with articles (used in the Constitution). The Constitution of India has NOT been replaced — it is the supreme law. BNS 2023 replaced IPC 1860; BNSS 2023 replaced CrPC 1973; BSA 2023 replaced Evidence Act 1872. Articles exist ONLY in the Constitution. Sections exist in Acts/Codes. NEVER state that new criminal laws replaced the Constitution. Never invent section numbers, article numbers, amendments, or case names. Only use facts from the legal knowledge provided.
 
 CURRENT LEGAL LANDSCAPE (you MUST use these current laws — the old laws listed below have been REPLACED or SIGNIFICANTLY AMENDED):
 
@@ -91,7 +97,7 @@ CRIMINAL LAW (COMPLETE OVERHAUL effective 1 July 2024):
 - CrPC 1973 → REPLACED by Bharatiya Nagarik Suraksha Sanhita (BNSS) 2023 (Act 46 of 2023)
 - Indian Evidence Act 1872 → REPLACED by Bharatiya Sakshya Adhiniyam (BSA) 2023 (Act 47 of 2023)
 - Key BNS changes: Community service introduced as punishment; organized crime and terrorism codified as offences; electronic/digital records are primary evidence; sedition removed/replaced; hit-and-run defined (Section 106); maximum undertrial detention period prescribed; only 2 adjournments allowed; forensic examination mandatory for offences punishable with 7+ years; zero FIR and e-FIR introduced; victim rights expanded; time-bound trials mandated.
-- All references to IPC, CrPC, Evidence Act for current matters MUST be updated to BNS, BNSS, BSA respectively. Exception: IPC/CrPC/Evidence Act may still apply for historical/prior events under saving clauses.
+- All references to IPC, CrPC, Evidence Act for current matters MUST be updated to BNS, BNSS, BSA respectively. Exception: IPC/CrPC/Evidence Act may still apply for historical/prior events under saving clauses. When a user cites an old section number (e.g. "Section 144", "Section 302", "Section 420"), ALWAYS identify it by its old name first, then state the new equivalent (e.g. "CrPC Section 144 is now BNSS Section 163"). Never silently swap the number without explaining the mapping.
 
 INCOME TAX (COMPLETE OVERHAUL effective 1 April 2026):
 - Income Tax Act, 1961 → REPLACED by Income Tax Act, 2025 (Act 30 of 2025, received assent 21 Aug 2025)
@@ -140,15 +146,17 @@ CONSTITUTION & GOVERNANCE:
 
 IMPORTANT: Always use the CURRENT law when answering. If a law has been replaced (e.g., IPC → BNS), refer to the new law first but note that the old law may still apply to past events. Never cite a repealed or superseded statute as currently in force without clarifying its status.
 
-NEVER use single asterisks (*) for emphasis or formatting. Only use double asterisks (**) for bold text. Single asterisks cause rendering issues. LANGUAGE RULES: The user may write in Hindi or any Indian language. You must ALWAYS respond in English. Legal analysis, document drafting, and formal legal opinions must be in English for precision and enforceability. If the user's query is in Hindi, briefly acknowledge their language at the start (e.g., "Here is the analysis in English for legal accuracy:") then provide the full response in English.`;
+NEVER use single asterisks (*) for emphasis or formatting. Only use double asterisks (**) for bold text. Single asterisks cause rendering issues. LANGUAGE RULES: You must ALWAYS respond in English. No matter what language the user writes in (including Hindi, Devanagari script, or any other language), ALWAYS respond in English. Never respond in Hindi or any language other than English.`;
 
 const TALK_TO_AI_SYSTEM_PROMPT = `You are a concise Indian legal assistant. Respond in exactly 1 or 2 plain sentences. Never use lists, numbers, headings, or formatting. Just 1-2 short sentences.
 
 EXCEPTION: If the user explicitly asks for a comparison shown in a table (or a "difference" table), you MAY output a compact markdown table — header row, separator row (| --- | --- |), and ONE row per item — followed by one short closing sentence (max 12 words). Every cell MUST contain specific content for that exact item; never leave a cell blank and never write "same as above".
 
-Always use CURRENT Indian law. The Indian Penal Code 1860, CrPC 1973 and Indian Evidence Act 1872 were REPLACED on 1 July 2024 by the Bharatiya Nyaya Sanhita (BNS) 2023, Bharatiya Nagarik Suraksha Sanhita (BNSS) 2023 and Bharatiya Sakshya Adhiniyam (BSA) 2023 respectively. Answer current matters under the new laws. NEVER tell a user "not BNS" or treat the IPC as currently in force.
+Always use CURRENT Indian law. The Indian Penal Code 1860, CrPC 1973 and Indian Evidence Act 1872 were REPLACED on 1 July 2024 by the Bharatiya Nyaya Sanhita (BNS) 2023, Bharatiya Nagarik Suraksha Sanhita (BNSS) 2023 and Bharatiya Sakshya Adhiniyam (BSA) 2023 respectively. Answer current matters under the new laws. When the user cites an OLD section number (IPC/CrPC/Evidence Act), first name the old provision, then state the new equivalent — e.g. "CrPC Section 144 is now BNSS Section 163"; "IPC Section 302 (murder) is now BNS Section 103"; "IPC Section 420 (cheating) is now BNS Section 318". NEVER cite a wrong new-section number: only use the mapping given in the legal knowledge, and if the legal knowledge does not contain a mapping for the cited section, say so rather than inventing one.
 
-Never mention, suggest, or advertise app features, modes, buttons, or other features (never say "try the Deep Analysis feature" or similar). LANGUAGE RULES: DEFAULT language is ALWAYS English. The user's response language is determined SOLELY by the script they use to write their message. If the user writes in Devanagari script (Hindi characters like क, ख, ग), respond in Hindi. If the user writes in English script (Latin letters like A, B, C), respond in English — even if the topic is about Indian law, Indian constitution, or anything Indian. The word "Indian" in English does NOT mean the user wants Hindi. Only Devanagari script triggers Hindi responses. When responding in Hindi, keep legal section numbers and act names in English (e.g., "Section 302 BNS") and provide a brief Hindi explanation in brackets after English legal terms. Never mix languages mid-sentence.`;
+CRITICAL: The Constitution of India is the supreme law and has NOT been replaced. Articles (e.g., Article 144) exist ONLY in the Constitution. BNS/BNSS/BSA replaced IPC/CrPC/Evidence Act — NOT the Constitution. NEVER confuse Articles with Sections. NEVER state that new criminal laws replaced the Constitution.
+
+Never mention, suggest, or advertise app features, modes, buttons, or other features (never say "try the Deep Analysis feature" or similar). LANGUAGE RULES: You must ALWAYS respond in English. No matter what language the user writes in (including Hindi, Devanagari script, or any other language), ALWAYS respond in English. Never respond in Hindi or any language other than English.`;
 
 const DOCUMENT_DRAFTER_SYSTEM_PROMPT = `You are Lawbite AI Document Drafter, a specialized Indian legal document drafting assistant.
 
@@ -542,7 +550,7 @@ The templates above show the standard structure. When filling them:
 - If the user did not provide a piece of information, omit that entire line or paragraph — do not leave empty brackets.
 - Exception: For a blank draft request (no details at all), output the full structure with all bracketed labels visible so the user knows what to fill.
 - Always cite current Indian statutes using their full name and year.
-- If referencing a section from the Legal Knowledge Base, use the exact section number and title provided. LANGUAGE RULES: The user may write in Hindi or any Indian language. You must ALWAYS respond in English. Legal analysis, document drafting, and formal legal opinions must be in English for precision and enforceability. If the user's query is in Hindi, briefly acknowledge their language at the start (e.g., "Here is the analysis in English for legal accuracy:") then provide the full response in English.`;
+- If referencing a section from the Legal Knowledge Base, use the exact section number and title provided. LANGUAGE RULES: You must ALWAYS respond in English. No matter what language the user writes in (including Hindi, Devanagari script, or any other language), ALWAYS respond in English. Never respond in Hindi or any language other than English.`;
 
 const GRILL_SYSTEM_PROMPT = `You are Lawbite AI, a rigorous Indian legal advisor running a structured case intake session called "My Cases."
 
@@ -613,7 +621,7 @@ If you still need more information, do NOT include [ADVICE_COMPLETE]. Just ask t
 - Stay strictly within Indian law. Never answer about laws of any other country.
 - When greeted, reply ONLY with: "I am ready to help. What legal problem are you facing?"
 - Never use markdown, asterisks, or bullet points. Use plain text only.
-- REMINDER: After your brief acknowledgement response, you MUST put "---" on its own line, then the NEXT SINGLE question. NEVER put more than one question after "---". NEVER skip the "---" delimiter. LANGUAGE RULES: The user may write in Hindi or any Indian language. You must ALWAYS respond in English. Legal analysis, document drafting, and formal legal opinions must be in English for precision and enforceability. If the user's query is in Hindi, briefly acknowledge their language at the start (e.g., "Here is the analysis in English for legal accuracy:") then provide the full response in English.`;
+- REMINDER: After your brief acknowledgement response, you MUST put "---" on its own line, then the NEXT SINGLE question. NEVER put more than one question after "---". NEVER skip the "---" delimiter. LANGUAGE RULES: You must ALWAYS respond in English. No matter what language the user writes in (including Hindi, Devanagari script, or any other language), ALWAYS respond in English. Never respond in Hindi or any language other than English.`;
 
 const DOCUMENT_REVIEW_SYSTEM_PROMPT = `You are Lawbite AI Document Reviewer, a specialized Indian legal document analysis assistant.
 
@@ -665,7 +673,7 @@ End with:
 - Use plain language — avoid legal jargon when explaining consequences
 - Be direct and specific — point out exact problematic phrases
 - If the document text is truncated, note what sections may be missing
-- Never use markdown, asterisks, or bullet points. Use numbered points and plain text only. LANGUAGE RULES: The user may write in Hindi or any Indian language. You must ALWAYS respond in English. Legal analysis, document drafting, and formal legal opinions must be in English for precision and enforceability. If the user's query is in Hindi, briefly acknowledge their language at the start (e.g., "Here is the analysis in English for legal accuracy:") then provide the full response in English.`;
+- Never use markdown, asterisks, or bullet points. Use numbered points and plain text only. LANGUAGE RULES: You must ALWAYS respond in English. No matter what language the user writes in (including Hindi, Devanagari script, or any other language), ALWAYS respond in English. Never respond in Hindi or any language other than English.`;
 
 function getSystemPrompt(conversationType?: string) {
   switch (conversationType) {
@@ -764,25 +772,6 @@ async function webSearch(query: string): Promise<{ context: string; citations: C
   }
 }
 
-function extractRefNumbers(query: string): { sections: string[]; articles: string[] } {
-  const sections: string[] = [];
-  const articles: string[] = [];
-  const num = "\\d+[A-Za-z]?";
-  const sep = "(?:\\s*(?:,|&|and|or)\\s*|\\s+)";
-  const secRe = new RegExp(`(?:sections|section|sec\\.?|s\\.)\\s+(${num}(?:${sep}${num})*)`, "gi");
-  const artRe = new RegExp(`(?:articles|article|art\\.?)\\s+(${num}(?:${sep}${num})*)`, "gi");
-  let m: RegExpExecArray | null;
-  while ((m = secRe.exec(query))) {
-    const nums = m[1].match(/\d+[A-Za-z]?/g);
-    if (nums) sections.push(...nums);
-  }
-  while ((m = artRe.exec(query))) {
-    const nums = m[1].match(/\d+[A-Za-z]?/g);
-    if (nums) articles.push(...nums);
-  }
-  return { sections, articles };
-}
-
 const actMap: Record<string, string> = {
   // Constitution & Polity
   constitution: "constitution",
@@ -792,14 +781,14 @@ const actMap: Record<string, string> = {
   writ: "writ-jurisprudence", "writs": "writ-jurisprudence", "habeas corpus": "writ-jurisprudence",
   mandamus: "writ-jurisprudence", certiorari: "writ-jurisprudence", "quo warranto": "writ-jurisprudence",
   pil: "public-interest-litigation", "public interest litigation": "public-interest-litigation",
-  "revision jurisdiction": "revision-of-courts",
+  
   "civil appeal": "civil-appeals", "civil appeals": "civil-appeals",
   "indian polity": "indian-polity", polity: "indian-polity", governance: "indian-polity",
   "local government": "local-government", panchayat: "local-government", municipality: "local-government",
-  "fundamental rules": "fundamental-rules", "fr rules": "fundamental-rules",
-  "general financial rules": "general-financial-rules", gfr: "general-financial-rules",
+  
+  
   "delegated legislation": "delegated-legislation",
-  "public administration": "public-administration",
+  
 
   // Criminal Law
   ipc: "ipc", "penal code": "ipc", "indian penal code": "ipc",
@@ -820,12 +809,12 @@ const actMap: Record<string, string> = {
   "prevention of corruption act 1988": "prevention-of-corruption-act", "pc act 1988": "prevention-of-corruption-act",
 
   // Civil Law
-  cpc: "code-of-civil-procedure", "civil procedure": "code-of-civil-procedure",
+  
   evidence: "evidence-act", "evidence act": "evidence-act",
   "transfer of property": "transfer-of-property-act", "property act": "transfer-of-property-act", tpa: "transfer-of-property-act",
   contract: "indian-contract-act", "contract act": "indian-contract-act",
   "specific relief": "specific-relief-act",
-  "jurisdiction of courts": "jurisdiction-structure-of-courts", "court jurisdiction": "jurisdiction-structure-of-courts", "structure of courts": "jurisdiction-structure-of-courts", "court structure": "jurisdiction-structure-of-courts", "high court jurisdiction": "jurisdiction-structure-of-courts", "supreme court jurisdiction": "jurisdiction-structure-of-courts",
+  
   "tort law": "tort-law", tort: "tort-law", "tort liability": "tort-law", "civil wrong": "tort-law", "civil wrongs": "tort-law", negligence: "tort-law", defamation: "tort-law", nuisance: "tort-law", trespass: "tort-law", "strict liability": "tort-law", "vicarious liability": "tort-law", damages: "tort-law", "malicious prosecution": "tort-law", "false imprisonment": "tort-law", "assault and battery": "tort-law",
   arbitration: "arbitration-act", "arbitration act": "arbitration-act", conciliation: "arbitration-act", arbitral: "arbitration-act",
   "limitation act": "limitation-act", limitation: "limitation-act", "statute of limitation": "limitation-act", "period of limitation": "limitation-act",
@@ -864,7 +853,7 @@ const actMap: Record<string, string> = {
 
   // Human Rights & Social Welfare
   "human rights": "protection-of-human-rights-act",
-  "prisoner rights": "prisoner-rights", "prisoners rights": "prisoner-rights",
+  
   "women rights": "women-rights", "women law": "women-rights",
   "sexual harassment": "posh-act", posh: "posh-act", "workplace harassment": "posh-act",
   "maternity benefit": "maternity-benefit-act", "maternity leave": "maternity-benefit-act",
@@ -877,7 +866,7 @@ const actMap: Record<string, string> = {
 
   // Cyber Law & IT
   "information technology": "information-technology-act", "it act": "information-technology-act",
-  "cyber law": "cyber-law-forensics", "cyber forensics": "cyber-law-forensics", "cyber laws": "cyber-law-forensics",
+  
   "data protection": "data-protection", "data privacy": "data-protection",
   hacking: "hacking-laws", "hacking laws": "hacking-laws",
   "identity theft": "identity-theft",
@@ -973,23 +962,25 @@ const actMap: Record<string, string> = {
   "constitution schedule": "constitutional-schedules", schedules: "constitutional-schedules", "seventh schedule": "constitutional-schedules", "union list": "constitutional-schedules", "state list": "constitutional-schedules", "concurrent list": "constitutional-schedules",
   "constitution part": "constitutional-parts", "part iii": "constitutional-parts", "part iv": "constitutional-parts", "emergency provisions": "constitutional-parts",
   "constitutional amendment": "constitutional-amendments", "constitutional amendments": "constitutional-amendments", "amendment procedure": "constitutional-amendments",
+  // Constitution articles (non-fundamental-rights) - map to constitution for direct article lookup
+  "article 124": "constitution", "article 125": "constitution", "article 126": "constitution", "article 127": "constitution", "article 128": "constitution", "article 129": "constitution", "article 130": "constitution", "article 131": "constitution", "article 132": "constitution", "article 133": "constitution", "article 134": "constitution", "article 134a": "constitution", "article 135": "constitution", "article 136": "constitution", "article 137": "constitution", "article 138": "constitution", "article 139": "constitution", "article 140": "constitution", "article 141": "constitution", "article 142": "constitution", "article 143": "constitution", "article 144": "constitution", "article 145": "constitution", "article 146": "constitution", "article 147": "constitution", "article 148": "constitution", "article 149": "constitution", "article 150": "constitution", "article 151": "constitution",
 };
 
 const fullTextActs = new Set([
   "constitution", "bharatiya-nyaya-sanhita", "bharatiya-nagrik-suraksha-sanhita", "bharatiya-sakshya-adhiniyam",
-  "code-of-civil-procedure", "transfer-of-property-act", "indian-contract-act", "specific-relief-act",
+  "transfer-of-property-act", "indian-contract-act", "specific-relief-act",
   "family-law", "indian-succession-act", "hindu-succession-act", "domestic-violence-act",
   "consumer-protection-act",
-  "information-technology-act", "cyber-law-forensics", "data-protection", "hacking-laws",
+  "information-technology-act", "data-protection", "hacking-laws",
   "identity-theft", "online-frauds", "cyber-crime-detection", "digital-evidence",
   "constitutional-law-jurisprudence", "legal-terminology",
-  "jurisdiction-structure-of-courts", "tort-law",
-  "civil-appeals", "judicial-review", "writ-jurisprudence", "public-interest-litigation", "revision-of-courts",
+  "tort-law",
+  "civil-appeals", "judicial-review", "writ-jurisprudence", "public-interest-litigation",
   "police-act-1861", "fir-procedures", "arrest-guidelines", "search-and-seizure", "nia-act",
   "charge-sheets", "preventive-detention",
-  "indian-polity", "local-government", "fundamental-rules", "general-financial-rules",
-  "delegated-legislation", "public-administration",
-  "protection-of-human-rights-act", "prisoner-rights", "women-rights", "child-rights", "minority-rights",
+  "indian-polity", "local-government",
+  "delegated-legislation",
+  "protection-of-human-rights-act", "women-rights", "child-rights", "minority-rights",
   "posh-act", "maternity-benefit-act", "mental-healthcare-act", "national-food-security-act",
   "rpwd-act", "child-labour-act",
   "hindu-marriage-act", "special-marriage-act", "hindu-adoption-maintenance-act", "hindu-minority-guardianship-act",
@@ -1058,6 +1049,32 @@ async function getLegalKnowledge(query: string): Promise<{ context: string; cita
     const lower = query.toLowerCase();
 
     const { sections: sectionMatches, articles: articleMatches } = extractRefNumbers(query);
+
+    // Cross-act section mapping: if a cited section matches a known old→new
+    // law mapping (IPC→BNS, CrPC→BNSS, Evidence Act→BSA), fetch BOTH the old
+    // and the new equivalent so the answer is grounded in actual statute text.
+    const mappingParts: string[] = [];
+    if (sectionMatches.length > 0) {
+      const oldActKeys = new Set(SECTION_MAPPINGS.map((m) => m.actKey));
+      for (const secNum of sectionMatches) {
+        // Old-law equivalents
+        for (const key of oldActKeys) {
+          const sec = await s3kb.getSection(key, secNum);
+          if (sec) {
+            mappingParts.push(`[${key.toUpperCase()} Section ${sec.section}] ${sec.title}: ${sec.text}`);
+          }
+        }
+        // New-law equivalents (via verified mapping table)
+        for (const m of SECTION_MAPPINGS) {
+          if (m.oldSection === secNum) {
+            const newSec = await s3kb.getSection(m.newActKey, m.newSection);
+            if (newSec) {
+              mappingParts.push(`[${m.newActKey.toUpperCase()} Section ${newSec.section} — ${m.offence}] ${newSec.title}: ${newSec.text}`);
+            }
+          }
+        }
+      }
+    }
 
     let targetAct = "";
     for (const [key, val] of Object.entries(actMap)) {
@@ -1173,8 +1190,23 @@ async function getLegalKnowledge(query: string): Promise<{ context: string; cita
       }
     }
 
+    if (parts.length === 0 && targetAct) {
+      const available = await s3kb.getFullTextIndex();
+      const hasAct = available?.some((entry: string | { id: string }) => {
+        const id = typeof entry === "string" ? entry : entry.id;
+        return id === targetAct;
+      });
+      if (!hasAct) {
+        return {
+          context: `[ERROR] No S3 knowledge base data available for "${displayActName(targetAct)}". This act has not been ingested into the knowledge base.`,
+          citations: [],
+        };
+      }
+    }
+
+    const allParts = [...mappingParts, ...parts];
     return {
-      context: parts.length > 0 ? `Legal Knowledge Base:\n${parts.join("\n\n")}` : "",
+      context: allParts.length > 0 ? `Legal Knowledge Base:\n${allParts.join("\n\n")}` : "",
       citations,
     };
   } catch (error) {
@@ -1266,9 +1298,10 @@ export async function POST(request: NextRequest) {
     const refs = extractRefNumbers(userQuery);
     const refCount = refs.sections.length + refs.articles.length;
     const multiRefQuery = refCount >= 2;
+    const tableAppropriate = refs.sections.length >= 2 && refs.articles.length === 0;
 
     let systemPrompt = getSystemPrompt(conversationType);
-    if (conversationType === "talk-to-ai" && multiRefQuery) {
+    if (conversationType === "talk-to-ai" && tableAppropriate) {
       systemPrompt = `You are a concise Indian legal assistant. The user asked about ${refCount} legal sections/articles. Present the answer ONLY as a compact markdown table with EXACTLY 3 columns. Obey EVERY rule strictly:
 1. Header row must be exactly: | Section | Offence | Punishment |
 2. Separator row: | --- | --- | --- |
@@ -1281,7 +1314,7 @@ export async function POST(request: NextRequest) {
 No other formatting. If a cell would exceed the word limit, shorten it.`;
     }
 
-    if (conversationType === "analysis" && multiRefQuery) {
+    if (conversationType === "analysis" && tableAppropriate) {
       systemPrompt = `You are Lawbite AI, an Indian legal assistant. The user asked about ${refCount} legal sections/articles. This is a DEEP ANALYSIS request — the response MUST be far more detailed than a quick chat reply. Produce THREE parts:
 
 PART 1 — QUICK REFERENCE TABLE (compact, for scanning):
@@ -1364,10 +1397,26 @@ Never transpose tables, never leave a table cell blank, never invent section num
     const isTalkToAi = conversationType === "talk-to-ai";
     const isDraft = conversationType === "draft";
     const isAnalysis = conversationType === "analysis";
-    const isAnalysisMultiRef = conversationType === "analysis" && multiRefQuery;
-    const legal = (isTalkToAi && !multiRefQuery || needsSearch) ? { context: "", citations: [] as Citation[] } : await getLegalKnowledge(userQuery);
+    const isAnalysisMultiRef = conversationType === "analysis" && tableAppropriate;
+    const hasRefs = refCount >= 1;
+    const legal = (isTalkToAi && !hasRefs) ? { context: "", citations: [] as Citation[] } : await getLegalKnowledge(userQuery);
     const legalContext = legal.context;
     citations = [...citations, ...legal.citations];
+
+    if (!legalContext) {
+      if (hasRefs) {
+        return Response.json(
+          { error: "No S3 knowledge base data found for the section(s)/article(s) you asked about. This provision has not been ingested into the knowledge base yet. I will not guess the law." },
+          { status: 404 }
+        );
+      }
+      if (!isTalkToAi && !needsSearch) {
+        return Response.json(
+          { error: "No S3 knowledge base data found for this query. The requested legal topic has not been ingested into the knowledge base." },
+          { status: 404 }
+        );
+      }
+    }
 
     const seen = new Set<string>();
     citations = citations.filter((c) => {
@@ -1381,6 +1430,16 @@ Never transpose tables, never leave a table cell blank, never invent section num
     const contextParts: string[] = [];
     if (webSearchContext) contextParts.push(webSearchContext);
     if (legalContext) contextParts.push(legalContext);
+    if (refs.sections.length > 0) {
+      contextParts.push(
+        `VERIFIED OLD→NEW SECTION MAPPINGS (effective 1 July 2024). Use these ONLY when the user cites an old SECTION number (IPC/CrPC/Evidence Act) — NEVER invent a different mapping, and NEVER apply these to Constitution ARTICLES:\n${mappingPromptBlock()}`
+      );
+    }
+    if (refs.articles.length > 0) {
+      contextParts.push(
+        `NOTE: "Article N" always refers to the Constitution of India (Articles are only in the Constitution). Never treat "Article N" as a section of CrPC/IPC/BNS/BNSS/BSA — those statutes have SECTIONS, not Articles.`
+      );
+    }
     if (contextParts.length > 0) {
       finalSystemPrompt = `${systemPrompt}\n\nIMPORTANT: Use the following information to answer the user's question. Incorporate this into your response:\n\n${contextParts.join("\n\n")}`;
     }
@@ -1415,7 +1474,7 @@ Never transpose tables, never leave a table cell blank, never invent section num
         model,
         messages: messagesWithSystem,
         max_tokens: maxTokens,
-        temperature: (isTalkToAi && multiRefQuery) || isAnalysisMultiRef ? 0.3 : 1.0,
+        temperature: (isTalkToAi && tableAppropriate) || isAnalysisMultiRef ? 0.3 : 1.0,
         top_p: 0.95,
         stream: true,
       }),
@@ -1724,7 +1783,8 @@ Never transpose tables, never leave a table cell blank, never invent section num
         let fullContent = "";
         let emittedAny = false;
         const emit = (content: string) => {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
+          // Fix LLM hallucination: Acts (BNS/BNSS/BSA) have Sections, not Articles.
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: fixArticleSectionTerminology(content) })}\n\n`));
           emittedAny = true;
         };
 
@@ -1764,7 +1824,7 @@ Never transpose tables, never leave a table cell blank, never invent section num
             const rawContent = cleanTalkToAiContent(fullContent);
             const explicitTableRequest = /(comparison|compare|difference|differences|in a table|as a table|\btable\b)/i.test(userQuery);
             let truncated: string | null = null;
-            if (multiRefQuery) {
+            if (tableAppropriate) {
               truncated = tightenMultiRefTable(rawContent);
             } else if (explicitTableRequest && /^\s*\|/.test(rawContent)) {
               truncated = normalizeTableRows(rawContent);
@@ -1777,7 +1837,7 @@ Never transpose tables, never leave a table cell blank, never invent section num
               const missingRefs = requestedRefs.filter((r) => !presentRefs.includes(r));
               const blankCells = findBlankTableCells(truncated);
               if (missingRefs.length > 0 || blankCells.length > 0) {
-                if (multiRefQuery) {
+                if (tableAppropriate) {
                   const retried = await retryMultiRefTable(missingRefs, requestedRefs, fullContent);
                   if (retried) truncated = retried;
                 } else {
