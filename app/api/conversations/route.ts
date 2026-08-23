@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
       preview: r.preview,
       type: r.type,
       pinned: r.pinned,
+      folderId: r.folderId,
       createdAt: new Date(r.createdAt).getTime(),
       messages: (r.messages as ConversationMessage[]) ?? [],
     }));
@@ -77,6 +78,7 @@ export async function POST(request: NextRequest) {
       const preview =
         typeof item.preview === "string" ? item.preview.slice(0, 500) : "";
       const pinned = item.pinned === true;
+      const folderId = typeof item.folderId === "string" && item.folderId ? item.folderId : null;
       const messages = Array.isArray(item.messages) ? item.messages : [];
       const createdAt = item.createdAt ? new Date(item.createdAt) : new Date();
 
@@ -89,6 +91,7 @@ export async function POST(request: NextRequest) {
           preview,
           type,
           pinned,
+          folderId,
           messages: sql`${JSON.stringify(messages)}::jsonb`,
           createdAt,
           updatedAt: new Date(),
@@ -99,6 +102,7 @@ export async function POST(request: NextRequest) {
             preview,
             type,
             pinned,
+            folderId,
             messages: sql`${JSON.stringify(messages)}::jsonb`,
             updatedAt: new Date(),
           }),

@@ -9,6 +9,8 @@ import LogoIcon from "../../components/LogoIcon";
 import { stripThinkingTokens } from "@/lib/utils";
 import { CalculatorLimitsModal, CalculatorInterestModal } from "./CalculatorModals";
 import { RemindersModal } from "./RemindersModal";
+import { TemplatesModal, FilingModal } from "./ToolsModals";
+import { formatCitation, copyToClipboard } from "@/lib/citations";
 
 type Role = "user" | "assistant";
 
@@ -48,6 +50,7 @@ type Conversation = {
   messages: Message[];
   type: ConversationType;
   pinned?: boolean;
+  folderId?: string | null;
   createdAt?: number;
 };
 
@@ -63,6 +66,7 @@ type SavedCase = {
 
 const STORAGE_KEY = "lawbite-saved-cases";
 const CONVERSATIONS_KEY = "lawbite-conversations";
+const DISCLAIMER_KEY = "lawbite-disclaimer-accepted";
 
 function loadSavedCases(): SavedCase[] {
   if (typeof window === "undefined") return [];
@@ -258,6 +262,8 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const [showClearNotifications, setShowClearNotifications] = useState(false);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [activeCalculator, setActiveCalculator] = useState<"limits" | "interest" | null>(null);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [activeTool, setActiveTool] = useState<"templates" | "filing" | null>(null);
   const [remindersOpen, setRemindersOpen] = useState(false);
   const [dismissedNotifications, setDismissedNotifications] = useState<{ id: string; threshold: number }[]>(() => {
     try {
@@ -275,6 +281,9 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const [contextMenuId, setContextMenuId] = useState<string | null>(null);
   const [myCasesOpen, setMyCasesOpen] = useState(false);
   const [savedCases, setSavedCases] = useState<SavedCase[]>(() => loadSavedCases());
+  const [caseFolders, setCaseFolders] = useState<{ id: string; name: string }[]>([]);
+  const [caseFoldersOpen, setCaseFoldersOpen] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
   const lastTalkIdRef = useRef<string | null>(null);
   const lastAnalysisIdRef = useRef<string | null>(null);
   const [mode, setMode] = useState<ConversationType>("chat");
@@ -290,8 +299,16 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const escTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ type: "clearHistory"; section?: ConversationType } | { type: "deleteConversation"; id: string } | null>(null);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
-  const [disclaimerOpen, setDisclaimerOpen] = useState(false);
+  const [disclaimerOpen, setDisclaimerOpen] = useState<boolean>(() => {
+    try {
+      if (typeof window === "undefined") return false;
+      return localStorage.getItem(DISCLAIMER_KEY) !== "true";
+    } catch {
+      return true;
+    }
+  });
   const [citationOpen, setCitationOpen] = useState<Citation | null>(null);
+  const [copiedCitation, setCopiedCitation] = useState<string | null>(null);
   const [feedbackGiven, setFeedbackGiven] = useState<Record<string, "up" | "down">>({});
   const [feedbackComment, setFeedbackComment] = useState<Record<string, string>>({});
   const [feedbackCommentOpen, setFeedbackCommentOpen] = useState<string | null>(null);
@@ -363,6 +380,20 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     };
   }, [conversations, syncStatus]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/cases");
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          setCaseFolders(Array.isArray(data.folders) ? data.folders : []);
+        }
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     if (!plusMenuOpen) return;
@@ -1077,7 +1108,14 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
       if (!res.ok) {
         const errBody = await res.text().catch(() => "");
-        throw new Error(`API error ${res.status}: ${errBody}`);
+        let msg = "Sorry, I encountered an error. Please try again.";
+        try {
+          const parsed = JSON.parse(errBody);
+          if (parsed.error) msg = parsed.error;
+        } catch {
+          if (errBody) msg = errBody;
+        }
+        throw new Error(msg);
       }
 
       const reader = res.body?.getReader();
@@ -1374,6 +1412,50 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     }
   }
 
+  async function createCaseFolder() {
+    const name = newFolderName.trim();
+    if (!name) return;
+    try {
+      const res = await fetch("/api/cases", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (res.ok) {
+        const folder = await res.json();
+        setCaseFolders((prev) => [folder, ...prev]);
+        setNewFolderName("");
+        setCaseFoldersOpen(true);
+      }
+    } catch { /* ignore */ }
+  }
+
+  async function deleteCaseFolder(id: string) {
+    try {
+      await fetch("/api/cases", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      setCaseFolders((prev) => prev.filter((f) => f.id !== id));
+      setConversations((prev) =>
+        prev.map((c) => (c.folderId === id ? { ...c, folderId: null } : c))
+      );
+    } catch { /* ignore */ }
+  }
+
+  function assignToFolder(convId: string, folderId: string | null) {
+    setConversations((prev) =>
+      prev.map((c) => (c.id === convId ? { ...c, folderId } : c))
+    );
+    setContextMenuId(null);
+    fetch("/api/cases", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: folderId ?? "", assignConversationId: convId, clear: folderId === null }),
+    }).catch(() => {});
+  }
+
   function groupConversations(type: ConversationType, now: number) {
     const DAY = 1000 * 60 * 60 * 24;
 
@@ -1511,6 +1593,24 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                   <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill={conv.pinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L8.5 8.5 2 9.3l4.7 4.5L5.5 21 12 17.5 18.5 21l-1.2-7.2L22 9.3l-6.5-.8z" /></svg>
                   {conv.pinned ? "Unpin" : "Pin"}
                 </button>
+                <div className="my-1 border-t border-white/[0.06]" />
+                <div className="px-3.5 py-2"><p className="text-[11px] font-medium uppercase tracking-wider text-white/30">Case Folder</p></div>
+                <button type="button" onClick={(e) => { e.stopPropagation(); assignToFolder(conv.id, null); }} className={`flex w-full items-center gap-3 px-3.5 py-2 text-[13px] transition-colors hover:bg-white/[0.06] ${!conv.folderId ? "text-white" : "text-white/70 hover:text-white"}`}>
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18" /></svg>
+                  No folder
+                  {!conv.folderId && <span className="ml-auto text-white/60">✓</span>}
+                </button>
+                {caseFolders.length > 0 && (
+                  <div className="max-h-40 overflow-y-auto py-1">
+                    {caseFolders.map((f) => (
+                      <button key={f.id} type="button" onClick={(e) => { e.stopPropagation(); assignToFolder(conv.id, f.id); }} className={`flex w-full items-center gap-3 px-3.5 py-2 text-[13px] transition-colors hover:bg-white/[0.06] ${conv.folderId === f.id ? "text-white" : "text-white/70 hover:text-white"}`}>
+                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-amber-400/70" fill="currentColor"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v2H3z" /><path d="M3 10h18l-1.5 9a2 2 0 0 1-2 1.7H6.5a2 2 0 0 1-2-1.7z" /></svg>
+                        <span className="truncate">{f.name}</span>
+                        {conv.folderId === f.id && <span className="ml-auto text-white/60">✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <div className="my-1 border-t border-white/[0.06]" />
                 <div className="px-3.5 py-2"><p className="text-[11px] font-medium uppercase tracking-wider text-white/30">Share</p></div>
                 <div className="flex items-center gap-1 px-3 pb-2">
@@ -1751,6 +1851,28 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           </button>
           <button
             type="button"
+            onClick={() => setToolsOpen(true)}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white"
+          >
+            <svg
+              aria-hidden
+              viewBox="0 0 24 24"
+              className="h-4 w-4 shrink-0"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+            <span>Tools</span>
+          </button>
+          <button
+            type="button"
             onClick={() => setRemindersOpen(true)}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white"
           >
@@ -1853,24 +1975,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={startNewChat}
-              className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.06] px-3 py-1.5 text-xs font-medium text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-3.5 w-3.5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-              New Chat
-            </button>
             <div className="relative" ref={notificationRef}>
               {(() => {
                 const minDays = upcomingReminders.length > 0 ? Math.min(...upcomingReminders.map((r) => r.daysLeft)) : -1;
@@ -2094,27 +2198,54 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span className="text-[11px] font-semibold uppercase tracking-wider text-white/35">Sources</span>
                             {message.citations.map((cit, i) => (
-                              <button
+                              <div
                                 key={i}
-                                type="button"
-                                onClick={() => setCitationOpen(cit)}
-                                className="inline-flex max-w-full items-center gap-1 rounded-full border border-white/15 bg-white/[0.05] px-2.5 py-1 text-[11px] font-medium text-white/75 transition-colors hover:border-white/30 hover:text-white"
+                                className="inline-flex max-w-full items-center gap-1 rounded-full border border-white/15 bg-white/[0.05] py-1 pl-2.5 pr-1 text-[11px] font-medium text-white/75 transition-colors hover:border-white/30 hover:text-white"
                               >
-                                <svg viewBox="0 0 24 24" className="h-3 w-3 shrink-0 text-blue-400/70" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  {cit.type === "web" ? (
-                                    <>
-                                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                                    </>
+                                <button
+                                  type="button"
+                                  onClick={() => setCitationOpen(cit)}
+                                  className="inline-flex max-w-full items-center gap-1"
+                                >
+                                  <svg viewBox="0 0 24 24" className="h-3 w-3 shrink-0 text-blue-400/70" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    {cit.type === "web" ? (
+                                      <>
+                                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                                      </>
+                                    ) : (
+                                      <>
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                        <polyline points="14 2 14 8 20 8" />
+                                      </>
+                                    )}
+                                  </svg>
+                                  <span className="truncate">{cit.label}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  aria-label="Copy citation"
+                                  title="Copy citation"
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    const ok = await copyToClipboard(formatCitation(cit));
+                                    if (ok) setCopiedCitation(`chip-${i}`);
+                                    setTimeout(() => setCopiedCitation(null), 1800);
+                                  }}
+                                  className="shrink-0 rounded-full p-1 text-white/35 transition-colors hover:bg-white/10 hover:text-white"
+                                >
+                                  {copiedCitation === `chip-${i}` ? (
+                                    <svg viewBox="0 0 24 24" className="h-3 w-3 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                      <polyline points="20 6 9 17 4 12" />
+                                    </svg>
                                   ) : (
-                                    <>
-                                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                      <polyline points="14 2 14 8 20 8" />
-                                    </>
+                                    <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                    </svg>
                                   )}
-                                </svg>
-                                <span className="truncate">{cit.label}</span>
-                              </button>
+                                </button>
+                              </div>
                             ))}
                           </div>
                         )}
@@ -2474,7 +2605,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                         value={draft}
                         onChange={(e) => setDraft(e.target.value)}
                         onKeyDown={onKeyDown}
-                        placeholder={pendingAttachment ? "Ask about this document, or send to review as-is…" : "Message Lawbite… (English or हिंदी)"}
+                        placeholder={pendingAttachment ? "Ask about this document, or send to review as-is…" : "Message Lawbite…"}
                         rows={1}
                         className="min-h-[40px] max-h-40 w-full resize-none bg-transparent px-3 py-2 text-sm leading-relaxed text-white placeholder:text-white/35 focus:outline-none"
                       />
@@ -2688,7 +2819,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                         value={draft}
                         onChange={(e) => setDraft(e.target.value)}
                         onKeyDown={onKeyDown}
-                        placeholder={pendingAttachment ? "Ask about this document, or send to review as-is…" : "Message Lawbite… (English or हिंदी)"}
+                        placeholder={pendingAttachment ? "Ask about this document, or send to review as-is…" : "Message Lawbite…"}
                         rows={1}
                         className="min-h-[40px] max-h-40 w-full resize-none bg-transparent px-3 py-2 text-sm leading-relaxed text-white placeholder:text-white/35 focus:outline-none"
                       />
@@ -2751,7 +2882,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                         value={draft}
                         onChange={(e) => setDraft(e.target.value)}
                         onKeyDown={onKeyDown}
-                        placeholder={pendingAttachment ? "Ask about this document, or send to review as-is…" : "Message Lawbite… (English or हिंदी)"}
+                        placeholder={pendingAttachment ? "Ask about this document, or send to review as-is…" : "Message Lawbite…"}
                         rows={1}
                         className="min-h-[40px] max-h-40 w-full resize-none bg-transparent px-3 py-2 text-sm leading-relaxed text-white placeholder:text-white/35 focus:outline-none"
                       />
@@ -3183,7 +3314,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                     duration of the session.
                   </p>
                   <p className="mt-2 text-xs text-white/35">
-                    आप हिंदी में भी पूछ सकते हैं — Try: &quot;मेरे कर्मचारी को बिना नोटिस के निकाल दिया, क्या करूं?&quot;
+                    Get answers to your legal questions in English.
                   </p>
                 </>
               )}
@@ -3540,7 +3671,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder={pendingAttachment ? "Ask about this document, or send to review as-is…" : "Message Lawbite… (English or हिंदी)"}
+              placeholder={pendingAttachment ? "Ask about this document, or send to review as-is…" : "Message Lawbite…"}
               rows={1}
               className="min-h-[40px] max-h-40 w-full resize-none bg-transparent px-3 py-2 text-sm leading-relaxed text-white placeholder:text-white/35 focus:outline-none"
             />
@@ -3757,6 +3888,75 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                   </button>
                 </div>
               )}
+              {historyTab === "all" && (
+                <div className="mb-4">
+                  <div className="flex items-center justify-between px-3 pb-1 pt-2">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-white/35">Case Folders</p>
+                    <button
+                      type="button"
+                      onClick={() => setCaseFoldersOpen(!caseFoldersOpen)}
+                      className="rounded p-1 text-white/40 transition-colors hover:bg-white/[0.05] hover:text-white"
+                      aria-label="Toggle case folders"
+                    >
+                      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                    </button>
+                  </div>
+                  {caseFoldersOpen && (
+                    <div className="px-3 pb-1">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newFolderName}
+                          onChange={(e) => setNewFolderName(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") createCaseFolder(); }}
+                          placeholder="New folder name"
+                          className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-white placeholder:text-white/30 focus:border-white/30 focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={createCaseFolder}
+                          className="shrink-0 rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-black transition-colors hover:bg-white/90"
+                        >
+                          Add
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {caseFolders.length > 0 ? (
+                    caseFolders.map((f) => {
+                      const folderConvs = conversations.filter((c) => c.folderId === f.id);
+                      return (
+                        <div key={f.id} className="group">
+                          <div className="flex items-center gap-2 px-3 pb-1 pt-2">
+                            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-amber-400/70" fill="currentColor"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v2H3z" /><path d="M3 10h18l-1.5 9a2 2 0 0 1-2 1.7H6.5a2 2 0 0 1-2-1.7z" /></svg>
+                            <span className="flex-1 truncate text-xs font-medium text-white/80">{f.name}</span>
+                            <span className="text-[10px] text-white/30">{folderConvs.length}</span>
+                            <button
+                              type="button"
+                              onClick={() => deleteCaseFolder(f.id)}
+                              className="rounded p-0.5 text-white/25 opacity-0 transition-opacity hover:text-red-400 group-hover:opacity-100"
+                              aria-label={`Delete folder ${f.name}`}
+                            >
+                              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                            </button>
+                          </div>
+                          {folderConvs.length > 0 && (
+                            <ul className="space-y-0.5 text-sm">
+                              {folderConvs.map((conv) => (
+                                <li key={conv.id} className="relative" onMouseEnter={() => setHoveredId(conv.id)} onMouseLeave={() => setHoveredId(null)}>
+                                  {renderConvItem(conv)}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    !caseFoldersOpen && <p className="px-3 text-[11px] text-white/25">Organize cases into folders</p>
+                  )}
+                </div>
+              )}
               {(historyTab === "all" || historyTab === "grill") && groupConversations("grill", now).length > 0 && (
                 <div className="mb-4">
                   <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-amber-400/60">My Cases</p>
@@ -3904,6 +4104,60 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
       {activeCalculator === "interest" && (
         <CalculatorInterestModal onClose={() => setActiveCalculator(null)} onBack={() => { setActiveCalculator(null); setCalculatorOpen(true); }} />
+      )}
+
+      {toolsOpen && !activeTool && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setToolsOpen(false)}>
+          <div
+            className="animate-overlay-in mx-4 w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-white">Legal Tools</h3>
+            <p className="mt-1 text-sm text-white/50">Templates, filing guides, and more.</p>
+            <div className="mt-5 space-y-3">
+              <button
+                type="button"
+                onClick={() => setActiveTool("templates")}
+                className="flex w-full items-center gap-4 rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 text-left transition-all hover:border-white/20 hover:bg-white/[0.05]"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-500/10 text-violet-400">
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                  </svg>
+                </div>
+                <div>
+                  <span className="block text-sm font-medium text-white">Contract Templates</span>
+                  <span className="mt-0.5 block text-xs text-white/40">6 ready-to-use Indian legal templates</span>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTool("filing")}
+                className="flex w-full items-center gap-4 rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 text-left transition-all hover:border-white/20 hover:bg-white/[0.05]"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-amber-400">
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
+                    <rect x="9" y="3" width="6" height="4" rx="1" />
+                  </svg>
+                </div>
+                <div>
+                  <span className="block text-sm font-medium text-white">Filing Assistance</span>
+                  <span className="mt-0.5 block text-xs text-white/40">Step-by-step guides for RTI, FIR, consumer complaints</span>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTool === "templates" && (
+        <TemplatesModal onClose={() => setActiveTool(null)} onBack={() => { setActiveTool(null); setToolsOpen(true); }} />
+      )}
+
+      {activeTool === "filing" && (
+        <FilingModal onClose={() => setActiveTool(null)} onBack={() => { setActiveTool(null); setToolsOpen(true); }} />
       )}
 
       {remindersOpen && (
@@ -4190,8 +4444,14 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
       {disclaimerOpen && (
         <div
-          className="animate-overlay-in fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm"
-          onClick={() => setDisclaimerOpen(false)}
+          className="animate-overlay-in fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => {
+            try {
+              if (localStorage.getItem(DISCLAIMER_KEY) === "true") setDisclaimerOpen(false);
+            } catch {
+              setDisclaimerOpen(false);
+            }
+          }}
         >
           <div
             className="animate-modal-in w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
@@ -4201,7 +4461,13 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               <h2 className="text-lg font-semibold tracking-tight">About Lawbite</h2>
               <button
                 type="button"
-                onClick={() => setDisclaimerOpen(false)}
+                onClick={() => {
+                  try {
+                    if (localStorage.getItem(DISCLAIMER_KEY) === "true") setDisclaimerOpen(false);
+                  } catch {
+                    setDisclaimerOpen(false);
+                  }
+                }}
                 className="rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white"
                 aria-label="Close"
               >
@@ -4240,10 +4506,15 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               </Link>
               <button
                 type="button"
-                onClick={() => setDisclaimerOpen(false)}
-                className="rounded-lg bg-white/[0.06] px-4 py-2 text-sm text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white"
+                onClick={() => {
+                  try {
+                    localStorage.setItem(DISCLAIMER_KEY, "true");
+                  } catch { /* ignore */ }
+                  setDisclaimerOpen(false);
+                }}
+                className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-white/90"
               >
-                Got it
+                I understand
               </button>
             </div>
           </div>
@@ -4316,6 +4587,17 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               )}
               <button
                 type="button"
+                onClick={async () => {
+                  const ok = await copyToClipboard(formatCitation(citationOpen));
+                  setCopiedCitation(ok ? "modal" : null);
+                  if (ok) setTimeout(() => setCopiedCitation(null), 1800);
+                }}
+                className="rounded-lg bg-white/[0.06] px-4 py-2 text-sm text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white"
+              >
+                {copiedCitation === "modal" ? "Copied" : "Copy citation"}
+              </button>
+              <button
+                type="button"
                 autoFocus
                 onClick={() => setCitationOpen(null)}
                 className="rounded-lg bg-white/[0.06] px-4 py-2 text-sm text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white"
@@ -4365,16 +4647,28 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               </button>
             </div>
 
-            <button
-              type="button"
-              onClick={startGrill}
-              className="mb-5 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-400/90 px-4 py-3 text-sm font-semibold text-black transition-all hover:bg-amber-400"
-            >
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /><path d="M11 8v6M8 11h6" /><path d="M9 2L7 5l2 3M15 2l2 3-2 3" />
-              </svg>
-              Start New Case
-            </button>
+            <div className="mb-5 flex gap-3">
+              <button
+                type="button"
+                onClick={startGrill}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-amber-400/90 px-4 py-3 text-sm font-semibold text-black transition-all hover:bg-amber-400"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /><path d="M11 8v6M8 11h6" /><path d="M9 2L7 5l2 3M15 2l2 3-2 3" />
+                </svg>
+                Start New Case
+              </button>
+              <a
+                href="/cases"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/15 px-4 py-3 text-sm font-medium text-white/70 transition-all hover:border-white/30 hover:text-white"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+                Case Tracker
+              </a>
+            </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto">
               {savedCases.length === 0 ? (

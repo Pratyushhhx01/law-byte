@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: [
     "kysely",
     "pg",
+    "@neondatabase/serverless",
     "pdfjs-dist",
     "better-auth",
   ],

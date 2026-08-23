@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { buildIcsCalendar, downloadIcs } from "@/lib/ics";
 
 interface Reminder {
   id: string;
@@ -130,13 +131,34 @@ export default function RemindersApp() {
             </Link>
             <h1 className="text-lg font-semibold">Deadline Reminder</h1>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowForm(!showForm)}
-            className="rounded-full bg-white px-4 py-2 text-sm font-medium text-black transition-transform hover:scale-[1.03]"
-          >
-            {showForm ? "Cancel" : "+ New Reminder"}
-          </button>
+          <div className="flex items-center gap-2">
+            {reminders.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  const events = reminders
+                    .filter((r) => !r.completed)
+                    .map((r, i) => ({
+                      uid: r.id || `reminder-${i}`,
+                      summary: r.title,
+                      description: `Reminder type: ${r.type}`,
+                      start: new Date(r.deadlineAt),
+                    }));
+                  downloadIcs("lawbite-reminders.ics", buildIcsCalendar(events));
+                }}
+                className="rounded-full border border-white/15 px-4 py-2 text-sm font-medium text-white/70 transition-colors hover:border-white/30 hover:text-white"
+              >
+                Export calendar (.ics)
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowForm(!showForm)}
+              className="rounded-full bg-white px-4 py-2 text-sm font-medium text-black transition-transform hover:scale-[1.03]"
+            >
+              {showForm ? "Cancel" : "+ New Reminder"}
+            </button>
+          </div>
         </div>
       </header>
 

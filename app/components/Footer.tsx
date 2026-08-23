@@ -26,6 +26,10 @@ const columns: { title: string; links: { label: string; href: string }[] }[] = [
     links: [
       { label: "Documents", href: "/documents" },
       { label: "Guides", href: "/guides" },
+      { label: "Templates", href: "/templates" },
+      { label: "Filing Help", href: "/filing" },
+      { label: "Legal News", href: "/news" },
+      { label: "Case Tracker", href: "/cases" },
     ],
   },
   {

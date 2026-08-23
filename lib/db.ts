@@ -1,12 +1,9 @@
-import { Pool } from "pg";
+import { Pool } from "@neondatabase/serverless";
 import { Kysely, PostgresDialect, Generated } from "kysely";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: true },
-  max: 10,
-  connectionTimeoutMillis: 10000,
-  idleTimeoutMillis: 30000,
+  max: 1,
 });
 
 const dialect = new PostgresDialect({ pool });
@@ -19,6 +16,7 @@ interface ConversationTable {
   type: string;
   pinned: boolean;
   messages: unknown;
+  folderId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -42,10 +40,50 @@ interface ReminderTable {
   createdAt: Generated<Date>;
 }
 
+interface CaseFolderTable {
+  id: string;
+  userId: string;
+  name: string;
+  description: string;
+  status: string;
+  parties: string;
+  court: string;
+  nextHearing: Date | null;
+  notes: string;
+  createdAt: Generated<Date>;
+}
+
+interface CaseDocumentTable {
+  id: string;
+  caseId: string;
+  userId: string;
+  fileName: string;
+  fileType: string;
+  fileUrl: string;
+  createdAt: Generated<Date>;
+}
+
+interface LegalNoticeTable {
+  id: string;
+  userId: string;
+  caseId: string | null;
+  recipientName: string;
+  recipientEmail: string;
+  recipientAddress: string;
+  subject: string;
+  content: string;
+  status: string;
+  sentAt: Date | null;
+  createdAt: Generated<Date>;
+}
+
 interface Database {
   conversation: ConversationTable;
   feedback: FeedbackTable;
   reminder: ReminderTable;
+  case_folder: CaseFolderTable;
+  case_document: CaseDocumentTable;
+  legal_notice: LegalNoticeTable;
 }
 
 export const db = new Kysely<Database>({ dialect });

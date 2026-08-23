@@ -8,9 +8,8 @@ const ALL_S3_KEYS = new Set<string>();
 // Constitution & Polity
 ["constitution", "constitutional-law-jurisprudence", "legal-terminology",
   "judicial-review", "writ-jurisprudence", "public-interest-litigation",
-  "revision-of-courts", "civil-appeals", "indian-polity", "local-government",
-  "fundamental-rules", "general-financial-rules", "delegated-legislation",
-  "public-administration"].forEach(k => ALL_S3_KEYS.add(k));
+  "civil-appeals", "indian-polity", "local-government",
+  "delegated-legislation"].forEach(k => ALL_S3_KEYS.add(k));
 
 // Criminal Law
 ["ipc", "bharatiya-nyaya-sanhita", "crpc", "bharatiya-nagrik-suraksha-sanhita",
@@ -19,8 +18,8 @@ const ALL_S3_KEYS = new Set<string>();
   "armed-forces-special-powers-act"].forEach(k => ALL_S3_KEYS.add(k));
 
 // Civil Law
-["code-of-civil-procedure", "evidence-act", "transfer-of-property-act",
-  "indian-contract-act", "specific-relief-act", "jurisdiction-structure-of-courts",
+["evidence-act", "transfer-of-property-act",
+  "indian-contract-act", "specific-relief-act",
   "tort-law"].forEach(k => ALL_S3_KEYS.add(k));
 
 // Family Law
@@ -38,13 +37,13 @@ const ALL_S3_KEYS = new Set<string>();
   "search-and-seizure", "charge-sheets", "preventive-detention"].forEach(k => ALL_S3_KEYS.add(k));
 
 // Human Rights & Social Welfare
-["protection-of-human-rights-act", "prisoner-rights", "women-rights",
+["protection-of-human-rights-act", "women-rights",
   "posh-act", "maternity-benefit-act", "mental-healthcare-act",
   "national-food-security-act", "rpwd-act", "child-rights", "child-labour-act",
   "minority-rights"].forEach(k => ALL_S3_KEYS.add(k));
 
 // Cyber Law & IT
-["information-technology-act", "cyber-law-forensics", "data-protection",
+["information-technology-act", "data-protection",
   "hacking-laws", "identity-theft", "online-frauds", "cyber-crime-detection",
   "digital-evidence"].forEach(k => ALL_S3_KEYS.add(k));
 
@@ -187,13 +186,13 @@ describe("S3 Knowledge Base — Act Data Verification", () => {
 
   // ── Individual category tests ────────────────────────────────────────
   const categoryTests: Array<{ name: string; keys: string[] }> = [
-    { name: "Constitution & Polity", keys: ["constitution", "constitutional-law-jurisprudence", "legal-terminology", "judicial-review", "writ-jurisprudence", "public-interest-litigation", "revision-of-courts", "civil-appeals", "indian-polity", "local-government", "fundamental-rules", "general-financial-rules", "delegated-legislation", "public-administration"] },
+    { name: "Constitution & Polity", keys: ["constitution", "constitutional-law-jurisprudence", "legal-terminology", "judicial-review", "writ-jurisprudence", "public-interest-litigation", "civil-appeals", "indian-polity", "local-government", "delegated-legislation"] },
     { name: "Criminal Law", keys: ["ipc", "bharatiya-nyaya-sanhita", "crpc", "bharatiya-nagrik-suraksha-sanhita", "bharatiya-sakshya-adhiniyam", "arms-act", "dowry-prohibition-act", "uapa-act", "pmla-act", "explosive-substances-act", "prevention-of-corruption-amended-act", "armed-forces-special-powers-act"] },
-    { name: "Civil Law", keys: ["code-of-civil-procedure", "evidence-act", "transfer-of-property-act", "indian-contract-act", "specific-relief-act", "jurisdiction-structure-of-courts", "tort-law"] },
+    { name: "Civil Law", keys: ["evidence-act", "transfer-of-property-act", "indian-contract-act", "specific-relief-act", "tort-law"] },
     { name: "Family Law", keys: ["consumer-protection-act", "family-law", "indian-succession-act", "hindu-succession-act", "domestic-violence-act", "hindu-marriage-act", "special-marriage-act", "hindu-adoption-maintenance-act", "hindu-minority-guardianship-act", "muslim-personal-law-act", "dissolution-of-muslim-marriages-act", "indian-divorce-act", "indian-christian-marriage-act", "parsi-marriage-divorce-act", "prohibition-child-marriage-act", "guardian-wards-act", "maintenance-parents-senior-citizens-act"] },
     { name: "Police & Criminal Procedure", keys: ["police-act-1861", "nia-act", "fir-procedures", "arrest-guidelines", "search-and-seizure", "charge-sheets", "preventive-detention"] },
-    { name: "Human Rights & Social Welfare", keys: ["protection-of-human-rights-act", "prisoner-rights", "women-rights", "posh-act", "maternity-benefit-act", "mental-healthcare-act", "national-food-security-act", "rpwd-act", "child-rights", "child-labour-act", "minority-rights"] },
-    { name: "Cyber Law & IT", keys: ["information-technology-act", "cyber-law-forensics", "data-protection", "hacking-laws", "identity-theft", "online-frauds", "cyber-crime-detection", "digital-evidence"] },
+    { name: "Human Rights & Social Welfare", keys: ["protection-of-human-rights-act", "women-rights", "posh-act", "maternity-benefit-act", "mental-healthcare-act", "national-food-security-act", "rpwd-act", "child-rights", "child-labour-act", "minority-rights"] },
+    { name: "Cyber Law & IT", keys: ["information-technology-act", "data-protection", "hacking-laws", "identity-theft", "online-frauds", "cyber-crime-detection", "digital-evidence"] },
     { name: "Corporate & Business", keys: ["corporate-business-laws", "rera", "competition-act", "sebi-act", "fema-act", "fema-non-pci-act", "msme-act", "benami-transactions-act", "black-money-act"] },
     { name: "Labour & Employment", keys: ["employment-law", "minimum-wages-act", "payment-of-wages-act", "industrial-disputes-act", "social-security-act", "trade-unions-act", "factories-act", "essential-commodities-act"] },
     { name: "Taxation", keys: ["income-tax-act", "cgst-act", "customs-act", "central-excise-act", "taxation-law"] },

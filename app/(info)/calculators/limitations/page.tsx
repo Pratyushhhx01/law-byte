@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { buildIcsEvent, downloadIcs } from "@/lib/ics";
 
 const CASE_TYPES = [
   { id: "contract", label: "Breach of Contract", years: 3, description: "Indian Contract Act, 1872 — S. 73" },
@@ -45,6 +46,7 @@ function daysBetween(a: Date, b: Date): number {
 export default function LimitationsCalculator() {
   const [selectedType, setSelectedType] = useState("");
   const [incidentDate, setIncidentDate] = useState("");
+  const [reminderSaved, setReminderSaved] = useState(false);
 
   const caseType = CASE_TYPES.find((c) => c.id === selectedType);
   const today = new Date();
@@ -200,6 +202,50 @@ export default function LimitationsCalculator() {
                     <p className="text-xs text-white/40">Incident Date</p>
                     <p className="mt-1 font-medium text-white">{formatDate(new Date(incidentDate))}</p>
                   </div>
+                </div>
+
+                <div className="mt-6 flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      downloadIcs(
+                        `lawbite-deadline-${deadline.toISOString().split("T")[0]}.ics`,
+                        buildIcsEvent({
+                          uid: `deadline-${deadline.getTime()}`,
+                          summary: `Filing deadline — ${caseType?.label ?? "Case"}`,
+                          description: `Limitation period: ${caseType?.days ? `${caseType.days} days` : `${caseType?.years} years`} from ${formatDate(new Date(incidentDate))}. Calculated with Lawbite.`,
+                          start: deadline,
+                        }),
+                      )
+                    }
+                    className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-white/90"
+                  >
+                    Add to calendar (.ics)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const res = await fetch("/api/reminders", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            title: `Filing deadline — ${caseType?.label ?? "Case"}`,
+                            deadlineAt: deadline.toISOString(),
+                            type: "limitation",
+                          }),
+                        });
+                        if (res.ok) setReminderSaved(true);
+                      } catch { /* ignore */ }
+                    }}
+                    className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                      reminderSaved
+                        ? "border-emerald-400/30 text-emerald-400"
+                        : "border-white/10 text-white/70 hover:border-white/25 hover:text-white"
+                    }`}
+                  >
+                    {reminderSaved ? "Saved to reminders" : "Save as reminder"}
+                  </button>
                 </div>
               </div>
             )}

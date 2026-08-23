@@ -1,5 +1,7 @@
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { NodeHttpHandler } from "@smithy/node-http-handler";
+import { readFile } from "fs/promises";
+import { join } from "path";
 
 const AWS_REGION = process.env.AWS_REGION || "ap-south-1";
 const AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;
@@ -26,6 +28,20 @@ export const s3Client = new S3Client({
 const s3 = s3Client;
 const BUCKET = S3_BUCKET;
 
+function localPathForKey(key: string): string {
+  // kb-build/bare-acts/... maps to bare-acts/...; kb-data/reference/... maps to reference/...
+  const localRoot = key.startsWith("bare-acts/") ? "kb-build" : "kb-data";
+  return join(process.cwd(), localRoot, key);
+}
+
+async function readLocalFile(key: string): Promise<string | null> {
+  try {
+    return await readFile(localPathForKey(key), "utf8");
+  } catch {
+    return null;
+  }
+}
+
 async function getJson<T>(key: string): Promise<T | null> {
   try {
     const cmd = new GetObjectCommand({ Bucket: BUCKET, Key: key });
@@ -33,7 +49,8 @@ async function getJson<T>(key: string): Promise<T | null> {
     const body = await res.Body?.transformToString();
     return body ? JSON.parse(body) : null;
   } catch {
-    return null;
+    const local = await readLocalFile(key);
+    return local ? JSON.parse(local) : null;
   }
 }
 
@@ -43,7 +60,7 @@ async function getText(key: string): Promise<string | null> {
     const res = await s3.send(cmd);
     return (await res.Body?.transformToString()) || null;
   } catch {
-    return null;
+    return readLocalFile(key);
   }
 }
 

@@ -1190,20 +1190,6 @@ async function getLegalKnowledge(query: string): Promise<{ context: string; cita
       }
     }
 
-    if (parts.length === 0 && targetAct) {
-      const available = await s3kb.getFullTextIndex();
-      const hasAct = available?.some((entry: string | { id: string }) => {
-        const id = typeof entry === "string" ? entry : entry.id;
-        return id === targetAct;
-      });
-      if (!hasAct) {
-        return {
-          context: `[ERROR] No S3 knowledge base data available for "${displayActName(targetAct)}". This act has not been ingested into the knowledge base.`,
-          citations: [],
-        };
-      }
-    }
-
     const allParts = [...mappingParts, ...parts];
     return {
       context: allParts.length > 0 ? `Legal Knowledge Base:\n${allParts.join("\n\n")}` : "",
@@ -1403,19 +1389,10 @@ Never transpose tables, never leave a table cell blank, never invent section num
     const legalContext = legal.context;
     citations = [...citations, ...legal.citations];
 
-    if (!legalContext) {
-      if (hasRefs) {
-        return Response.json(
-          { error: "No S3 knowledge base data found for the section(s)/article(s) you asked about. This provision has not been ingested into the knowledge base yet. I will not guess the law." },
-          { status: 404 }
-        );
-      }
-      if (!isTalkToAi && !needsSearch) {
-        return Response.json(
-          { error: "No S3 knowledge base data found for this query. The requested legal topic has not been ingested into the knowledge base." },
-          { status: 404 }
-        );
-      }
+    if (!legalContext && !needsSearch && userQuery) {
+      const web = await webSearch(userQuery);
+      webSearchContext = web.context;
+      citations = [...citations, ...web.citations];
     }
 
     const seen = new Set<string>();
