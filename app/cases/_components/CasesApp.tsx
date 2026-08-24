@@ -32,9 +32,9 @@ interface CasesAppProps {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  active: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20",
-  pending: "bg-amber-500/15 text-amber-400 border-amber-500/20",
-  closed: "bg-white/10 text-white/40 border-white/10",
+  active: "bg-emerald-500/10 text-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.15)]",
+  pending: "bg-amber-500/10 text-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.15)]",
+  closed: "bg-white/5 text-white/40 shadow-[0_0_8px_rgba(255,255,255,0.05)]",
 };
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -49,6 +49,8 @@ export default function CasesApp(_props: CasesAppProps) {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<{ file: File; name: string }[]>([]);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleteConfirmName, setDeleteConfirmName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -164,7 +166,16 @@ export default function CasesApp(_props: CasesAppProps) {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this case? This cannot be undone.")) return;
+    const caseItem = cases.find((c) => c.id === id);
+    setDeleteConfirmId(id);
+    setDeleteConfirmName(caseItem?.name || "this case");
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirmId) return;
+    const id = deleteConfirmId;
+    setDeleteConfirmId(null);
+    setDeleteConfirmName("");
     const res = await fetch("/api/cases", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -235,10 +246,20 @@ export default function CasesApp(_props: CasesAppProps) {
     <div className="flex h-screen bg-black text-white">
       <aside className="flex w-80 flex-col border-r border-white/10 bg-black/50">
         <div className="border-b border-white/10 p-4">
-          <h1 className="mb-3 text-sm font-semibold text-white/80">My Cases</h1>
+          <div className="mb-3 flex items-center gap-3">
+            <button
+              onClick={() => window.history.back()}
+              className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/5 text-white/40 transition-all duration-200 hover:bg-white/10 hover:text-white/70"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <h1 className="text-sm font-semibold text-white/80">Case Tracker</h1>
+          </div>
           <button
             onClick={() => startEdit()}
-            className="group flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-amber-500/90 to-orange-500/90 px-4 py-3 text-sm font-semibold text-black transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-amber-500/20"
+            className="group flex w-full items-center justify-center gap-2.5 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-black transition-all duration-300 hover:scale-[1.02] hover:shadow-lg"
           >
             <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 transition-transform duration-300 group-hover:rotate-90" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 5v14M5 12h14" />
@@ -268,7 +289,8 @@ export default function CasesApp(_props: CasesAppProps) {
               >
                 <div className="flex items-center gap-2">
                   <span className="truncate text-sm font-medium">{c.name}</span>
-                  <span className={`ml-auto shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium ${STATUS_COLORS[c.status] || STATUS_COLORS.active}`}>
+                  <span className={`ml-auto shrink-0 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold tracking-wide uppercase ${STATUS_COLORS[c.status] || STATUS_COLORS.active}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${c.status === 'active' ? 'bg-emerald-400' : c.status === 'pending' ? 'bg-amber-400' : 'bg-white/40'}`}></span>
                     {c.status}
                   </span>
                 </div>
@@ -313,7 +335,7 @@ export default function CasesApp(_props: CasesAppProps) {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="mb-1 block text-xs font-medium text-white/50">Status</label>
-                    <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-white/25">
+                    <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-white/25 [&>option]:bg-[#1a1a1a] [&>option]:text-white">
                       <option value="active">Active</option>
                       <option value="pending">Pending</option>
                       <option value="closed">Closed</option>
@@ -382,7 +404,8 @@ export default function CasesApp(_props: CasesAppProps) {
                 <div>
                   <div className="flex items-center gap-3">
                     <h2 className="text-xl font-semibold">{detail.name}</h2>
-                    <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${STATUS_COLORS[detail.status] || STATUS_COLORS.active}`}>
+                    <span className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-wide uppercase ${STATUS_COLORS[detail.status] || STATUS_COLORS.active}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${detail.status === 'active' ? 'bg-emerald-400' : detail.status === 'pending' ? 'bg-amber-400' : 'bg-white/40'}`}></span>
                       {detail.status}
                     </span>
                   </div>
@@ -390,7 +413,7 @@ export default function CasesApp(_props: CasesAppProps) {
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => startEdit(selectedCase)} className="rounded-md border border-white/10 px-3 py-1.5 text-xs text-white/50 transition-colors hover:text-white/70">Edit</button>
-                  <button onClick={() => handleDelete(detail.id)} className="rounded-md border border-red-500/20 px-3 py-1.5 text-xs text-red-400/70 transition-colors hover:text-red-400">Delete</button>
+                  <button onClick={() => handleDelete(detail.id)} className="rounded-lg bg-white/5 px-3 py-1.5 text-xs text-white/40 transition-all duration-200 hover:bg-red-500/10 hover:text-red-400">Delete</button>
                 </div>
               </div>
 
@@ -457,7 +480,7 @@ export default function CasesApp(_props: CasesAppProps) {
                         <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-white/40 hover:text-white/60">Open</a>
                         <button
                           onClick={() => handleDeleteDoc(doc.id)}
-                          className="ml-1 rounded px-1.5 py-0.5 text-[10px] text-white/20 opacity-0 transition-all hover:text-red-400 group-hover:opacity-100"
+                          className="ml-1 rounded-md bg-white/5 px-1.5 py-0.5 text-[10px] text-white/30 opacity-0 transition-all duration-200 hover:bg-red-500/10 hover:text-red-400 group-hover:opacity-100"
                         >
                           Delete
                         </button>
@@ -494,6 +517,31 @@ export default function CasesApp(_props: CasesAppProps) {
           </div>
         ) : null}
       </main>
+
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#111] p-6 shadow-2xl">
+            <h3 className="text-lg font-semibold text-white">Delete Case</h3>
+            <p className="mt-2 text-sm text-white/50">
+              Are you sure you want to delete <span className="font-medium text-white/70">{deleteConfirmName}</span>? This action cannot be undone.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => { setDeleteConfirmId(null); setDeleteConfirmName(""); }}
+                className="rounded-lg bg-white/5 px-4 py-2 text-sm text-white/50 transition-colors hover:bg-white/10 hover:text-white/70"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="rounded-lg bg-red-500/10 px-4 py-2 text-sm text-red-400 transition-colors hover:bg-red-500/20"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

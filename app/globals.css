@@ -40,6 +40,7 @@
   --animate-bell-glow-green: bell-glow-green 2s ease-in-out infinite;
   --animate-bell-glow-amber: bell-glow-amber 1.5s ease-in-out infinite;
   --animate-bell-glow-red: bell-glow-red 1s ease-in-out infinite;
+  --animate-bell-shake: bell-shake 0.6s ease-in-out;
 }
 
 @keyframes marquee {
@@ -93,6 +94,19 @@
 @keyframes bell-glow-red {
   0%, 100% { filter: drop-shadow(0 0 2px rgba(248, 113, 113, 0.4)); }
   50% { filter: drop-shadow(0 0 8px rgba(248, 113, 113, 0.8)); }
+}
+
+@keyframes bell-shake {
+  0%, 100% { transform: rotate(0deg); }
+  10% { transform: rotate(14deg); }
+  20% { transform: rotate(-12deg); }
+  30% { transform: rotate(10deg); }
+  40% { transform: rotate(-8deg); }
+  50% { transform: rotate(6deg); }
+  60% { transform: rotate(-4deg); }
+  70% { transform: rotate(2deg); }
+  80% { transform: rotate(-1deg); }
+  90% { transform: rotate(0deg); }
 }
 
 @keyframes blur-in {

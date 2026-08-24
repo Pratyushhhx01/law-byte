@@ -275,6 +275,8 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   });
   const [upcomingReminders, setUpcomingReminders] = useState<{ id: string; title: string; deadlineAt: string; type: string; daysLeft: number }[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [bellShake, setBellShake] = useState(false);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -1697,6 +1699,14 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [notificationsOpen]);
 
+  useEffect(() => {
+    if (upcomingReminders.length > 0) {
+      setBellShake(true);
+      const timer = setTimeout(() => setBellShake(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
   function clearAllNotifications() {
     const newDismissed = upcomingReminders.map((r) => ({
       id: r.id,
@@ -1807,7 +1817,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           <button
             type="button"
             onClick={() => setHistoryOpen(true)}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium tracking-wide text-white/50 transition-all duration-200 hover:bg-white/[0.06] hover:text-white/80"
           >
             <svg
               aria-hidden
@@ -1827,7 +1837,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           <button
             type="button"
             onClick={() => setCalculatorOpen(true)}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium tracking-wide text-white/50 transition-all duration-200 hover:bg-white/[0.06] hover:text-white/80"
           >
             <svg
               aria-hidden
@@ -1852,7 +1862,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           <button
             type="button"
             onClick={() => setToolsOpen(true)}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium tracking-wide text-white/50 transition-all duration-200 hover:bg-white/[0.06] hover:text-white/80"
           >
             <svg
               aria-hidden
@@ -1874,7 +1884,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           <button
             type="button"
             onClick={() => setRemindersOpen(true)}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium tracking-wide text-white/50 transition-all duration-200 hover:bg-white/[0.06] hover:text-white/80"
           >
             <svg
               aria-hidden
@@ -1985,7 +1995,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                   <button
                     type="button"
                     onClick={() => setNotificationsOpen(!notificationsOpen)}
-                    className={`relative rounded-full p-2 transition-colors hover:bg-white/5 hover:text-white ${bellGlow} ${upcomingReminders.length > 0 ? bellColor : "text-white/60"}`}
+                    className={`relative rounded-full p-2 transition-colors hover:bg-white/5 hover:text-white ${bellGlow} ${bellShake ? "animate-bell-shake" : ""} ${upcomingReminders.length > 0 ? bellColor : "text-white/60"}`}
                     aria-label="Notifications"
                   >
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -2002,8 +2012,18 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               })()}
               {notificationsOpen && (
                 <div className="animate-dropdown-in absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-xl border border-white/10 bg-[#141414] shadow-2xl">
-                  <div className="border-b border-white/[0.06] px-4 py-3">
+                  <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
                     <p className="text-xs font-medium text-white/70">Upcoming Deadlines</p>
+                    <button
+                      type="button"
+                      onClick={() => setNotificationsOpen(false)}
+                      className="flex h-6 w-6 items-center justify-center rounded-md border border-transparent text-white/40 transition-all duration-200 hover:border-white/10 hover:bg-white/5 hover:text-white/70"
+                      aria-label="Close"
+                    >
+                      <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                      </svg>
+                    </button>
                   </div>
                   {upcomingReminders.length === 0 ? (
                     <div className="px-4 py-6 text-center">
@@ -2135,8 +2155,8 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 return (
                 <li
                   key={message.id}
-                  className={`animate-message-in flex ${
-                    message.role === "user" ? "justify-end" : "justify-start"
+                  className={`animate-message-in group flex flex-col ${
+                    message.role === "user" ? "items-end" : "items-start"
                   }`}
                 >
                   <div
@@ -2197,7 +2217,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                         {message.citations && message.citations.length > 0 && (
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span className="text-[11px] font-semibold uppercase tracking-wider text-white/35">Sources</span>
-                            {message.citations.map((cit, i) => (
+                            {message.citations.slice(0, 2).map((cit, i) => (
                               <div
                                 key={i}
                                 className="inline-flex max-w-full items-center gap-1 rounded-full border border-white/15 bg-white/[0.05] py-1 pl-2.5 pr-1 text-[11px] font-medium text-white/75 transition-colors hover:border-white/30 hover:text-white"
@@ -2249,98 +2269,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                             ))}
                           </div>
                         )}
-                        {message.role === "assistant" && message.id && !message.id.startsWith("assistant-") && !feedbackGiven[message.id] && !message.content.includes("How can I assist you with Indian legal matters") && (
-                          <div className="mt-3 border-t border-white/[0.06] pt-3">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[11px] text-white/30">Helpful?</span>
-                              <button
-                                type="button"
-                                onClick={() => submitFeedback(message.id, "up")}
-                                className="rounded-md p-1 text-white/30 transition-colors hover:text-white/60"
-                                title="Yes"
-                              >
-                                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
-                                </svg>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  submitFeedback(message.id, "down");
-                                  setFeedbackCommentOpen(message.id);
-                                }}
-                                className="rounded-md p-1 text-white/30 transition-colors hover:text-white/60"
-                                title="No"
-                              >
-                                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17" />
-                                </svg>
-                              </button>
-                              {(message.type ?? active?.type) === "draft" && (
-                                <div className="ml-auto flex items-center gap-1.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      import("@/lib/export").then((mod) => mod.exportAsWord(message.content, active?.title || "Legal Document"));
-                                    }}
-                                    className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.03] px-2 py-1 text-[11px] text-white/50 transition-colors hover:border-white/20 hover:text-white/70"
-                                  >
-                                    <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                      <polyline points="14 2 14 8 20 8" />
-                                    </svg>
-                                    Word
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      import("@/lib/export").then((mod) => mod.exportAsPdf(message.content, active?.title || "Legal Document"));
-                                    }}
-                                    className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.03] px-2 py-1 text-[11px] text-white/50 transition-colors hover:border-white/20 hover:text-white/70"
-                                  >
-                                    <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                      <polyline points="14 2 14 8 20 8" />
-                                      <line x1="12" y1="18" x2="12" y2="12" />
-                                      <polyline points="9 15 12 18 15 15" />
-                                    </svg>
-                                    PDF
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                        {message.role === "assistant" && message.id && !message.id.startsWith("assistant-") && feedbackGiven[message.id] && (
-                          <p className="mt-2 text-[11px] text-emerald-400/70 animate-fade-up">Thanks for the feedback</p>
-                        )}
-                        {feedbackCommentOpen === message.id && feedbackGiven[message.id] === "down" && (
-                          <div className="mt-2 flex w-full gap-2">
-                            <input
-                              type="text"
-                              placeholder="What was wrong? (optional)"
-                              value={feedbackComment[message.id] || ""}
-                              onChange={(e) => setFeedbackComment((prev) => ({ ...prev, [message.id]: e.target.value }))}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  submitFeedback(message.id, "down");
-                                  setFeedbackCommentOpen(null);
-                                }
-                              }}
-                              className="flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                submitFeedback(message.id, "down");
-                                setFeedbackCommentOpen(null);
-                              }}
-                              className="rounded-lg border border-white/10 bg-white/[0.05] px-3 py-1.5 text-xs text-white/60 hover:text-white"
-                            >
-                              Send
-                            </button>
-                          </div>
-                        )}
                         {((message.type ?? active?.type) === "review" || (message.type ?? active?.type) === "draft" || message.content.includes("[ADVICE_COMPLETE]")) && (
                           <p className="mt-2 text-xs italic text-white/40 border-t border-white/10 pt-3">
                             This is an AI-generated analysis for reference purposes. Please consult a practicing lawyer before making any legal decisions.
@@ -2349,6 +2277,125 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                       </div>
                     )}
                   </div>
+                  {message.role === "assistant" && message.id && !message.id.startsWith("assistant-") && (
+                    <div className="mt-1 flex items-center gap-0.5">
+                      {feedbackGiven[message.id] ? (
+                        <p className="px-1 py-1 text-[11px] text-emerald-400/70">Thanks for the feedback</p>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => submitFeedback(message.id, "up")}
+                            className="rounded-md p-1 text-white/30 transition-colors hover:text-white/60"
+                            title="Helpful"
+                          >
+                            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { submitFeedback(message.id, "down"); setFeedbackCommentOpen(message.id); }}
+                            className="rounded-md p-1 text-white/30 transition-colors hover:text-white/60"
+                            title="Not helpful"
+                          >
+                            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17" />
+                            </svg>
+                          </button>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const text = stripThinkingTokens(message.content).replace(/\[ADVICE_COMPLETE\]/g, "").trim();
+                          const ok = await copyToClipboard(text);
+                          if (ok) { setCopiedMessageId(message.id); setTimeout(() => setCopiedMessageId(null), 2000); }
+                        }}
+                        className="rounded-md p-1 text-white/30 transition-colors hover:text-white/60"
+                        title="Copy"
+                      >
+                        {copiedMessageId === message.id ? (
+                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        ) : (
+                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                          </svg>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const text = stripThinkingTokens(message.content).replace(/\[ADVICE_COMPLETE\]/g, "").trim();
+                          if (navigator.share) {
+                            navigator.share({ title: "Lawbite Response", text }).catch(() => {});
+                          } else {
+                            copyToClipboard(text);
+                          }
+                        }}
+                        className="rounded-md p-1 text-white/30 transition-colors hover:text-white/60"
+                        title="Share"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="18" cy="5" r="3" />
+                          <circle cx="6" cy="12" r="3" />
+                          <circle cx="18" cy="19" r="3" />
+                          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                        </svg>
+                      </button>
+                      {(message.type ?? active?.type) === "draft" && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => import("@/lib/export").then((mod) => mod.exportAsWord(message.content, active?.title || "Legal Document"))}
+                            className="rounded-md p-1 text-white/30 transition-colors hover:text-white/60"
+                            title="Download Word"
+                          >
+                            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                              <polyline points="14 2 14 8 20 8" />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => import("@/lib/export").then((mod) => mod.exportAsPdf(message.content, active?.title || "Legal Document"))}
+                            className="rounded-md p-1 text-white/30 transition-colors hover:text-white/60"
+                            title="Download PDF"
+                          >
+                            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                              <polyline points="14 2 14 8 20 8" />
+                              <line x1="12" y1="18" x2="12" y2="12" />
+                              <polyline points="9 15 12 18 15 15" />
+                            </svg>
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {feedbackCommentOpen === message.id && feedbackGiven[message.id] === "down" && (
+                    <div className="mt-1 flex w-full max-w-md gap-2">
+                      <input
+                        type="text"
+                        placeholder="What was wrong? (optional)"
+                        value={feedbackComment[message.id] || ""}
+                        onChange={(e) => setFeedbackComment((prev) => ({ ...prev, [message.id]: e.target.value }))}
+                        onKeyDown={(e) => { if (e.key === "Enter") { submitFeedback(message.id, "down"); setFeedbackCommentOpen(null); } }}
+                        className="flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => { submitFeedback(message.id, "down"); setFeedbackCommentOpen(null); }}
+                        className="rounded-lg border border-white/10 bg-white/[0.05] px-3 py-1.5 text-xs text-white/60 hover:text-white"
+                      >
+                        Send
+                      </button>
+                    </div>
+                  )}
                 </li>
                 );
               })}
@@ -4058,8 +4105,22 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             className="animate-overlay-in mx-4 w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-white">Calculators</h3>
-            <p className="mt-1 text-sm text-white/50">Choose a calculator to open.</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-white">Calculators</h3>
+                <p className="mt-1 text-sm text-white/50">Choose a calculator to open.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCalculatorOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-transparent text-white/40 transition-all duration-200 hover:border-white/10 hover:bg-white/5 hover:text-white/70"
+                aria-label="Close"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
             <div className="mt-5 space-y-3">
               <button
                 type="button"
@@ -4112,8 +4173,22 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             className="animate-overlay-in mx-4 w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-white">Legal Tools</h3>
-            <p className="mt-1 text-sm text-white/50">Templates, filing guides, and more.</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-white">Legal Tools</h3>
+                <p className="mt-1 text-sm text-white/50">Templates, filing guides, and more.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setToolsOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-transparent text-white/40 transition-all duration-200 hover:border-white/10 hover:bg-white/5 hover:text-white/70"
+                aria-label="Close"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
             <div className="mt-5 space-y-3">
               <button
                 type="button"
