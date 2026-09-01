@@ -58,7 +58,7 @@ export default function CasesApp(_props: CasesAppProps) {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/cases?withConversations=true");
+        const res = await fetch("/api/cases?withConversations=true", { credentials: "include" });
         const data = await res.json();
         if (!cancelled) setCases(data.folders || []);
       } catch {
@@ -75,7 +75,7 @@ export default function CasesApp(_props: CasesAppProps) {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`/api/cases?caseId=${selectedId}`);
+        const res = await fetch(`/api/cases?caseId=${selectedId}`, { credentials: "include" });
         const data = await res.json();
         if (cancelled) return;
         if (!res.ok || data.error) {
@@ -113,12 +113,13 @@ export default function CasesApp(_props: CasesAppProps) {
         const fd = new FormData();
         fd.append("file", pf.file);
         fd.append("caseId", caseId);
-        const uploadRes = await fetch("/api/cases/documents/upload", { method: "POST", body: fd });
+        const uploadRes = await fetch("/api/cases/documents/upload", { method: "POST", body: fd, credentials: "include" });
         if (!uploadRes.ok) continue;
         const { fileUrl, fileName, fileType } = await uploadRes.json();
         await fetch("/api/cases/documents", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({ caseId, fileName, fileType, fileUrl }),
         });
       } catch { /* skip failed uploads */ }
@@ -133,6 +134,7 @@ export default function CasesApp(_props: CasesAppProps) {
       const res = await fetch("/api/cases", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(form),
       });
       if (res.ok) {
@@ -155,6 +157,7 @@ export default function CasesApp(_props: CasesAppProps) {
       const res = await fetch("/api/cases", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ id: selectedId, ...form }),
       });
       if (res.ok) {
@@ -179,6 +182,7 @@ export default function CasesApp(_props: CasesAppProps) {
     const res = await fetch("/api/cases", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ id }),
     });
     if (res.ok) {
@@ -205,12 +209,13 @@ export default function CasesApp(_props: CasesAppProps) {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("caseId", selectedId);
-      const uploadRes = await fetch("/api/cases/documents/upload", { method: "POST", body: fd });
+      const uploadRes = await fetch("/api/cases/documents/upload", { method: "POST", body: fd, credentials: "include" });
       if (!uploadRes.ok) throw new Error("Upload failed");
       const { fileUrl, fileName, fileType } = await uploadRes.json();
       const docRes = await fetch("/api/cases/documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ caseId: selectedId, fileName, fileType, fileUrl }),
       });
       if (docRes.ok) {
@@ -230,6 +235,7 @@ export default function CasesApp(_props: CasesAppProps) {
     const res = await fetch("/api/cases/documents", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ id: docId }),
     });
     if (res.ok) {

@@ -7,7 +7,11 @@ import { extractRefNumbers, fixArticleSectionTerminology } from "@/lib/legal-ter
 import { SECTION_MAPPINGS, findMappingByOld, findMappingByNew, mappingPromptBlock } from "@/lib/section-mapping";
 
 const NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
-const NVIDIA_MODEL = "meta/llama-3.1-8b-instruct";
+const NVIDIA_MODELS = [
+  "nvidia/nemotron-3-super-120b-a12b",
+  "nvidia/nemotron-3.5-lightning-30b-a3b",
+];
+const NVIDIA_MODEL = NVIDIA_MODELS[0];
 const REVIEW_MODEL = "meta/llama-3.2-11b-vision-instruct";
 const NVIDIA_CONNECT_TIMEOUT_MS = 30_000;
 
@@ -45,6 +49,17 @@ NEVER answer questions about:
 
 If the user's message is ONLY a greeting word (hi, hello, hey, namaste) with no legal question, reply ONLY with: Hello! How can I assist you with Indian legal matters today? Nothing else. Otherwise, answer the question directly without any greeting. For EVERY question, answer in EXACTLY 1-2 short sentences. This is strict. If the user asks for a comparison or difference, state the core distinction in 1 sentence only — NEVER use tables or columns. Never output pipe characters, tables, bullet points, numbered lists, or multiple paragraphs. If you write more than 2 sentences, you are wrong.
 
+SENTENCE QUALITY RULES — FOLLOW FOR EVERY RESPONSE:
+- Open with a strong, authoritative statement — never start with "According to" or "As per".
+- Use active voice: "The court held..." not "It was held by the court..."
+- Be precise and confident. Say "Section 302 BNS prescribes..." not "Section 302 BNS may deal with..."
+- Avoid filler phrases like "It is important to note that", "It is worth mentioning", "In simple terms".
+- Each sentence must carry new information — no padding, no repetition.
+- Frame answers as expert legal counsel would: direct, clear, and definitive.
+- Use present tense for current laws ("Section 144 BNSS requires..." not "Section 144 BNSS required...").
+- Vary your sentence openings — do not start every response the same way.
+- Never use hedging language like "generally", "usually", "in most cases" unless the law genuinely varies by jurisdiction or fact pattern.
+
 CRITICAL: The Constitution of India is the supreme law and has NOT been replaced. The Bharatiya Nyaya Sanhita (BNS) 2023 replaced the Indian Penal Code (IPC) 1860 — NOT the Constitution. Articles (e.g., Article 144) exist ONLY in the Constitution. Sections exist in Acts/Codes (IPC, CrPC, BNS, BNSS, BSA, Evidence Act, etc.). NEVER confuse Articles with Sections. NEVER state that BNS/BNSS/BSA replaced the Constitution. NEVER invent section numbers, article numbers, amendments, or case names. Only use facts from the legal knowledge provided.
 
 LANGUAGE RULES: You must ALWAYS respond in English. No matter what language the user writes in (including Hindi, Devanagari script, or any other language), ALWAYS respond in English. Never respond in Hindi or any language other than English.`;
@@ -63,6 +78,17 @@ NEVER answer questions about:
 If the user's message is ONLY a greeting word (hi, hello, hey, namaste) with no legal question, reply ONLY with: Hello! How can I assist you with Indian legal matters today? Nothing else. Otherwise, answer the question directly without any greeting.
 
 GENERAL RULE: Whenever a table would make the response clearer (comparisons, differences, multi-category data, timelines, pros/cons, lists of acts with their provisions, etc.), use a markdown table. Tables help users quickly scan and compare information at a glance. When creating a table, ALWAYS use pipe characters | between columns (example: | Aspect | Hindu Law | Muslim Law |). NEVER use tab characters between columns — tabs break the table rendering.
+
+SENTENCE QUALITY RULES — FOLLOW FOR EVERY ANALYSIS RESPONSE:
+- Write like a senior legal advisor presenting a brief — structured, precise, and authoritative.
+- Open each section with a clear, assertive statement of the legal position — not "This section deals with" but "This provision establishes..."
+- Use active voice throughout: "The Supreme Court ruled..." not "It was ruled by..."
+- Every sentence must add substantive legal value. Cut filler: no "It is important to note", "It goes without saying", "Needless to say".
+- Use precise legal language with plain-English explanations where needed. Example: "Section 302 BNS prescribes life imprisonment or death for murder" not "Murder is a very serious crime under BNS."
+- Vary sentence openings — do not start consecutive sentences the same way.
+- Use the present tense for existing laws and the past tense only for concluded proceedings.
+- End sections with actionable takeaways, not vague summaries.
+- Conclusions must be crisp — 2-3 sentences maximum, with a clear legal position.
 
 CRITICAL FORMAT RULE — OVERVIEWS ACROSS PERSONAL LAWS:
 If the user asks about a topic that spans multiple personal laws (e.g., marriage, divorce, inheritance, adoption, succession, guardianship, maintenance) AND asks for a "complete overview", "comprehensive overview", or "all laws", you MUST follow this format INSTEAD OF all other formats below:
@@ -182,6 +208,16 @@ NEVER answer questions about:
 - Any topic that is not specifically about Indian law
 
 Respond in exactly 1 or 2 plain sentences. Never use lists, numbers, headings, or formatting. Just 1-2 short sentences.
+
+SENTENCE QUALITY RULES — FOLLOW FOR EVERY RESPONSE:
+- Lead with the legal position, not preamble. "Section 420 BNS penalizes cheating with imprisonment up to 7 years" — not "Cheating is a crime under BNS."
+- Use active voice: "The Act mandates..." not "It is mandated by the Act..."
+- Be specific and precise — cite the exact section, act, or article. Vague answers are unacceptable.
+- No filler: never write "It is important to note", "Basically", "In simple terms", "To put it plainly".
+- Each sentence must carry independent legal substance — no padding, no restating the same point differently.
+- Frame every answer as a confident legal professional would — direct, authoritative, and clear.
+- Vary your sentence openings. Do not start every response the same way.
+- Use present tense for current laws.
 
 EXCEPTION: If the user explicitly asks for a comparison shown in a table (or a "difference" table), you MAY output a compact markdown table — header row, separator row (| --- | --- |), and ONE row per item — followed by one short closing sentence (max 12 words). Every cell MUST contain specific content for that exact item; never leave a cell blank and never write "same as above".
 
@@ -1268,9 +1304,12 @@ function extractTextFromContent(content: string | Array<{ type: string; text?: s
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    let session;
+    try {
+      session = await auth.api.getSession({ headers: request.headers });
+    } catch {
+      session = null;
+    }
 
     if (!session) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -1445,11 +1484,12 @@ Never transpose tables, never leave a table cell blank, never invent section num
     const isAnalysis = conversationType === "analysis";
     const isAnalysisMultiRef = conversationType === "analysis" && tableAppropriate;
     const hasRefs = refCount >= 1;
-    const legal = (isTalkToAi && !hasRefs) ? { context: "", citations: [] as Citation[] } : await getLegalKnowledge(userQuery);
+    const skipS3 = isTalkToAi && !hasRefs;
+    const legal = skipS3 ? { context: "", citations: [] as Citation[] } : await getLegalKnowledge(userQuery);
     const legalContext = legal.context;
     citations = [...citations, ...legal.citations];
 
-    if (!legalContext && !needsSearch && userQuery) {
+    if (!skipS3 && !legalContext && !webSearchContext && userQuery) {
       const web = await webSearch(userQuery);
       webSearchContext = web.context;
       citations = [...citations, ...web.citations];
@@ -1483,11 +1523,19 @@ Never transpose tables, never leave a table cell blank, never invent section num
 
     let messagesWithSystem: { role: string; content: unknown }[];
     if (isTalkToAi) {
-      const lastUserMsg = messages.filter((m: { role: string }) => m.role === "user").slice(-1);
+      const userMessages = messages.filter((m: { role: string }) => m.role === "user");
+      const recentMessages = userMessages.slice(-10);
+      const contextMessages = messages.filter((m: { role: string }) => m.role !== "system").slice(-20);
       messagesWithSystem = [
         { role: "system", content: finalSystemPrompt },
-        ...lastUserMsg,
+        ...contextMessages,
       ];
+      if (contextMessages.length === 0) {
+        messagesWithSystem = [
+          { role: "system", content: finalSystemPrompt },
+          ...recentMessages,
+        ];
+      }
     } else {
       messagesWithSystem = [
         { role: "system", content: finalSystemPrompt },
@@ -1495,36 +1543,100 @@ Never transpose tables, never leave a table cell blank, never invent section num
       ];
     }
 
-    const maxTokens = conversationType === "analysis" ? 3072 : conversationType === "talk-to-ai" ? 2048 : conversationType === "grill" ? 768 : conversationType === "review" ? 3072 : conversationType === "draft" ? 8192 : 1024;
+    const maxTokens = conversationType === "analysis" ? 16384 : conversationType === "talk-to-ai" ? 8192 : conversationType === "grill" ? 1024 : conversationType === "review" ? 4096 : conversationType === "draft" ? 12288 : 2048;
 
     const hasMultimodalContent = Array.isArray(lastUserMessage?.content) && lastUserMessage.content.some((p: { type: string }) => p.type === "image_url");
     const model = (conversationType === "review" || hasMultimodalContent) ? REVIEW_MODEL : NVIDIA_MODEL;
 
-    const response = await fetchNvidia(NVIDIA_API_URL, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "Accept": "text/event-stream",
-      },
-      body: JSON.stringify({
-        model,
-        messages: messagesWithSystem,
-        max_tokens: maxTokens,
-        temperature: (isTalkToAi && tableAppropriate) || isAnalysisMultiRef ? 0.3 : 1.0,
-        top_p: 0.95,
-        stream: true,
-      }),
-    });
+    const payload: Record<string, unknown> = {
+      messages: messagesWithSystem,
+      max_tokens: maxTokens,
+      temperature: (isTalkToAi && tableAppropriate) || isAnalysisMultiRef ? 0.3 : 1.0,
+      top_p: 0.95,
+      stream: true,
+      chat_template_kwargs: { enable_thinking: false, force_nonempty_content: true },
+    };
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("NVIDIA API error:", response.status, errorText);
-      return Response.json({ error: "Failed to get response from AI" }, { status: response.status });
+    const modelsToTry = model === NVIDIA_MODEL ? NVIDIA_MODELS : [model];
+    let responseText = "";
+    let lastError = "";
+    console.log(`[ChatAPI] convType=${conversationType}, model=${model}, messages=${messagesWithSystem.length}, sysPromptLen=${finalSystemPrompt.length}`);
+    for (const m of modelsToTry) {
+      const isReview = m === REVIEW_MODEL;
+      const reqBody = isReview
+        ? { ...Object.fromEntries(Object.entries(payload).filter(([k]) => k !== "chat_template_kwargs")), model: m }
+        : { ...payload, model: m };
+      try {
+        const res = await fetchNvidia(NVIDIA_API_URL, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream",
+          },
+          body: JSON.stringify(reqBody),
+        });
+        if (!res.ok) {
+          lastError = `${m}: HTTP ${res.status}`;
+          console.warn(`Model ${m} returned HTTP ${res.status}, trying next...`);
+          continue;
+        }
+        const text = await res.text();
+        const lines = text.split("\n");
+        let hasSSEError = false;
+        let hasContent = false;
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const data = line.slice(6).trim();
+          if (data === "[DONE]" || !data) continue;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.error) {
+              hasSSEError = true;
+              lastError = `${m}: SSE error: ${JSON.stringify(parsed.error)}`;
+              console.warn(`Model ${m} SSE error:`, parsed.error);
+              break;
+            }
+            if (parsed.choices?.[0]?.delta?.content || parsed.choices?.[0]?.delta?.reasoning_content) {
+              hasContent = true;
+            }
+          } catch { /* skip */ }
+        }
+        if (hasSSEError) continue;
+        responseText = text;
+        console.log(`[ChatAPI] model ${m} OK, ${text.length} bytes, hasContent=${hasContent}`);
+        break;
+      } catch (err) {
+        lastError = `${m}: ${(err as Error).message}`;
+        console.warn(`Model ${m} fetch error:`, (err as Error).message);
+        continue;
+      }
+    }
+
+    if (!responseText) {
+      console.error("All models failed:", lastError);
+      const fallbackMsg = "I apologize, but I'm experiencing temporary technical difficulties. Please try again in a moment, or rephrase your question about Indian law and I'll do my best to help.";
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        start(controller) {
+          try {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: fallbackMsg } }] })}\n\n`));
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          } catch { /* skip */ }
+          try { controller.close(); } catch { /* skip */ }
+        },
+      });
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache, no-transform",
+          "Connection": "keep-alive",
+          "X-Accel-Buffering": "no",
+        },
+      });
     }
 
     const encoder = new TextEncoder();
-    const decoder = new TextDecoder();
 
     function truncateToTwoSentences(text: string): string {
       const cleaned = text
@@ -1544,7 +1656,7 @@ Never transpose tables, never leave a table cell blank, never invent section num
       if (sentences.length === 1) {
         return sentences[0][0].trim();
       }
-      const firstMatch = cleaned.match(/[A-Z][^.!?\n]*[.!?\n]*/);
+      const firstMatch = cleaned.match(/[A-Za-z][^.!?\n]*[.!?\n]*/);
       return firstMatch ? firstMatch[0].trim() : "";
     }
 
@@ -1707,27 +1819,19 @@ Never transpose tables, never leave a table cell blank, never invent section num
             stream: true,
           }),
         });
-        if (!retryRes.ok || !retryRes.body) return null;
-        let buffer = "";
+        if (!retryRes.ok) return null;
+        const retryText = await retryRes.text();
         let retryContent = "";
-        const retryReader = retryRes.body.getReader();
-        while (true) {
-          const { done, value } = await retryReader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const parts = buffer.split("\n");
-          buffer = parts.pop() ?? "";
-          for (const line of parts) {
-            if (line.startsWith("data: ")) {
-              const data = line.slice(6).trim();
-              if (data === "[DONE]" || !data) continue;
-              try {
-                const parsed = JSON.parse(data);
-                const delta = parsed.choices?.[0]?.delta?.content;
-                if (delta) retryContent += delta;
-              } catch { /* skip */ }
-            }
-          }
+        for (const line of retryText.split("\n")) {
+          if (!line.startsWith("data: ")) continue;
+          const data = line.slice(6).trim();
+          if (data === "[DONE]" || !data) continue;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.error) continue;
+            const delta = parsed.choices?.[0]?.delta?.content;
+            if (delta) retryContent += delta;
+          } catch { /* skip */ }
         }
         const cleaned = stripThinkingTokens(retryContent).trim();
         if (!cleaned) return null;
@@ -1772,27 +1876,19 @@ Never transpose tables, never leave a table cell blank, never invent section num
               stream: true,
             }),
           });
-          if (!retryRes.ok || !retryRes.body) return null;
-          let buffer = "";
+          if (!retryRes.ok) return null;
+          const retryText = await retryRes.text();
           let retryContent = "";
-          const retryReader = retryRes.body.getReader();
-          while (true) {
-            const { done, value } = await retryReader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            const parts = buffer.split("\n");
-            buffer = parts.pop() ?? "";
-            for (const line of parts) {
-              if (line.startsWith("data: ")) {
-                const data = line.slice(6).trim();
-                if (data === "[DONE]" || !data) continue;
-                try {
-                  const parsed = JSON.parse(data);
-                  const delta = parsed.choices?.[0]?.delta?.content;
-                  if (delta) retryContent += delta;
-                } catch { /* skip */ }
-              }
-            }
+          for (const line of retryText.split("\n")) {
+            if (!line.startsWith("data: ")) continue;
+            const data = line.slice(6).trim();
+            if (data === "[DONE]" || !data) continue;
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.error) continue;
+              const delta = parsed.choices?.[0]?.delta?.content;
+              if (delta) retryContent += delta;
+            } catch { /* skip */ }
           }
           const cleaned = stripThinkingTokens(retryContent).trim();
           if (!cleaned) return null;
@@ -1810,14 +1906,8 @@ Never transpose tables, never leave a table cell blank, never invent section num
     const stream = new ReadableStream({
       cancel() { /* client disconnected, clean up */ },
       async start(controller) {
-        const reader = response.body?.getReader();
-        if (!reader) {
-          controller.close();
-          return;
-        }
-
-        let sseBuffer = "";
         let fullContent = "";
+        let reasoningContent = "";
         let emittedAny = false;
         const emit = (content: string) => {
           // Fix LLM hallucination: Acts (BNS/BNSS/BSA) have Sections, not Articles.
@@ -1826,39 +1916,40 @@ Never transpose tables, never leave a table cell blank, never invent section num
         };
 
         try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            const chunk = decoder.decode(value, { stream: true });
-            sseBuffer += chunk;
-            const parts = sseBuffer.split("\n");
-            sseBuffer = parts.pop() ?? "";
-
-            for (const line of parts) {
-              if (line.startsWith("data: ")) {
-                const data = line.slice(6).trim();
-                if (data === "[DONE]" || !data) continue;
-                try {
-                  const parsed = JSON.parse(data);
-                  const content = parsed.choices?.[0]?.delta?.content;
-                  if (content) {
-                    if (isTalkToAi || isDraft || isAnalysis) {
-                      fullContent += content;
-                    } else {
-                      const cleaned = stripThinkingTokens(content);
-                      if (cleaned) {
-                        emit(cleaned);
-                      }
-                    }
-                  }
-                } catch { /* skip */ }
+          const lines = responseText.split("\n");
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const data = line.slice(6).trim();
+            if (data === "[DONE]" || !data) continue;
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.error) continue;
+              const delta = parsed.choices?.[0]?.delta;
+              const content = delta?.content;
+              const reasoning = delta?.reasoning_content;
+              if (reasoning) {
+                reasoningContent += reasoning;
               }
-            }
+              if (content) {
+                fullContent += content;
+                if (isTalkToAi || isDraft || isAnalysis) {
+                  // accumulate for post-stream processing
+                } else {
+                  const cleaned = stripThinkingTokens(content);
+                  if (cleaned) {
+                    emit(cleaned);
+                  }
+                }
+              }
+            } catch { /* skip */ }
           }
+          console.log(`[ChatAPI] parsed. fullContent=${fullContent.length}chars, reasoningContent=${reasoningContent.length}chars, emittedAny=${emittedAny}`);
+
+          const effectiveContent = fullContent || reasoningContent;
 
           if (isTalkToAi) {
-            const rawContent = cleanTalkToAiContent(fullContent);
+            const strippedFull = stripThinkingTokens(effectiveContent);
+            const rawContent = cleanTalkToAiContent(strippedFull);
             const explicitTableRequest = /(comparison|compare|difference|differences|in a table|as a table|\btable\b)/i.test(userQuery);
             let truncated: string | null = null;
             if (tableAppropriate) {
@@ -1866,7 +1957,7 @@ Never transpose tables, never leave a table cell blank, never invent section num
             } else if (explicitTableRequest && /^\s*\|/.test(rawContent)) {
               truncated = normalizeTableRows(rawContent);
             } else {
-              truncated = truncateToTwoSentences(fullContent);
+              truncated = truncateToTwoSentences(strippedFull);
             }
             if (truncated && /^\s*\|/.test(truncated)) {
               const requestedRefs = [...refs.sections, ...refs.articles].map((r) => r.toUpperCase());
@@ -1875,14 +1966,14 @@ Never transpose tables, never leave a table cell blank, never invent section num
               const blankCells = findBlankTableCells(truncated);
               if (missingRefs.length > 0 || blankCells.length > 0) {
                 if (tableAppropriate) {
-                  const retried = await retryMultiRefTable(missingRefs, requestedRefs, fullContent);
+                  const retried = await retryMultiRefTable(missingRefs, requestedRefs, effectiveContent);
                   if (retried) truncated = retried;
                 } else {
                   const check = (t: string) => findBlankTableCells(normalizeTableRows(t)).length === 0;
                   const issue = blankCells.length > 0
                     ? `left table cells blank or as placeholders ("same as above", "N/A", "-", "Nil"): ${blankCells.slice(0, 5).join(", ")}${blankCells.length > 5 ? ` (+${blankCells.length - 5} more)` : ""}`
                     : "omitted requested item(s)";
-                  const retried = await retryAnalysisContent(issue, check, fullContent);
+                  const retried = await retryAnalysisContent(issue, check, effectiveContent);
                   if (retried) truncated = normalizeTableRows(retried);
                 }
               }
@@ -1890,10 +1981,11 @@ Never transpose tables, never leave a table cell blank, never invent section num
             if (truncated) {
               emit(truncated);
             }
+            console.log(`[ChatAPI] talk-to-ai: effectiveContent=${effectiveContent.length}chars, strippedFull=${strippedFull.length}chars, truncated=${truncated?.length ?? "null"}chars, emittedAny=${emittedAny}`);
           }
 
           if (isAnalysis) {
-            let analysis = stripThinkingTokens(fullContent).trim();
+            let analysis = stripThinkingTokens(effectiveContent).trim();
             if (analysis) {
               if (isAnalysisMultiRef) {
                 analysis = tightenMultiRefTable(analysis);
@@ -1922,7 +2014,7 @@ Never transpose tables, never leave a table cell blank, never invent section num
                   }
                   return true;
                 };
-                const retried = await retryAnalysisContent(issues.join("; "), check, fullContent);
+                const retried = await retryAnalysisContent(issues.join("; "), check, effectiveContent);
                 if (retried) analysis = retried;
               }
               emit(analysis);
@@ -1930,7 +2022,7 @@ Never transpose tables, never leave a table cell blank, never invent section num
           }
 
           if (isDraft) {
-            let draftContent = stripThinkingTokens(fullContent).trim();
+            let draftContent = stripThinkingTokens(effectiveContent).trim();
             const blankDraftRequest = isBlankDraftRequest(userQuery);
             let attempt = 0;
             const MAX_DRAFT_RETRIES = 3;
@@ -1965,28 +2057,19 @@ Never transpose tables, never leave a table cell blank, never invent section num
                   stream: true,
                 }),
               });
-              if (retryRes.ok && retryRes.body) {
-                let retryBuffer = "";
-                const retryReader = retryRes.body.getReader();
+              if (retryRes.ok) {
+                const retryText = await retryRes.text();
                 let retryContent = "";
-                while (true) {
-                  const { done, value } = await retryReader.read();
-                  if (done) break;
-                  const chunk = decoder.decode(value, { stream: true });
-                  retryBuffer += chunk;
-                  const parts = retryBuffer.split("\n");
-                  retryBuffer = parts.pop() ?? "";
-                  for (const line of parts) {
-                    if (line.startsWith("data: ")) {
-                      const data = line.slice(6).trim();
-                      if (data === "[DONE]" || !data) continue;
-                      try {
-                        const parsed = JSON.parse(data);
-                        const delta = parsed.choices?.[0]?.delta?.content;
-                        if (delta) retryContent += delta;
-                      } catch { /* skip */ }
-                    }
-                  }
+                for (const line of retryText.split("\n")) {
+                  if (!line.startsWith("data: ")) continue;
+                  const data = line.slice(6).trim();
+                  if (data === "[DONE]" || !data) continue;
+                  try {
+                    const parsed = JSON.parse(data);
+                    if (parsed.error) continue;
+                    const delta = parsed.choices?.[0]?.delta?.content;
+                    if (delta) retryContent += delta;
+                  } catch { /* skip */ }
                 }
                 const cleanedRetry = stripThinkingTokens(retryContent).trim();
                 if (cleanedRetry) {
@@ -2003,9 +2086,16 @@ Never transpose tables, never leave a table cell blank, never invent section num
           }
 
 
-          if (!emittedAny && fullContent.trim()) {
-            const fallback = cleanTalkToAiContent(stripThinkingTokens(fullContent)).trim();
-            if (fallback) emit(fallback);
+          if (!emittedAny && effectiveContent.trim()) {
+            const fallback = cleanTalkToAiContent(stripThinkingTokens(effectiveContent)).trim();
+            if (fallback) {
+              emit(fallback);
+            } else {
+              console.warn("[ChatAPI] All content was stripped (thinking tokens?). rawLength:", effectiveContent.length);
+              emit("I apologize, but I couldn't complete that response. Please try rephrasing your question about Indian law.");
+            }
+          } else if (!emittedAny) {
+            emit("I apologize, but I couldn't generate a response. Please try again or ask a specific question about Indian law.");
           }
 
           if (citations.length > 0) {
@@ -2034,6 +2124,24 @@ Never transpose tables, never leave a table cell blank, never invent section num
     });
   } catch (error) {
     console.warn("Chat API error:", (error as Error).message);
-    return Response.json({ error: "Internal server error" }, { status: 500 });
+    const fallbackMsg = "I apologize, but something went wrong. Please try again or ask a question about Indian law.";
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      start(controller) {
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: fallbackMsg } }] })}\n\n`));
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        } catch { /* skip */ }
+        try { controller.close(); } catch { /* skip */ }
+      },
+    });
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache, no-transform",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",
+      },
+    });
   }
 }

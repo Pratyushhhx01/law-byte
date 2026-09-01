@@ -2,11 +2,16 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/utils";
 import { PDFParse } from "pdf-parse";
+import mammoth from "mammoth";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_TEXT_LENGTH = 8000;
 const IMAGE_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"];
-const ALLOWED_TYPES = ["application/pdf", ...IMAGE_TYPES];
+const DOCX_TYPES = [
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/msword",
+];
+const ALLOWED_TYPES = ["application/pdf", ...IMAGE_TYPES, ...DOCX_TYPES];
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     if (!ALLOWED_TYPES.includes(file.type)) {
       return Response.json(
-        { error: "Unsupported file type. Please upload a PDF or image (PNG, JPEG, WebP, GIF)." },
+        { error: "Unsupported file type. Please upload a PDF, Word document, or image (PNG, JPEG, WebP, GIF)." },
         { status: 400 }
       );
     }
@@ -66,6 +71,22 @@ export async function POST(request: NextRequest) {
         text,
         fileName: file.name,
         pageCount: data.total ?? 0,
+        truncated,
+      });
+    }
+
+    if (DOCX_TYPES.includes(file.type) || file.name.endsWith(".docx") || file.name.endsWith(".doc")) {
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const result = await mammoth.extractRawText({ buffer });
+      let text = result.value?.trim() ?? "";
+      const truncated = text.length > MAX_TEXT_LENGTH;
+      if (truncated) {
+        text = text.substring(0, MAX_TEXT_LENGTH);
+      }
+      return Response.json({
+        text,
+        fileName: file.name,
         truncated,
       });
     }

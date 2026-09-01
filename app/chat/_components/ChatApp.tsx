@@ -222,19 +222,17 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/conversations", { method: "GET" });
+        const res = await fetch("/api/conversations", { method: "GET", credentials: "include" });
         if (!res.ok) throw new Error(`status ${res.status}`);
         const data = await res.json();
         if (cancelled) return;
         const server: Conversation[] = data.conversations ?? [];
         if (server.length > 0) {
           setConversations(server);
-          setActiveId(server[0].id);
         } else {
           const local = loadConversations();
           if (local && local.length > 0) {
             setConversations(local);
-            setActiveId(local[0].id);
           }
         }
       } catch {
@@ -242,7 +240,6 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
         const local = loadConversations();
         if (local && local.length > 0) {
           setConversations(local);
-          setActiveId(local[0].id);
         }
       } finally {
         if (!cancelled) setSyncStatus("synced");
@@ -252,6 +249,8 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       cancelled = true;
     };
   }, []);
+
+  
 
   const [draft, setDraft] = useState("");
   const [isThinking, setIsThinking] = useState(false);
@@ -289,8 +288,26 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const lastTalkIdRef = useRef<string | null>(null);
   const lastAnalysisIdRef = useRef<string | null>(null);
   const [mode, setMode] = useState<ConversationType>("chat");
+  const freshChatInitializedRef = useRef(false);
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
   const plusMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (syncStatus !== "synced" || freshChatInitializedRef.current) return;
+    freshChatInitializedRef.current = true;
+    const prefix = mode === "analysis" ? "a" : mode === "grill" ? "g" : mode === "draft" ? "d" : mode === "review" ? "r" : "t";
+    const convType: ConversationType = mode === "analysis" ? "analysis" : mode === "grill" ? "grill" : mode === "draft" ? "draft" : mode === "review" ? "review" : "talk-to-ai";
+    const fresh: Conversation = {
+      id: newId(prefix),
+      title: mode === "analysis" ? "New analysis" : mode === "grill" ? "New case" : mode === "draft" ? "New draft" : mode === "review" ? "New review" : "New conversation",
+      preview: mode === "analysis" ? "In-depth analysis" : mode === "grill" ? "Case intake" : mode === "draft" ? "Document drafting" : mode === "review" ? "Document review" : "Just started",
+      type: convType,
+      createdAt: Date.now(),
+      messages: [],
+    };
+    setConversations((prev) => [fresh, ...prev]);
+    setActiveId(fresh.id);
+  }, [syncStatus, mode]);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
@@ -375,6 +392,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       fetch("/api/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ conversations }),
       }).catch(() => {});
     }, 1200);
@@ -387,7 +405,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/cases");
+        const res = await fetch("/api/cases", { credentials: "include" });
         if (res.ok && !cancelled) {
           const data = await res.json();
           setCaseFolders(Array.isArray(data.folders) ? data.folders : []);
@@ -913,7 +931,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch("/api/review", { method: "POST", body: fd });
+      const res = await fetch("/api/review", { method: "POST", body: fd, credentials: "include" });
       if (!res.ok) {
         const err = await res.json().catch(() => null);
         throw new Error(err?.error || "Failed to process file");
@@ -950,7 +968,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch("/api/review", { method: "POST", body: fd });
+      const res = await fetch("/api/review", { method: "POST", body: fd, credentials: "include" });
       if (!res.ok) {
         const err = await res.json().catch(() => null);
         throw new Error(err?.error || "Failed to process file");
@@ -1033,6 +1051,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       await fetch("/api/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ messageId, rating, comment: feedbackComment[messageId] || null }),
       });
     } catch { /* ignore */ }
@@ -1101,6 +1120,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         signal: controller.signal,
         body: JSON.stringify({
           conversationType: mode,
@@ -1309,6 +1329,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     fetch("/api/conversations", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ ids }),
     }).catch(() => {});
   }
@@ -1421,6 +1442,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       const res = await fetch("/api/cases", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ name }),
       });
       if (res.ok) {
@@ -1437,6 +1459,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       await fetch("/api/cases", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ id }),
       });
       setCaseFolders((prev) => prev.filter((f) => f.id !== id));
@@ -1454,6 +1477,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     fetch("/api/cases", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ id: folderId ?? "", assignConversationId: convId, clear: folderId === null }),
     }).catch(() => {});
   }
@@ -1637,6 +1661,29 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                   More…
                 </button>
                 <div className="my-1 border-t border-white/[0.06]" />
+                <button type="button" onClick={async (e) => {
+                  e.stopPropagation();
+                  setContextMenuId(null);
+                  try {
+                    const res = await fetch("/api/export", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title: conv.title, messages: conv.messages, format: "txt" }) });
+                    if (res.ok) { const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `${(conv.title || "conversation").replace(/[^a-z0-9]/gi, "_")}.txt`; a.click(); URL.revokeObjectURL(url); }
+                  } catch { /* skip */ }
+                }} className="flex w-full items-center gap-3 px-3.5 py-2.5 text-[13px] text-white/70 transition-colors hover:bg-white/[0.06] hover:text-white">
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+                  Export as TXT
+                </button>
+                <button type="button" onClick={async (e) => {
+                  e.stopPropagation();
+                  setContextMenuId(null);
+                  try {
+                    const res = await fetch("/api/share", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ conversationId: conv.id }) });
+                    if (res.ok) { const data = await res.json(); const url = `${window.location.origin}${data.url}`; await navigator.clipboard.writeText(url); alert("Share link copied to clipboard!"); }
+                  } catch { alert("Failed to generate share link."); }
+                }} className="flex w-full items-center gap-3 px-3.5 py-2.5 text-[13px] text-white/70 transition-colors hover:bg-white/[0.06] hover:text-white">
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
+                  Copy Share Link
+                </button>
+                <div className="my-1 border-t border-white/[0.06]" />
                 <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmAction({ type: "deleteConversation", id: conv.id }); setContextMenuId(null); }} className="flex w-full items-center gap-3 px-3.5 py-2.5 text-[13px] text-red-400 transition-colors hover:bg-red-500/10">
                   <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
                   Delete
@@ -1658,7 +1705,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/reminders");
+        const res = await fetch("/api/reminders", { credentials: "include" });
         if (res.ok) {
           const reminders = await res.json();
           const now = new Date();
@@ -2585,7 +2632,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                       <input
                         ref={analysisFileInputRef}
                         type="file"
-                        accept=".pdf,.png,.jpg,.jpeg,.webp,.gif"
+                        accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.webp,.gif"
                         className="hidden"
                         onChange={(e) => handleFileUpload(e, () => setAnalysisAttachOpen(false))}
                       />
@@ -2799,7 +2846,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                       <input
                         ref={chatFileInputRef}
                         type="file"
-                        accept=".pdf,.png,.jpg,.jpeg,.webp,.gif"
+                        accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.webp,.gif"
                         className="hidden"
                         onChange={(e) => handleFileUpload(e, () => setChatAttachOpen(false))}
                       />
@@ -3319,7 +3366,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                     <label className="flex cursor-pointer flex-col items-center gap-3 rounded-2xl border border-dashed border-emerald-400/30 bg-emerald-400/[0.04] px-8 py-6 transition-colors hover:border-emerald-400/50 hover:bg-emerald-400/[0.08]">
                       <input
                         type="file"
-                        accept=".pdf"
+                        accept=".pdf,.docx,.doc"
                         className="hidden"
                         onChange={handleReviewFileUpload}
                       />
@@ -3571,7 +3618,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 <input
                   ref={chatFileInputRef}
                   type="file"
-                  accept=".pdf,.png,.jpg,.jpeg,.webp,.gif"
+                  accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.webp,.gif"
                   className="hidden"
                   onChange={(e) => handleFileUpload(e, () => setChatAttachOpen(false))}
                 />
@@ -3640,7 +3687,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 <input
                   ref={reviewFileInputRef}
                   type="file"
-                  accept=".pdf,.png,.jpg,.jpeg,.webp,.gif"
+                  accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.webp,.gif"
                   className="hidden"
                   onChange={handleReviewFileUpload}
                 />
@@ -4875,6 +4922,7 @@ function EditProfileModal({
       const res = await fetch("/api/user/profile", {
         method: "PUT",
         body: formData,
+        credentials: "include",
       });
 
       if (!res.ok) {

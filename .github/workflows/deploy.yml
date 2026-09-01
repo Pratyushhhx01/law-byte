@@ -9,6 +9,8 @@ env:
   ECR_REPOSITORY: lawbite-app
   ECS_CLUSTER: lawbite-cluster
   ECS_SERVICE: lawbite-service
+  # UPDATE THIS to your production domain (e.g. https://lawbite.ai)
+  PRODUCTION_URL: http://lawbite-alb-1096330116.ap-south-1.elb.amazonaws.com
 
 jobs:
   deploy:
@@ -29,17 +31,21 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Fetch secrets for build
+      - name: Fetch secrets from Secrets Manager
         id: fetch-secrets
         run: |
-          echo "DATABASE_URL=$(aws secretsmanager get-secret-value --secret-id lawbite/DATABASE_URL --query 'SecretString' --output text)" >> $GITHUB_ENV
-          echo "BETTER_AUTH_SECRET=$(aws secretsmanager get-secret-value --secret-id lawbite/BETTER_AUTH_SECRET --query 'SecretString' --output text)" >> $GITHUB_ENV
-          echo "BETTER_AUTH_URL=http://localhost:3000" >> $GITHUB_ENV
-          echo "NEXT_PUBLIC_APP_URL=http://localhost:3000" >> $GITHUB_ENV
-          echo "GOOGLE_CLIENT_ID=$(aws secretsmanager get-secret-value --secret-id lawbite/GOOGLE_CLIENT_ID --query 'SecretString' --output text)" >> $GITHUB_ENV
-          echo "GOOGLE_CLIENT_SECRET=$(aws secretsmanager get-secret-value --secret-id lawbite/GOOGLE_CLIENT_SECRET --query 'SecretString' --output text)" >> $GITHUB_ENV
-          echo "GITHUB_CLIENT_ID=$(aws secretsmanager get-secret-value --secret-id lawbite/GITHUB_CLIENT_ID --query 'SecretString' --output text)" >> $GITHUB_ENV
-          echo "GITHUB_CLIENT_SECRET=$(aws secretsmanager get-secret-value --secret-id lawbite/GITHUB_CLIENT_SECRET --query 'SecretString' --output text)" >> $GITHUB_ENV
+          get_secret() {
+            aws secretsmanager get-secret-value --secret-id "lawbite/$1" --query 'SecretString' --output text 2>/dev/null || echo ""
+          }
+          echo "DATABASE_URL=$(get_secret DATABASE_URL)" >> $GITHUB_ENV
+          echo "BETTER_AUTH_SECRET=$(get_secret BETTER_AUTH_SECRET)" >> $GITHUB_ENV
+          echo "GOOGLE_CLIENT_ID=$(get_secret GOOGLE_CLIENT_ID)" >> $GITHUB_ENV
+          echo "GOOGLE_CLIENT_SECRET=$(get_secret GOOGLE_CLIENT_SECRET)" >> $GITHUB_ENV
+          echo "GITHUB_CLIENT_ID=$(get_secret GITHUB_CLIENT_ID)" >> $GITHUB_ENV
+          echo "GITHUB_CLIENT_SECRET=$(get_secret GITHUB_CLIENT_SECRET)" >> $GITHUB_ENV
+          echo "NVIDIA_API_KEY=$(get_secret NVIDIA_API_KEY)" >> $GITHUB_ENV
+          echo "TAVILY_API_KEY=$(get_secret TAVILY_API_KEY)" >> $GITHUB_ENV
+          echo "S3_BUCKET_NAME=$(get_secret S3_BUCKET_NAME)" >> $GITHUB_ENV
 
       - name: Build, tag, and push image
         id: build-image
@@ -48,14 +54,6 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build \
-            --build-arg DATABASE_URL="${{ env.DATABASE_URL }}" \
-            --build-arg BETTER_AUTH_SECRET="${{ env.BETTER_AUTH_SECRET }}" \
-            --build-arg BETTER_AUTH_URL="${{ env.BETTER_AUTH_URL }}" \
-            --build-arg NEXT_PUBLIC_APP_URL="${{ env.NEXT_PUBLIC_APP_URL }}" \
-            --build-arg GOOGLE_CLIENT_ID="${{ env.GOOGLE_CLIENT_ID }}" \
-            --build-arg GOOGLE_CLIENT_SECRET="${{ env.GOOGLE_CLIENT_SECRET }}" \
-            --build-arg GITHUB_CLIENT_ID="${{ env.GITHUB_CLIENT_ID }}" \
-            --build-arg GITHUB_CLIENT_SECRET="${{ env.GITHUB_CLIENT_SECRET }}" \
             -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
@@ -64,7 +62,11 @@ jobs:
 
       - name: Download task definition
         run: |
-          aws ecs describe-task-definition --task-definition lawbite-task --region ${{ secrets.AWS_REGION }} --query 'taskDefinition.{containerDefinitions:containerDefinitions,family:family,networkMode:networkMode,volumes:volumes,placementConstraints:placementConstraints,requiresCompatibilities:requiresCompatibilities,cpu:cpu,memory:memory,executionRoleArn:executionRoleArn,taskRoleArn:taskRoleArn}' > task-definition.json
+          aws ecs describe-task-definition \
+            --task-definition lawbite-task \
+            --region ${{ secrets.AWS_REGION }} \
+            --query 'taskDefinition.{containerDefinitions:containerDefinitions,family:family,networkMode:networkMode,volumes:volumes,placementConstraints:placementConstraints,requiresCompatibilities:requiresCompatibilities,cpu:cpu,memory:memory,executionRoleArn:executionRoleArn,taskRoleArn:taskRoleArn}' \
+            > task-definition.json
 
       - name: Deploy to Amazon ECS
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
@@ -77,3 +79,22 @@ jobs:
           force-new-deployment: true
           image: ${{ steps.build-image.outputs.image }}
           container-name: lawbite
+          environment: |
+            [
+              {"name": "NODE_ENV", "value": "production"},
+              {"name": "DATABASE_URL", "value": "${{ env.DATABASE_URL }}"},
+              {"name": "BETTER_AUTH_SECRET", "value": "${{ env.BETTER_AUTH_SECRET }}"},
+              {"name": "BETTER_AUTH_URL", "value": "${{ env.PRODUCTION_URL }}"},
+              {"name": "NEXT_PUBLIC_APP_URL", "value": "${{ env.PRODUCTION_URL }}"},
+              {"name": "GOOGLE_CLIENT_ID", "value": "${{ env.GOOGLE_CLIENT_ID }}"},
+              {"name": "GOOGLE_CLIENT_SECRET", "value": "${{ env.GOOGLE_CLIENT_SECRET }}"},
+              {"name": "GITHUB_CLIENT_ID", "value": "${{ env.GITHUB_CLIENT_ID }}"},
+              {"name": "GITHUB_CLIENT_SECRET", "value": "${{ env.GITHUB_CLIENT_SECRET }}"},
+              {"name": "NVIDIA_API_KEY", "value": "${{ env.NVIDIA_API_KEY }}"},
+              {"name": "TAVILY_API_KEY", "value": "${{ env.TAVILY_API_KEY }}"},
+              {"name": "AWS_REGION", "value": "${{ env.AWS_REGION }}"},
+              {"name": "AWS_ACCESS_KEY_ID", "value": "${{ secrets.AWS_ACCESS_KEY_ID }}"},
+              {"name": "AWS_SECRET_ACCESS_KEY", "value": "${{ secrets.AWS_SECRET_ACCESS_KEY }}"},
+              {"name": "S3_BUCKET_NAME", "value": "${{ env.S3_BUCKET_NAME }}"},
+              {"name": "TRUSTED_ORIGINS", "value": "http://localhost:3000,${{ env.PRODUCTION_URL }}"}
+            ]

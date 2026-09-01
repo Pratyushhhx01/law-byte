@@ -1,9 +1,12 @@
 /** Strip model thinking tokens from streaming output */
 export function stripThinkingTokens(text: string): string {
   return text
-    .replace(/<\|channel\|?>[\s\S]*?(?=\n|$|<)/g, "")
-    .replace(/<channel\|?>[\s\S]*?(?=\n|$|<)/g, "")
-    .replace(/\|channel\|?>[\s\S]*?(?=\n|$|<)/g, "")
+    .replace(/<think>[\s\S]*?<\/think>/g, "")
+    .replace(/<\|channel\|?>[\s\S]*?<\|\/?channel\|?>/g, "")
+    .replace(/<channel\|?>[\s\S]*?<\/?channel\|?>/g, "")
+    .replace(/\|channel\|?>[\s\S]*?<\/?channel\|?>/g, "")
+    .replace(/<\|\/?channel\|?>/g, "")
+    .replace(/<\/?channel\|?>/g, "")
     .replace(/<\|channel[^\n<]*/g, "")
     .replace(/<channel[^\n<]*/g, "")
     .replace(/\|channel[^\n<]*/g, "");
