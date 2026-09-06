@@ -3,13 +3,16 @@ import { tavily } from "@tavily/core";
 import { s3kb } from "@/lib/s3";
 import { auth } from "@/lib/auth";
 import { stripThinkingTokens, checkRateLimit } from "@/lib/utils";
-import { extractRefNumbers, fixArticleSectionTerminology } from "@/lib/legal-terminology";
-import { SECTION_MAPPINGS, findMappingByOld, findMappingByNew, mappingPromptBlock } from "@/lib/section-mapping";
+import {
+  extractRefNumbers,
+  fixArticleSectionTerminology,
+} from "@/lib/legal-terminology";
+import { SECTION_MAPPINGS, mappingPromptBlock } from "@/lib/section-mapping";
 
 const NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 const NVIDIA_MODELS = [
-  "nvidia/nemotron-3-super-120b-a12b",
   "nvidia/nemotron-3.5-lightning-30b-a3b",
+  "nvidia/nemotron-3-super-120b-a12b",
 ];
 const NVIDIA_MODEL = NVIDIA_MODELS[0];
 const REVIEW_MODEL = "meta/llama-3.2-11b-vision-instruct";
@@ -22,7 +25,9 @@ async function fetchNvidia(url: string, init: RequestInit): Promise<Response> {
     return await fetch(url, { ...init, signal: controller.signal });
   } catch (error) {
     if (controller.signal.aborted) {
-      throw new Error("Timed out connecting to the AI service. Please try again.");
+      throw new Error(
+        "Timed out connecting to the AI service. Please try again.",
+      );
     }
     throw error;
   } finally {
@@ -30,22 +35,44 @@ async function fetchNvidia(url: string, init: RequestInit): Promise<Response> {
   }
 }
 
-const tvly = process.env.TAVILY_API_KEY ? tavily({ apiKey: process.env.TAVILY_API_KEY }) : null;
+const tvly = process.env.TAVILY_API_KEY
+  ? tavily({ apiKey: process.env.TAVILY_API_KEY })
+  : null;
 
-const VALID_CONVERSATION_TYPES = new Set(["chat", "analysis", "talk-to-ai", "grill", "draft", "review"]);
+const VALID_CONVERSATION_TYPES = new Set([
+  "chat",
+  "analysis",
+  "talk-to-ai",
+  "grill",
+  "draft",
+  "review",
+]);
 const MAX_MESSAGES = 100;
 const MAX_MESSAGE_LENGTH = 10000;
 
 const CHAT_SYSTEM_PROMPT = `You are Lawbite AI, an Indian legal assistant. STRICT RULE: You ONLY answer questions about Indian law, Indian legal system, Indian courts, Indian Constitution, Indian acts and statutes, Indian legal procedures, and Indian legal rights. NOTHING ELSE.
 
-If the question is NOT directly related to Indian law — even slightly — you MUST respond with EXACTLY this and nothing else:
+CRITICAL: The Constitution of India IS Indian law. Questions about the Constitution, its articles, fundamental rights, preamble, amendments, constitutional provisions, and constitutional governance ARE legal questions and MUST be answered.
+
+THESE TOPICS ARE ALL INDIAN LAW AND MUST BE ANSWERED:
+- Indian Constitution (articles, amendments, fundamental rights, preamble, directive principles)
+- Indian acts and statutes (BNS, BNSS, BSA, IPC, CrPC, Evidence Act, and ALL other Indian acts)
+- Indian courts (Supreme Court, High Courts, District Courts, tribunals)
+- Indian legal procedures (filing cases, bail, FIR, arrest, trial, appeal)
+- Indian legal rights (fundamental rights, legal rights, constitutional remedies)
+- Indian legal concepts (murder, theft, fraud, cheating, defamation, etc.)
+- Comparison of old vs new laws (IPC vs BNS, CrPC vs BNSS, etc.)
+- Any Indian legal provision, section, or article
+- Common legal issues without country specification (landlord disputes, salary issues, police complaints, domestic issues, property disputes, consumer complaints) — ASSUME INDIAN CONTEXT since you are an Indian legal assistant
+- General legal help requests — if the query could be about Indian law, answer it
+
+If the question is clearly NOT related to Indian law (foreign laws, non-legal topics, science, sports, entertainment), respond with EXACTLY this:
 I can only provide information related to Indian law. Please ask a legal question concerning India.
 
 NEVER answer questions about:
-- General knowledge (what is an apple, what is gravity, etc.)
-- Science, technology, history, geography, or any non-legal topic
-- Laws of any other country
-- Any topic that is not specifically about Indian law
+- Laws of any other country (US, UK, etc.)
+- Science, technology, geography, or any non-legal topic
+- Sports, entertainment, business (non-legal)
 
 If the user's message is ONLY a greeting word (hi, hello, hey, namaste) with no legal question, reply ONLY with: Hello! How can I assist you with Indian legal matters today? Nothing else. Otherwise, answer the question directly without any greeting. For EVERY question, answer in EXACTLY 1-2 short sentences. This is strict. If the user asks for a comparison or difference, state the core distinction in 1 sentence only — NEVER use tables or columns. Never output pipe characters, tables, bullet points, numbered lists, or multiple paragraphs. If you write more than 2 sentences, you are wrong.
 
@@ -66,14 +93,27 @@ LANGUAGE RULES: You must ALWAYS respond in English. No matter what language the 
 
 const ANALYSIS_SYSTEM_PROMPT = `You are Lawbite AI, an Indian legal assistant. STRICT RULE: You ONLY answer questions about Indian law, Indian legal system, Indian courts, Indian Constitution, Indian acts and statutes, Indian legal procedures, and Indian legal rights. NOTHING ELSE.
 
-If the question is NOT directly related to Indian law — even slightly — you MUST respond with EXACTLY this and nothing else:
+CRITICAL: The Constitution of India IS Indian law. Questions about the Constitution, its articles, fundamental rights, preamble, amendments, constitutional provisions, and constitutional governance ARE legal questions and MUST be answered.
+
+THESE TOPICS ARE ALL INDIAN LAW AND MUST BE ANSWERED:
+- Indian Constitution (articles, amendments, fundamental rights, preamble, directive principles)
+- Indian acts and statutes (BNS, BNSS, BSA, IPC, CrPC, Evidence Act, and ALL other Indian acts)
+- Indian courts (Supreme Court, High Courts, District Courts, tribunals)
+- Indian legal procedures (filing cases, bail, FIR, arrest, trial, appeal)
+- Indian legal rights (fundamental rights, legal rights, constitutional remedies)
+- Indian legal concepts (murder, theft, fraud, cheating, defamation, etc.)
+- Comparison of old vs new laws (IPC vs BNS, CrPC vs BNSS, etc.)
+- Any Indian legal provision, section, or article
+- Common legal issues without country specification (landlord disputes, salary issues, police complaints, domestic issues, property disputes, consumer complaints) — ASSUME INDIAN CONTEXT since you are an Indian legal assistant
+- General legal help requests — if the query could be about Indian law, answer it
+
+If the question is clearly NOT related to Indian law (foreign laws, non-legal topics, science, sports, entertainment), respond with EXACTLY this:
 I can only provide information related to Indian law. Please ask a legal question concerning India.
 
 NEVER answer questions about:
-- General knowledge (what is an apple, what is gravity, etc.)
-- Science, technology, history, geography, or any non-legal topic
-- Laws of any other country
-- Any topic that is not specifically about Indian law
+- Laws of any other country (US, UK, etc.)
+- Science, technology, geography, or any non-legal topic
+- Sports, entertainment, business (non-legal)
 
 If the user's message is ONLY a greeting word (hi, hello, hey, namaste) with no legal question, reply ONLY with: Hello! How can I assist you with Indian legal matters today? Nothing else. Otherwise, answer the question directly without any greeting.
 
@@ -89,6 +129,8 @@ SENTENCE QUALITY RULES — FOLLOW FOR EVERY ANALYSIS RESPONSE:
 - Use the present tense for existing laws and the past tense only for concluded proceedings.
 - End sections with actionable takeaways, not vague summaries.
 - Conclusions must be crisp — 2-3 sentences maximum, with a clear legal position.
+- NEVER write long paragraphs. Maximum 2-3 sentences per paragraph. Break content into bullet points and numbered lists.
+- Every response must be visually scannable — use bold headers, bullet points, and white space.
 
 CRITICAL FORMAT RULE — OVERVIEWS ACROSS PERSONAL LAWS:
 If the user asks about a topic that spans multiple personal laws (e.g., marriage, divorce, inheritance, adoption, succession, guardianship, maintenance) AND asks for a "complete overview", "comprehensive overview", or "all laws", you MUST follow this format INSTEAD OF all other formats below:
@@ -134,7 +176,38 @@ Follow the table with a brief note. Every cell in every row must contain item-sp
 
 5. SUMMARIES / KEY TAKEAWAYS — End complex explanations with **Key Takeaways:** followed by brief points.
 
-6. GENERAL ANALYSIS — Use numbered points (1. 2. 3.) with a blank line between each. End with a CONCLUSION paragraph.
+6. GENERAL ANALYSIS — This is the DEFAULT format for most queries. Use numbered points (1. 2. 3.) with a blank line between each. NEVER write long paragraphs. Break information into digestible chunks. End with a CONCLUSION paragraph and **Key Takeaways:** bullet points.
+
+CRITICAL FORMATTING RULE — THIS OVERRIDES ALL OTHER FORMAT CHOICES:
+Your response MUST be visually scannable and attractive. Follow these rules STRICTLY:
+- NEVER write walls of text or long paragraphs (max 2-3 sentences per paragraph).
+- Use bullet points, numbered lists, and bold headers to break up content.
+- Start each major section with a bold header: **Section Name**.
+- Use bullet points (- or •) for listing items, rights, features, elements, etc.
+- Use numbered lists (1. 2. 3.) for sequential steps or ranked items.
+- Add blank lines between sections for visual breathing room.
+- End with **Key Takeaways:** followed by 3-5 concise bullet points.
+- Think of your response as a well-designed document, not an essay.
+- Every answer should look like a structured brief, not a textbook paragraph.
+
+EXAMPLE of GOOD formatting:
+**What is Section 302 BNS?**
+Section 302 of the Bharatiya Nyaya Sanhita (BNS) 2023 defines the offence of murder and prescribes its punishment.
+
+**Key Elements:**
+- Causes death
+- Such act is done with the intention of causing death
+- Or with the intention of causing such bodily injury as the person accused knew to be likely to cause death
+
+**Punishment:**
+- Death, or
+- Imprisonment for life, and
+- Fine
+
+**Key Takeaways:**
+- Section 302 BNS replaces Section 302 IPC
+- Punishment is death or life imprisonment plus fine
+- Intention or knowledge of likely death is essential ingredient
 
 IMPORTANT: Never confuse sections (used in Acts/Codes) with articles (used in the Constitution). The Constitution of India has NOT been replaced — it is the supreme law. BNS 2023 replaced IPC 1860; BNSS 2023 replaced CrPC 1973; BSA 2023 replaced Evidence Act 1872. Articles exist ONLY in the Constitution. Sections exist in Acts/Codes. NEVER state that new criminal laws replaced the Constitution. Never invent section numbers, article numbers, amendments, or case names. Only use facts from the legal knowledge provided.
 
@@ -198,14 +271,27 @@ NEVER use single asterisks (*) for emphasis or formatting. Only use double aster
 
 const TALK_TO_AI_SYSTEM_PROMPT = `You are a concise Indian legal assistant. STRICT RULE: You ONLY answer questions about Indian law, Indian legal system, Indian courts, Indian Constitution, Indian acts and statutes, Indian legal procedures, and Indian legal rights. NOTHING ELSE.
 
-If the question is NOT directly related to Indian law — even slightly — you MUST respond with EXACTLY this and nothing else:
+CRITICAL: The Constitution of India IS Indian law. Questions about the Constitution, its articles, fundamental rights, preamble, amendments, constitutional provisions, and constitutional governance ARE legal questions and MUST be answered.
+
+THESE TOPICS ARE ALL INDIAN LAW AND MUST BE ANSWERED:
+- Indian Constitution (articles, amendments, fundamental rights, preamble, directive principles)
+- Indian acts and statutes (BNS, BNSS, BSA, IPC, CrPC, Evidence Act, and ALL other Indian acts)
+- Indian courts (Supreme Court, High Courts, District Courts, tribunals)
+- Indian legal procedures (filing cases, bail, FIR, arrest, trial, appeal)
+- Indian legal rights (fundamental rights, legal rights, constitutional remedies)
+- Indian legal concepts (murder, theft, fraud, cheating, defamation, etc.)
+- Comparison of old vs new laws (IPC vs BNS, CrPC vs BNSS, etc.)
+- Any Indian legal provision, section, or article
+- Common legal issues without country specification (landlord disputes, salary issues, police complaints, domestic issues, property disputes, consumer complaints) — ASSUME INDIAN CONTEXT since you are an Indian legal assistant
+- General legal help requests — if the query could be about Indian law, answer it
+
+If the question is clearly NOT related to Indian law (foreign laws, non-legal topics, science, sports, entertainment), respond with EXACTLY this:
 I can only provide information related to Indian law. Please ask a legal question concerning India.
 
 NEVER answer questions about:
-- General knowledge (what is an apple, what is gravity, etc.)
-- Science, technology, history, geography, or any non-legal topic
-- Laws of any other country
-- Any topic that is not specifically about Indian law
+- Laws of any other country (US, UK, etc.)
+- Science, technology, geography, or any non-legal topic
+- Sports, entertainment, business (non-legal)
 
 Respond in exactly 1 or 2 plain sentences. Never use lists, numbers, headings, or formatting. Just 1-2 short sentences.
 
@@ -229,14 +315,27 @@ Never mention, suggest, or advertise app features, modes, buttons, or other feat
 
 const DOCUMENT_DRAFTER_SYSTEM_PROMPT = `You are Lawbite AI Document Drafter, a specialized Indian legal document drafting assistant. STRICT RULE: You ONLY answer questions about Indian law, Indian legal system, Indian courts, Indian Constitution, Indian acts and statutes, Indian legal procedures, and Indian legal rights. NOTHING ELSE.
 
-If the question is NOT directly related to Indian law — even slightly — you MUST respond with EXACTLY this and nothing else:
+CRITICAL: The Constitution of India IS Indian law. Questions about the Constitution, its articles, fundamental rights, preamble, amendments, constitutional provisions, and constitutional governance ARE legal questions and MUST be answered.
+
+THESE TOPICS ARE ALL INDIAN LAW AND MUST BE ANSWERED:
+- Indian Constitution (articles, amendments, fundamental rights, preamble, directive principles)
+- Indian acts and statutes (BNS, BNSS, BSA, IPC, CrPC, Evidence Act, and ALL other Indian acts)
+- Indian courts (Supreme Court, High Courts, District Courts, tribunals)
+- Indian legal procedures (filing cases, bail, FIR, arrest, trial, appeal)
+- Indian legal rights (fundamental rights, legal rights, constitutional remedies)
+- Indian legal concepts (murder, theft, fraud, cheating, defamation, etc.)
+- Comparison of old vs new laws (IPC vs BNS, CrPC vs BNSS, etc.)
+- Any Indian legal provision, section, or article
+- Common legal issues without country specification (landlord disputes, salary issues, police complaints, domestic issues, property disputes, consumer complaints) — ASSUME INDIAN CONTEXT since you are an Indian legal assistant
+- General legal help requests — if the query could be about Indian law, answer it
+
+If the question is clearly NOT related to Indian law (foreign laws, non-legal topics, science, sports, entertainment), respond with EXACTLY this:
 I can only provide information related to Indian law. Please ask a legal question concerning India.
 
 NEVER answer questions about:
-- General knowledge (what is an apple, what is gravity, etc.)
-- Science, technology, history, geography, or any non-legal topic
-- Laws of any other country
-- Any topic that is not specifically about Indian law
+- Laws of any other country (US, UK, etc.)
+- Science, technology, geography, or any non-legal topic
+- Sports, entertainment, business (non-legal)
 
 ## CRITICAL SAFETY RULES — READ BEFORE EVERYTHING
 
@@ -632,14 +731,27 @@ The templates above show the standard structure. When filling them:
 
 const GRILL_SYSTEM_PROMPT = `You are Lawbite AI, a rigorous Indian legal advisor running a structured case intake session called "My Cases." STRICT RULE: You ONLY answer questions about Indian law, Indian legal system, Indian courts, Indian Constitution, Indian acts and statutes, Indian legal procedures, and Indian legal rights. NOTHING ELSE.
 
-If the question is NOT directly related to Indian law — even slightly — you MUST respond with EXACTLY this and nothing else:
+CRITICAL: The Constitution of India IS Indian law. Questions about the Constitution, its articles, fundamental rights, preamble, amendments, constitutional provisions, and constitutional governance ARE legal questions and MUST be answered.
+
+THESE TOPICS ARE ALL INDIAN LAW AND MUST BE ANSWERED:
+- Indian Constitution (articles, amendments, fundamental rights, preamble, directive principles)
+- Indian acts and statutes (BNS, BNSS, BSA, IPC, CrPC, Evidence Act, and ALL other Indian acts)
+- Indian courts (Supreme Court, High Courts, District Courts, tribunals)
+- Indian legal procedures (filing cases, bail, FIR, arrest, trial, appeal)
+- Indian legal rights (fundamental rights, legal rights, constitutional remedies)
+- Indian legal concepts (murder, theft, fraud, cheating, defamation, etc.)
+- Comparison of old vs new laws (IPC vs BNS, CrPC vs BNSS, etc.)
+- Any Indian legal provision, section, or article
+- Common legal issues without country specification (landlord disputes, salary issues, police complaints, domestic issues, property disputes, consumer complaints) — ASSUME INDIAN CONTEXT since you are an Indian legal assistant
+- General legal help requests — if the query could be about Indian law, answer it
+
+If the question is clearly NOT related to Indian law (foreign laws, non-legal topics, science, sports, entertainment), respond with EXACTLY this:
 I can only provide information related to Indian law. Please ask a legal question concerning India.
 
 NEVER answer questions about:
-- General knowledge (what is an apple, what is gravity, etc.)
-- Science, technology, history, geography, or any non-legal topic
-- Laws of any other country
-- Any topic that is not specifically about Indian law
+- Laws of any other country (US, UK, etc.)
+- Science, technology, geography, or any non-legal topic
+- Sports, entertainment, business (non-legal)
 
 ## CRITICAL RULE — READ THIS FIRST
 You MUST ask exactly ONE question per message. NEVER bundle multiple questions. Each message you send must contain at most ONE question. NEVER ask question 5 and question 6 in the same message. NEVER ask more than one question at a time.
@@ -712,14 +824,27 @@ If you still need more information, do NOT include [ADVICE_COMPLETE]. Just ask t
 
 const DOCUMENT_REVIEW_SYSTEM_PROMPT = `You are Lawbite AI Document Reviewer, a specialized Indian legal document analysis assistant. STRICT RULE: You ONLY answer questions about Indian law, Indian legal system, Indian courts, Indian Constitution, Indian acts and statutes, Indian legal procedures, and Indian legal rights. NOTHING ELSE.
 
-If the question is NOT directly related to Indian law — even slightly — you MUST respond with EXACTLY this and nothing else:
+CRITICAL: The Constitution of India IS Indian law. Questions about the Constitution, its articles, fundamental rights, preamble, amendments, constitutional provisions, and constitutional governance ARE legal questions and MUST be answered.
+
+THESE TOPICS ARE ALL INDIAN LAW AND MUST BE ANSWERED:
+- Indian Constitution (articles, amendments, fundamental rights, preamble, directive principles)
+- Indian acts and statutes (BNS, BNSS, BSA, IPC, CrPC, Evidence Act, and ALL other Indian acts)
+- Indian courts (Supreme Court, High Courts, District Courts, tribunals)
+- Indian legal procedures (filing cases, bail, FIR, arrest, trial, appeal)
+- Indian legal rights (fundamental rights, legal rights, constitutional remedies)
+- Indian legal concepts (murder, theft, fraud, cheating, defamation, etc.)
+- Comparison of old vs new laws (IPC vs BNS, CrPC vs BNSS, etc.)
+- Any Indian legal provision, section, or article
+- Common legal issues without country specification (landlord disputes, salary issues, police complaints, domestic issues, property disputes, consumer complaints) — ASSUME INDIAN CONTEXT since you are an Indian legal assistant
+- General legal help requests — if the query could be about Indian law, answer it
+
+If the question is clearly NOT related to Indian law (foreign laws, non-legal topics, science, sports, entertainment), respond with EXACTLY this:
 I can only provide information related to Indian law. Please ask a legal question concerning India.
 
 NEVER answer questions about:
-- General knowledge (what is an apple, what is gravity, etc.)
-- Science, technology, history, geography, or any non-legal topic
-- Laws of any other country
-- Any topic that is not specifically about Indian law
+- Laws of any other country (US, UK, etc.)
+- Science, technology, geography, or any non-legal topic
+- Sports, entertainment, business (non-legal)
 
 ## Your Job
 Analyze uploaded legal documents (rental agreements, employment contracts, FIRs, court notices, sale deeds, partnership deeds, etc.) and provide a thorough risk assessment with plain-language explanations.
@@ -788,15 +913,72 @@ function getSystemPrompt(conversationType?: string) {
   }
 }
 
-const FOREIGN_JURISDICTION_KEYWORDS = [
-  "usa", "united states", "america", "u.s.a", "uk", "united kingdom", "britain", "england",
-  "canada", "australia", "europe", "european", "germany", "france", "italy", "spain",
-  "china", "japan", "russia", "brazil", "mexico", "new york", "california", "texas",
-  "canadian", "australian", "european union", "eu", "french", "german", "japanese",
-  "dubai", "uae", "singapore", "hong kong", "pakistan", "bangladesh", "nepal", "sri lanka",
+const NON_LEGAL_TOPIC_PATTERNS: RegExp[] = [
+  /\b(who is|who was|who's)\s+(?!the\s*(?:chief justice|president|prime minister|pm|governor|cji|cm|chief minister|speaker|chairman|chairperson|justice|minister|court|commissioner))/i,
+  /\b(cricket|football|soccer|tennis|basketball|baseball|golf|formula\s*1|f1\s*racing|olympics|world\s*cup|ipl|premier\s*league|champions\s*league|bcci|icc)\b/i,
+  /\b(movie|movies|film|films|bollywood|hollywood|actor|actress|actresses|directors?|singers?|albums?|songs?|concerts?|netflix|amazon\s*prime|disney|filmfare|plot\s+of)\b/i,
+  /\b(recipe|recipes|cooking|cook|cook(?:ing)?\s+(?:a|the|some)|restaurant|restaurants?|food|cuisine|chef|chefs|dishes?|ingredients?)\b/i,
+  /\b(weather|temperature|forecast|rain|sunny|cloudy)\b/i,
+  /\b(google|apple|microsoft|amazon(?!\s*(?:prim|aws|s3))|tesla|spacex|openai|chatgpt|ai\s+model|machine\s+learning|deep\s+learning|neural\s+networks?)\b/i,
+  /\b(cricket(?:er)?|football(?:er)?|batsman|batsmen|bowler|bowlers|wickets?|goals?|tournaments?|ipl\s+team|match(?:es)?|scores?)\b/i,
+  /\b(population|gdp|economy|economies|inflation|stock\s+market|share\s+prices?|crypto(?:currency)?|bitcoin|ethereum)\b/i,
+  /\b(relationship|dating|boyfriend|girlfriend|breakup|break\s+up)\b/i,
+  /\b(gym|workout|workouts|diet|diets|weight\s+loss|lose\s+weight|exercises?|yoga|meditation|health\s+tips?)\b/i,
+  /\b(travel|tourism|tourist|flights?|hotels?|airlines?|airports?|destinations?)\b/i,
+  /\b(horoscope|astrology|zodiac|tarot|palm\s+reading|numerology)\b/i,
+  /\b(history|historian|invented|invention|telephone|science|scientist|scientific|geography|gravity|discovered)\b/i,
+  /\b(business\s+strategy|startup|startups|entrepreneurship|entrepreneur)\b/i,
 ];
 
-function mentionsForeignJurisdiction(query: string): boolean {
+export function isNonLegalQuery(query: string): boolean {
+  const lower = query.toLowerCase();
+  return NON_LEGAL_TOPIC_PATTERNS.some((re) => re.test(lower));
+}
+
+const FOREIGN_JURISDICTION_KEYWORDS = [
+  "usa",
+  "us",
+  "united states",
+  "america",
+  "u.s.a",
+  "uk",
+  "united kingdom",
+  "britain",
+  "england",
+  "canada",
+  "australia",
+  "europe",
+  "european",
+  "germany",
+  "france",
+  "italy",
+  "spain",
+  "china",
+  "japan",
+  "russia",
+  "brazil",
+  "mexico",
+  "new york",
+  "california",
+  "texas",
+  "canadian",
+  "australian",
+  "european union",
+  "eu",
+  "french",
+  "german",
+  "japanese",
+  "dubai",
+  "uae",
+  "singapore",
+  "hong kong",
+  "pakistan",
+  "bangladesh",
+  "nepal",
+  "sri lanka",
+];
+
+export function mentionsForeignJurisdiction(query: string): boolean {
   const lower = query.toLowerCase();
   return FOREIGN_JURISDICTION_KEYWORDS.some((kw) => {
     if (kw.length <= 3) {
@@ -806,14 +988,18 @@ function mentionsForeignJurisdiction(query: string): boolean {
   });
 }
 
-async function classifyQuery(query: string): Promise<boolean> {
+export async function classifyQuery(query: string): Promise<boolean> {
   const lower = query.toLowerCase();
   const currentYear = new Date().getFullYear();
-  const yearPattern = new RegExp(`\\b(${currentYear}|${currentYear - 1}|${currentYear - 2})\\b`);
+  const yearPattern = new RegExp(
+    `\\b(${currentYear}|${currentYear - 1}|${currentYear - 2})\\b`,
+  );
 
-  const currentPositionPattern = /\b(who is|who was)\s+(the\s+)?(chief justice|president|prime minister|pm|governor|cji|cm|chief minister|speaker|chairman|chairperson)\b/i;
+  const currentPositionPattern =
+    /\b(who is|who was)\s+(the\s+)?(chief justice|president|prime minister|pm|governor|cji|cm|chief minister|speaker|chairman|chairperson)\b/i;
 
-  const timePattern = /\b(current|latest|recent|today|now|updat|breaking|newly)\b/i;
+  const timePattern =
+    /\b(current|latest|recent|today|now|updat|breaking|newly)\b/i;
 
   if (currentPositionPattern.test(lower)) return true;
   if (timePattern.test(lower)) return true;
@@ -829,7 +1015,9 @@ type Citation = {
   url?: string;
 };
 
-async function webSearch(query: string): Promise<{ context: string; citations: Citation[] }> {
+async function webSearch(
+  query: string,
+): Promise<{ context: string; citations: Citation[] }> {
   if (!tvly) {
     console.warn("Tavily API key not configured, skipping web search");
     return { context: "", citations: [] };
@@ -842,9 +1030,12 @@ async function webSearch(query: string): Promise<{ context: string; citations: C
     });
 
     const answer = response.answer || "";
-    const results = response.results
-      ?.map((r: { title: string; content: string }) => `${r.title}: ${r.content}`)
-      .join("\n") || "";
+    const results =
+      response.results
+        ?.map(
+          (r: { title: string; content: string }) => `${r.title}: ${r.content}`,
+        )
+        .join("\n") || "";
 
     const citations: Citation[] = (response.results ?? [])
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -871,247 +1062,630 @@ async function webSearch(query: string): Promise<{ context: string; citations: C
 const actMap: Record<string, string> = {
   // Constitution & Polity
   constitution: "constitution",
-  jurisprudence: "constitutional-law-jurisprudence", "general laws": "constitutional-law-jurisprudence",
-  "legal terminology": "legal-terminology", "legal maxims": "legal-terminology",
+  jurisprudence: "constitutional-law-jurisprudence",
+  "general laws": "constitutional-law-jurisprudence",
+  "legal terminology": "legal-terminology",
+  "legal maxims": "legal-terminology",
   "judicial review": "judicial-review",
-  writ: "writ-jurisprudence", "writs": "writ-jurisprudence", "habeas corpus": "writ-jurisprudence",
-  mandamus: "writ-jurisprudence", certiorari: "writ-jurisprudence", "quo warranto": "writ-jurisprudence",
-  pil: "public-interest-litigation", "public interest litigation": "public-interest-litigation",
-  
-  "civil appeal": "civil-appeals", "civil appeals": "civil-appeals",
-  "indian polity": "indian-polity", polity: "indian-polity", governance: "indian-polity",
-  "local government": "local-government", panchayat: "local-government", municipality: "local-government",
-  
-  
+  writ: "writ-jurisprudence",
+  writs: "writ-jurisprudence",
+  "habeas corpus": "writ-jurisprudence",
+  mandamus: "writ-jurisprudence",
+  certiorari: "writ-jurisprudence",
+  "quo warranto": "writ-jurisprudence",
+  pil: "public-interest-litigation",
+  "public interest litigation": "public-interest-litigation",
+
+  "civil appeal": "civil-appeals",
+  "civil appeals": "civil-appeals",
+  "indian polity": "indian-polity",
+  polity: "indian-polity",
+  governance: "indian-polity",
+  "local government": "local-government",
+  panchayat: "local-government",
+  municipality: "local-government",
+
   "delegated legislation": "delegated-legislation",
-  
 
   // Criminal Law
-  ipc: "ipc", "penal code": "ipc", "indian penal code": "ipc",
-  "bharatiya nyaya sanhita": "bharatiya-nyaya-sanhita", bns: "bharatiya-nyaya-sanhita", "nyaya sanhita": "bharatiya-nyaya-sanhita", "bharatiya nyaya": "bharatiya-nyaya-sanhita",
-  crpc: "crpc", "criminal procedure": "crpc",
-  "bharatiya nagrik suraksha": "bharatiya-nagrik-suraksha-sanhita", bnss: "bharatiya-nagrik-suraksha-sanhita", "nagarik suraksha": "bharatiya-nagrik-suraksha-sanhita", "bharatiya nagrik": "bharatiya-nagrik-suraksha-sanhita",
-  "bharatiya sakshya": "bharatiya-sakshya-adhiniyam", bsa: "bharatiya-sakshya-adhiniyam", "sakshya adhiniyam": "bharatiya-sakshya-adhiniyam", "sakshya": "bharatiya-sakshya-adhiniyam",
-  "arms act": "arms-act", weapons: "arms-act", firearm: "arms-act", "fire arm": "arms-act",
-  "dowry prohibition": "dowry-prohibition-act", dowry: "dowry-prohibition-act",
-  uapa: "uapa-act", "unlawful activities": "uapa-act", terrorism: "uapa-act", "terror act": "uapa-act",
-  pmla: "pmla-act", "money laundering": "pmla-act", "proceeds of crime": "pmla-act",
-  "explosive substances": "explosive-substances-act", explosives: "explosive-substances-act",
-  "prevention of corruption": "prevention-of-corruption-amended-act", corruption: "prevention-of-corruption-amended-act",
-  afspa: "armed-forces-special-powers-act", "armed forces special powers": "armed-forces-special-powers-act", "armed forces act": "armed-forces-special-powers-act",
-  ndps: "ndps-act", "narcotic drugs": "ndps-act", "ndps act": "ndps-act", "drug trafficking": "ndps-act",
-  pocso: "pocso-act", "child sexual abuse": "pocso-act",
-  "juvenile justice": "juvenile-justice-act", "juvenile act": "juvenile-justice-act", "juvenile": "juvenile-justice-act",
-  "prevention of corruption act 1988": "prevention-of-corruption-act", "pc act 1988": "prevention-of-corruption-act",
+  ipc: "ipc",
+  "penal code": "ipc",
+  "indian penal code": "ipc",
+  "bharatiya nyaya sanhita": "bharatiya-nyaya-sanhita",
+  bns: "bharatiya-nyaya-sanhita",
+  "nyaya sanhita": "bharatiya-nyaya-sanhita",
+  "bharatiya nyaya": "bharatiya-nyaya-sanhita",
+  crpc: "crpc",
+  "criminal procedure": "crpc",
+  "bharatiya nagrik suraksha": "bharatiya-nagrik-suraksha-sanhita",
+  bnss: "bharatiya-nagrik-suraksha-sanhita",
+  "nagarik suraksha": "bharatiya-nagrik-suraksha-sanhita",
+  "bharatiya nagrik": "bharatiya-nagrik-suraksha-sanhita",
+  "bharatiya sakshya": "bharatiya-sakshya-adhiniyam",
+  bsa: "bharatiya-sakshya-adhiniyam",
+  "sakshya adhiniyam": "bharatiya-sakshya-adhiniyam",
+  sakshya: "bharatiya-sakshya-adhiniyam",
+  "arms act": "arms-act",
+  weapons: "arms-act",
+  firearm: "arms-act",
+  "fire arm": "arms-act",
+  "dowry prohibition": "dowry-prohibition-act",
+  dowry: "dowry-prohibition-act",
+  uapa: "uapa-act",
+  "unlawful activities": "uapa-act",
+  terrorism: "uapa-act",
+  "terror act": "uapa-act",
+  pmla: "pmla-act",
+  "money laundering": "pmla-act",
+  "proceeds of crime": "pmla-act",
+  "explosive substances": "explosive-substances-act",
+  explosives: "explosive-substances-act",
+  "prevention of corruption": "prevention-of-corruption-amended-act",
+  corruption: "prevention-of-corruption-amended-act",
+  afspa: "armed-forces-special-powers-act",
+  "armed forces special powers": "armed-forces-special-powers-act",
+  "armed forces act": "armed-forces-special-powers-act",
+  ndps: "ndps-act",
+  "narcotic drugs": "ndps-act",
+  "ndps act": "ndps-act",
+  "drug trafficking": "ndps-act",
+  pocso: "pocso-act",
+  "child sexual abuse": "pocso-act",
+  "juvenile justice": "juvenile-justice-act",
+  "juvenile act": "juvenile-justice-act",
+  juvenile: "juvenile-justice-act",
+  "prevention of corruption act 1988": "prevention-of-corruption-act",
+  "pc act 1988": "prevention-of-corruption-act",
 
   // Civil Law
-  
-  evidence: "evidence-act", "evidence act": "evidence-act",
-  "transfer of property": "transfer-of-property-act", "property act": "transfer-of-property-act", tpa: "transfer-of-property-act",
-  contract: "indian-contract-act", "contract act": "indian-contract-act",
+
+  evidence: "evidence-act",
+  "evidence act": "evidence-act",
+  "transfer of property": "transfer-of-property-act",
+  "property act": "transfer-of-property-act",
+  tpa: "transfer-of-property-act",
+  contract: "indian-contract-act",
+  "contract act": "indian-contract-act",
   "specific relief": "specific-relief-act",
-  
-  "tort law": "tort-law", tort: "tort-law", "tort liability": "tort-law", "civil wrong": "tort-law", "civil wrongs": "tort-law", negligence: "tort-law", defamation: "tort-law", nuisance: "tort-law", trespass: "tort-law", "strict liability": "tort-law", "vicarious liability": "tort-law", damages: "tort-law", "malicious prosecution": "tort-law", "false imprisonment": "tort-law", "assault and battery": "tort-law",
-  arbitration: "arbitration-act", "arbitration act": "arbitration-act", conciliation: "arbitration-act", arbitral: "arbitration-act",
-  "limitation act": "limitation-act", limitation: "limitation-act", "statute of limitation": "limitation-act", "period of limitation": "limitation-act",
-  "sale of goods": "sale-of-goods-act", "sale of goods act": "sale-of-goods-act",
-  "negotiable instrument": "negotiable-instruments-act", "cheque bounce": "negotiable-instruments-act", "promissory note": "negotiable-instruments-act",
-  registration: "registration-act", "registration of document": "registration-act", "registration act": "registration-act",
-  "indian partnership": "indian-partnership-act", "partnership act": "indian-partnership-act",
-  "stamp act": "indian-stamp-act", "stamp duty": "indian-stamp-act", "stamp": "indian-stamp-act",
+
+  "tort law": "tort-law",
+  tort: "tort-law",
+  "tort liability": "tort-law",
+  "civil wrong": "tort-law",
+  "civil wrongs": "tort-law",
+  negligence: "tort-law",
+  defamation: "tort-law",
+  nuisance: "tort-law",
+  trespass: "tort-law",
+  "strict liability": "tort-law",
+  "vicarious liability": "tort-law",
+  damages: "tort-law",
+  "malicious prosecution": "tort-law",
+  "false imprisonment": "tort-law",
+  "assault and battery": "tort-law",
+  arbitration: "arbitration-act",
+  "arbitration act": "arbitration-act",
+  conciliation: "arbitration-act",
+  arbitral: "arbitration-act",
+  "limitation act": "limitation-act",
+  limitation: "limitation-act",
+  "statute of limitation": "limitation-act",
+  "period of limitation": "limitation-act",
+  "sale of goods": "sale-of-goods-act",
+  "sale of goods act": "sale-of-goods-act",
+  "negotiable instrument": "negotiable-instruments-act",
+  "cheque bounce": "negotiable-instruments-act",
+  "promissory note": "negotiable-instruments-act",
+  registration: "registration-act",
+  "registration of document": "registration-act",
+  "registration act": "registration-act",
+  "indian partnership": "indian-partnership-act",
+  "partnership act": "indian-partnership-act",
+  "stamp act": "indian-stamp-act",
+  "stamp duty": "indian-stamp-act",
+  stamp: "indian-stamp-act",
 
   // Family Law
-  "consumer protection": "consumer-protection-act", "consumer act": "consumer-protection-act",
-  "family law": "family-law", "family act": "family-law",
-  succession: "indian-succession-act", "succession act": "indian-succession-act",
+  "consumer protection": "consumer-protection-act",
+  "consumer act": "consumer-protection-act",
+  "family law": "family-law",
+  "family act": "family-law",
+  succession: "indian-succession-act",
+  "succession act": "indian-succession-act",
   "hindu succession": "hindu-succession-act",
   "domestic violence": "domestic-violence-act",
-  "hindu marriage": "hindu-marriage-act", "hindu divorce": "hindu-marriage-act",
-  "special marriage": "special-marriage-act", "inter-faith marriage": "special-marriage-act",
-  "hindu adoption": "hindu-adoption-maintenance-act", "hindu maintenance": "hindu-adoption-maintenance-act",
-  "hindu guardianship": "hindu-minority-guardianship-act", "hindu minority": "hindu-minority-guardianship-act",
-  "muslim personal law": "muslim-personal-law-act", "shariat": "muslim-personal-law-act", "muslim law": "muslim-personal-law-act",
-  "muslim divorce": "dissolution-of-muslim-marriages-act", "dissolution of muslim marriage": "dissolution-of-muslim-marriages-act",
-  "indian divorce": "indian-divorce-act", "christian divorce": "indian-divorce-act", "christian marriage": "indian-christian-marriage-act",
-  "parsi marriage": "parsi-marriage-divorce-act", "parsi divorce": "parsi-marriage-divorce-act",
-  "child marriage": "prohibition-child-marriage-act", "child marriage prohibition": "prohibition-child-marriage-act", "minor marriage": "prohibition-child-marriage-act",
-  "guardian and ward": "guardian-wards-act", "guardianship": "guardian-wards-act", "ward": "guardian-wards-act",
-  "senior citizen maintenance": "maintenance-parents-senior-citizens-act", "parent maintenance": "maintenance-parents-senior-citizens-act", "elderly rights": "maintenance-parents-senior-citizens-act",
+  "hindu marriage": "hindu-marriage-act",
+  "hindu divorce": "hindu-marriage-act",
+  "special marriage": "special-marriage-act",
+  "inter-faith marriage": "special-marriage-act",
+  "hindu adoption": "hindu-adoption-maintenance-act",
+  "hindu maintenance": "hindu-adoption-maintenance-act",
+  "hindu guardianship": "hindu-minority-guardianship-act",
+  "hindu minority": "hindu-minority-guardianship-act",
+  "muslim personal law": "muslim-personal-law-act",
+  shariat: "muslim-personal-law-act",
+  "muslim law": "muslim-personal-law-act",
+  "muslim divorce": "dissolution-of-muslim-marriages-act",
+  "dissolution of muslim marriage": "dissolution-of-muslim-marriages-act",
+  "indian divorce": "indian-divorce-act",
+  "christian divorce": "indian-divorce-act",
+  "christian marriage": "indian-christian-marriage-act",
+  "parsi marriage": "parsi-marriage-divorce-act",
+  "parsi divorce": "parsi-marriage-divorce-act",
+  "child marriage": "prohibition-child-marriage-act",
+  "child marriage prohibition": "prohibition-child-marriage-act",
+  "minor marriage": "prohibition-child-marriage-act",
+  "guardian and ward": "guardian-wards-act",
+  guardianship: "guardian-wards-act",
+  ward: "guardian-wards-act",
+  "senior citizen maintenance": "maintenance-parents-senior-citizens-act",
+  "parent maintenance": "maintenance-parents-senior-citizens-act",
+  "elderly rights": "maintenance-parents-senior-citizens-act",
 
   // Police & Criminal Procedure
-  "police act": "police-act-1861", "police powers": "police-act-1861",
-  nia: "nia-act", "investigation agency": "nia-act",
-  fir: "fir-procedures", "first information report": "fir-procedures",
-  arrest: "arrest-guidelines", "arrest guidelines": "arrest-guidelines",
+  "police act": "police-act-1861",
+  "police powers": "police-act-1861",
+  nia: "nia-act",
+  "investigation agency": "nia-act",
+  fir: "fir-procedures",
+  "first information report": "fir-procedures",
+  arrest: "arrest-guidelines",
+  "arrest guidelines": "arrest-guidelines",
   "search and seizure": "search-and-seizure",
-  "charge sheet": "charge-sheets", chargesheet: "charge-sheets",
+  "charge sheet": "charge-sheets",
+  chargesheet: "charge-sheets",
   "preventive detention": "preventive-detention",
 
   // Human Rights & Social Welfare
   "human rights": "protection-of-human-rights-act",
-  
-  "women rights": "women-rights", "women law": "women-rights",
-  "sexual harassment": "posh-act", posh: "posh-act", "workplace harassment": "posh-act",
-  "maternity benefit": "maternity-benefit-act", "maternity leave": "maternity-benefit-act",
-  "mental health": "mental-healthcare-act", "mental healthcare": "mental-healthcare-act",
-  "food security": "national-food-security-act", "food rights": "national-food-security-act",
-  "rpwd": "rpwd-act", "persons with disabilities": "rpwd-act", "disability act": "rpwd-act", "disability rights": "rpwd-act",
+
+  "women rights": "women-rights",
+  "women law": "women-rights",
+  "sexual harassment": "posh-act",
+  posh: "posh-act",
+  "workplace harassment": "posh-act",
+  "maternity benefit": "maternity-benefit-act",
+  "maternity leave": "maternity-benefit-act",
+  "mental health": "mental-healthcare-act",
+  "mental healthcare": "mental-healthcare-act",
+  "food security": "national-food-security-act",
+  "food rights": "national-food-security-act",
+  rpwd: "rpwd-act",
+  "persons with disabilities": "rpwd-act",
+  "disability act": "rpwd-act",
+  "disability rights": "rpwd-act",
   "child rights": "child-rights",
-  "child labour": "child-labour-act", "child labor": "child-labour-act",
+  "child labour": "child-labour-act",
+  "child labor": "child-labour-act",
   "minority rights": "minority-rights",
 
   // Cyber Law & IT
-  "information technology": "information-technology-act", "it act": "information-technology-act",
-  
-  "data protection": "data-protection", "data privacy": "data-protection",
-  hacking: "hacking-laws", "hacking laws": "hacking-laws",
+  "information technology": "information-technology-act",
+  "it act": "information-technology-act",
+
+  "data protection": "data-protection",
+  "data privacy": "data-protection",
+  hacking: "hacking-laws",
+  "hacking laws": "hacking-laws",
   "identity theft": "identity-theft",
-  "online fraud": "online-frauds", "cyber fraud": "online-frauds",
-  "cyber crime": "cyber-crime-detection", "cyber crime detection": "cyber-crime-detection",
+  "online fraud": "online-frauds",
+  "cyber fraud": "online-frauds",
+  "cyber crime": "cyber-crime-detection",
+  "cyber crime detection": "cyber-crime-detection",
   "digital evidence": "digital-evidence",
 
   // Corporate & Business Law
-  "corporate law": "corporate-business-laws", "business law": "corporate-business-laws", ibc: "corporate-business-laws", insolvency: "corporate-business-laws", "insolvency code": "corporate-business-laws", bankruptcy: "corporate-business-laws",
-  "real estate": "rera", rera: "rera", "real estate regulation": "rera",
-  "competition act": "competition-act", "anti-competitive": "competition-act", "cartel": "competition-act", "anti trust": "competition-act", "antitrust": "competition-act",
-  sebi: "sebi-act", "securities exchange board": "sebi-act", "capital market": "sebi-act", "stock market regulation": "sebi-act",
-  fema: "fema-act", "foreign exchange": "fema-act", "forex": "fema-act",
-  "foreign contribution": "fema-non-pci-act", fcra: "fema-non-pci-act", "foreign donation": "fema-non-pci-act",
-  msme: "msme-act", "micro small medium": "msme-act", "small enterprise": "msme-act",
-  benami: "benami-transactions-act", "benami transaction": "benami-transactions-act",
-  "black money": "black-money-act", "undisclosed foreign income": "black-money-act",
-  "companies act": "companies-act", "company law": "companies-act", "company act": "companies-act",
-  sarfaesi: "sarfaesi-act", securitisation: "sarfaesi-act", "asset reconstruction": "sarfaesi-act", npa: "sarfaesi-act", "non performing asset": "sarfaesi-act",
+  "corporate law": "corporate-business-laws",
+  "business law": "corporate-business-laws",
+  ibc: "corporate-business-laws",
+  insolvency: "corporate-business-laws",
+  "insolvency code": "corporate-business-laws",
+  bankruptcy: "corporate-business-laws",
+  "real estate": "rera",
+  rera: "rera",
+  "real estate regulation": "rera",
+  "competition act": "competition-act",
+  "anti-competitive": "competition-act",
+  cartel: "competition-act",
+  "anti trust": "competition-act",
+  antitrust: "competition-act",
+  sebi: "sebi-act",
+  "securities exchange board": "sebi-act",
+  "capital market": "sebi-act",
+  "stock market regulation": "sebi-act",
+  fema: "fema-act",
+  "foreign exchange": "fema-act",
+  forex: "fema-act",
+  "foreign contribution": "fema-non-pci-act",
+  fcra: "fema-non-pci-act",
+  "foreign donation": "fema-non-pci-act",
+  msme: "msme-act",
+  "micro small medium": "msme-act",
+  "small enterprise": "msme-act",
+  benami: "benami-transactions-act",
+  "benami transaction": "benami-transactions-act",
+  "black money": "black-money-act",
+  "undisclosed foreign income": "black-money-act",
+  "companies act": "companies-act",
+  "company law": "companies-act",
+  "company act": "companies-act",
+  sarfaesi: "sarfaesi-act",
+  securitisation: "sarfaesi-act",
+  "asset reconstruction": "sarfaesi-act",
+  npa: "sarfaesi-act",
+  "non performing asset": "sarfaesi-act",
 
   // Labour & Employment Law
-  "employment law": "employment-law", "labour law": "employment-law", "labor law": "employment-law",
-  "minimum wages": "minimum-wages-act", "wages act": "minimum-wages-act",
+  "employment law": "employment-law",
+  "labour law": "employment-law",
+  "labor law": "employment-law",
+  "minimum wages": "minimum-wages-act",
+  "wages act": "minimum-wages-act",
   "payment of wages": "payment-of-wages-act",
-  "industrial dispute": "industrial-disputes-act", "industrial disputes": "industrial-disputes-act",
+  "industrial dispute": "industrial-disputes-act",
+  "industrial disputes": "industrial-disputes-act",
   "social security": "social-security-act",
-  "trade union": "trade-unions-act", "trade unions": "trade-unions-act",
-  "factories act": "factories-act", "factory safety": "factories-act", "working conditions": "factories-act",
-  "essential commodities": "essential-commodities-act", "price control": "essential-commodities-act",
+  "trade union": "trade-unions-act",
+  "trade unions": "trade-unions-act",
+  "factories act": "factories-act",
+  "factory safety": "factories-act",
+  "working conditions": "factories-act",
+  "essential commodities": "essential-commodities-act",
+  "price control": "essential-commodities-act",
 
   // Taxation
-  "income tax": "income-tax-act", "tax act": "income-tax-act",
-  cgst: "cgst-act", gst: "cgst-act",
+  "income tax": "income-tax-act",
+  "tax act": "income-tax-act",
+  cgst: "cgst-act",
+  gst: "cgst-act",
   customs: "customs-act",
-  excise: "central-excise-act", "central excise": "central-excise-act",
-  "taxation law": "taxation-law", "tax law": "taxation-law",
+  excise: "central-excise-act",
+  "central excise": "central-excise-act",
+  "taxation law": "taxation-law",
+  "tax law": "taxation-law",
 
   // Legal Practice
-  "legal drafting": "legal-drafting", drafting: "legal-drafting", pleadings: "legal-drafting",
+  "legal drafting": "legal-drafting",
+  drafting: "legal-drafting",
+  pleadings: "legal-drafting",
 
   // Land & Anti-Corruption
-  "land acquisition": "larr-act", "land rehabilitation": "larr-act", larr: "larr-act",
-  lokpal: "lokpal-act", lokayukta: "lokpal-act", "anti corruption": "lokpal-act",
+  "land acquisition": "larr-act",
+  "land rehabilitation": "larr-act",
+  larr: "larr-act",
+  lokpal: "lokpal-act",
+  lokayukta: "lokpal-act",
+  "anti corruption": "lokpal-act",
 
   // Environmental Law
-  "wildlife protection": "wildlife-protection-act", "wildlife act": "wildlife-protection-act", "animal protection": "wildlife-protection-act", "national park": "wildlife-protection-act", "sanctuary": "wildlife-protection-act",
-  "forest conservation": "forest-conservation-act", "forest act": "forest-conservation-act", deforestation: "forest-conservation-act",
-  "water pollution": "water-act", "water act": "water-act", "sewage": "water-act",
-  "air pollution": "air-act", "air act": "air-act", "emission": "air-act",
-  "green tribunal": "national-green-tribunal-act", ngtp: "national-green-tribunal-act", "environmental dispute": "national-green-tribunal-act",
-  "biological diversity": "biological-diversity-act", biodiversity: "biological-diversity-act",
+  "wildlife protection": "wildlife-protection-act",
+  "wildlife act": "wildlife-protection-act",
+  "animal protection": "wildlife-protection-act",
+  "national park": "wildlife-protection-act",
+  sanctuary: "wildlife-protection-act",
+  "forest conservation": "forest-conservation-act",
+  "forest act": "forest-conservation-act",
+  deforestation: "forest-conservation-act",
+  "water pollution": "water-act",
+  "water act": "water-act",
+  sewage: "water-act",
+  "air pollution": "air-act",
+  "air act": "air-act",
+  emission: "air-act",
+  "green tribunal": "national-green-tribunal-act",
+  ngtp: "national-green-tribunal-act",
+  "environmental dispute": "national-green-tribunal-act",
+  "biological diversity": "biological-diversity-act",
+  biodiversity: "biological-diversity-act",
 
   // Consumer & IT Law
-  "food safety": "food-safety-standards-act", "food standards": "food-safety-standards-act", fssai: "food-safety-standards-act", "food adulteration": "food-safety-standards-act",
-  "drugs and cosmetics": "drugs-cosmetics-act", "drug regulation": "drugs-cosmetics-act", "medicine regulation": "drugs-cosmetics-act",
-  "digital personal data": "dpdp-act", "dpdp": "dpdp-act", "personal data protection": "dpdp-act",
-  aadhaar: "aadhaar-act", "aadhaar card": "aadhaar-act", "unique identification": "aadhaar-act",
-  rti: "right-to-information-act", "right to information": "right-to-information-act", "information commission": "right-to-information-act", "transparency": "right-to-information-act",
+  "food safety": "food-safety-standards-act",
+  "food standards": "food-safety-standards-act",
+  fssai: "food-safety-standards-act",
+  "food adulteration": "food-safety-standards-act",
+  "drugs and cosmetics": "drugs-cosmetics-act",
+  "drug regulation": "drugs-cosmetics-act",
+  "medicine regulation": "drugs-cosmetics-act",
+  "digital personal data": "dpdp-act",
+  dpdp: "dpdp-act",
+  "personal data protection": "dpdp-act",
+  aadhaar: "aadhaar-act",
+  "aadhaar card": "aadhaar-act",
+  "unique identification": "aadhaar-act",
+  rti: "right-to-information-act",
+  "right to information": "right-to-information-act",
+  "information commission": "right-to-information-act",
+  transparency: "right-to-information-act",
 
   // Intellectual Property
-  patent: "patents-act", "patent act": "patents-act", "patents act": "patents-act", "intellectual property": "patents-act", "invention": "patents-act", "patentee": "patents-act",
-  "geographical indication": "geographical-indications-act", gi: "geographical-indications-act", "gi act": "geographical-indications-act",
-  copyright: "copyright-act", "copyright act": "copyright-act", "copyrights": "copyright-act",
-  trademark: "trade-marks-act", "trade mark": "trade-marks-act", "trade marks act": "trade-marks-act", "trademark act": "trade-marks-act",
+  patent: "patents-act",
+  "patent act": "patents-act",
+  "patents act": "patents-act",
+  "intellectual property": "patents-act",
+  invention: "patents-act",
+  patentee: "patents-act",
+  "geographical indication": "geographical-indications-act",
+  gi: "geographical-indications-act",
+  "gi act": "geographical-indications-act",
+  copyright: "copyright-act",
+  "copyright act": "copyright-act",
+  copyrights: "copyright-act",
+  trademark: "trade-marks-act",
+  "trade mark": "trade-marks-act",
+  "trade marks act": "trade-marks-act",
+  "trademark act": "trade-marks-act",
 
   // Banking & Finance
-  "reserve bank": "rbi-act", "rbi": "rbi-act", "rbi act": "rbi-act", "monetary policy": "rbi-act", "banking regulation": "rbi-act", "cash reserve ratio": "rbi-act", "statutory liquidity ratio": "rbi-act", "slr": "rbi-act", "crr": "rbi-act",
-  irdai: "irdai-act", "insurance regulatory": "irdai-act", "insurance act": "irdai-act", "insurance company": "irdai-act", "insurance policy": "irdai-act", "solvency margin": "irdai-act", "insurance claim": "irdai-act", "insurance": "irdai-act",
+  "reserve bank": "rbi-act",
+  rbi: "rbi-act",
+  "rbi act": "rbi-act",
+  "monetary policy": "rbi-act",
+  "banking regulation": "rbi-act",
+  "cash reserve ratio": "rbi-act",
+  "statutory liquidity ratio": "rbi-act",
+  slr: "rbi-act",
+  crr: "rbi-act",
+  irdai: "irdai-act",
+  "insurance regulatory": "irdai-act",
+  "insurance act": "irdai-act",
+  "insurance company": "irdai-act",
+  "insurance policy": "irdai-act",
+  "solvency margin": "irdai-act",
+  "insurance claim": "irdai-act",
+  insurance: "irdai-act",
   "banking regulation act": "banking-regulation-act",
-  "motor vehicles": "motor-vehicles-act", "motor vehicle act": "motor-vehicles-act", "traffic rules": "motor-vehicles-act",
+  "motor vehicles": "motor-vehicles-act",
+  "motor vehicle act": "motor-vehicles-act",
+  "traffic rules": "motor-vehicles-act",
 
   // Miscellaneous Acts
-  "contempt of court": "contempt-of-courts-act", "contempt": "contempt-of-courts-act", "scandalising court": "contempt-of-courts-act", "contempt of courts act": "contempt-of-courts-act",
-  "official secrets": "official-secrets-act", "official secrets act": "official-secrets-act", "state secrets": "official-secrets-act",
-  passport: "passport-act", "passport act": "passport-act", "passport renewal": "passport-act", "passport application": "passport-act",
-  "indian telegraph": "indian-telegraph-act", "telegraph act": "indian-telegraph-act", "wiretap": "indian-telegraph-act", "interception": "indian-telegraph-act",
-  census: "census-act", "census act": "census-act", "population census": "census-act",
-  "epidemic diseases": "epidemic-diseases-act", "epidemic act": "epidemic-diseases-act", "quarantine": "epidemic-diseases-act", "pandemic": "epidemic-diseases-act", "public health emergency": "epidemic-diseases-act",
-  "sc/st": "sc-st-act", "scheduled caste": "sc-st-act", "scheduled tribe": "sc-st-act", "atrocity act": "sc-st-act", "atrocities act": "sc-st-act", "sc st act": "sc-st-act", "st act": "sc-st-act",
-  "environment protection": "environment-protection-act", "environment protection act": "environment-protection-act", epa: "environment-protection-act",
-  "consumer protection act amendment": "consumer-protection-act-amended", "consumer protection 2019": "consumer-protection-act-amended",
-  "indian legal system": "indian-legal-system", "legal system india": "indian-legal-system",
-  "court hierarchy": "court-hierarchy-procedure", "hierarchy of courts": "court-hierarchy-procedure",
+  "contempt of court": "contempt-of-courts-act",
+  contempt: "contempt-of-courts-act",
+  "scandalising court": "contempt-of-courts-act",
+  "contempt of courts act": "contempt-of-courts-act",
+  "official secrets": "official-secrets-act",
+  "official secrets act": "official-secrets-act",
+  "state secrets": "official-secrets-act",
+  passport: "passport-act",
+  "passport act": "passport-act",
+  "passport renewal": "passport-act",
+  "passport application": "passport-act",
+  "indian telegraph": "indian-telegraph-act",
+  "telegraph act": "indian-telegraph-act",
+  wiretap: "indian-telegraph-act",
+  interception: "indian-telegraph-act",
+  census: "census-act",
+  "census act": "census-act",
+  "population census": "census-act",
+  "epidemic diseases": "epidemic-diseases-act",
+  "epidemic act": "epidemic-diseases-act",
+  quarantine: "epidemic-diseases-act",
+  pandemic: "epidemic-diseases-act",
+  "public health emergency": "epidemic-diseases-act",
+  "sc/st": "sc-st-act",
+  "scheduled caste": "sc-st-act",
+  "scheduled tribe": "sc-st-act",
+  "atrocity act": "sc-st-act",
+  "atrocities act": "sc-st-act",
+  "sc st act": "sc-st-act",
+  "st act": "sc-st-act",
+  "environment protection": "environment-protection-act",
+  "environment protection act": "environment-protection-act",
+  epa: "environment-protection-act",
+  "consumer protection act amendment": "consumer-protection-act-amended",
+  "consumer protection 2019": "consumer-protection-act-amended",
+  "indian legal system": "indian-legal-system",
+  "legal system india": "indian-legal-system",
+  "court hierarchy": "court-hierarchy-procedure",
+  "hierarchy of courts": "court-hierarchy-procedure",
 
   // Reference & Practical Guides
-  "landmark judgment": "landmark-judgments", "landmark judgments": "landmark-judgments",
-  "legal dictionary": "legal-dictionary", "legal reference": "legal-reference",
+  "landmark judgment": "landmark-judgments",
+  "landmark judgments": "landmark-judgments",
+  "legal dictionary": "legal-dictionary",
+  "legal reference": "legal-reference",
   "practical guide": "practical-guides",
 
   // Constitutional Reference (now point to dedicated S3 keys)
-  "fundamental rights": "fundamental-rights", "right to equality": "fundamental-rights", "right to freedom": "fundamental-rights", "freedom of speech": "fundamental-rights", "right to life": "fundamental-rights", "article 21": "fundamental-rights", "article 14": "fundamental-rights", "article 19": "fundamental-rights", "right to religion": "fundamental-rights", "constitutional remedies": "fundamental-rights",
-  "fundamental duties": "dpsp-fundamental-duties", "directive principles": "dpsp-fundamental-duties", dpsp: "dpsp-fundamental-duties", "uniform civil code": "dpsp-fundamental-duties", "state policy": "dpsp-fundamental-duties",
-  "constitution schedule": "constitutional-schedules", schedules: "constitutional-schedules", "seventh schedule": "constitutional-schedules", "union list": "constitutional-schedules", "state list": "constitutional-schedules", "concurrent list": "constitutional-schedules",
-  "constitution part": "constitutional-parts", "part iii": "constitutional-parts", "part iv": "constitutional-parts", "emergency provisions": "constitutional-parts",
-  "constitutional amendment": "constitutional-amendments", "constitutional amendments": "constitutional-amendments", "amendment procedure": "constitutional-amendments",
+  "fundamental rights": "fundamental-rights",
+  "right to equality": "fundamental-rights",
+  "right to freedom": "fundamental-rights",
+  "freedom of speech": "fundamental-rights",
+  "right to life": "fundamental-rights",
+  "article 21": "fundamental-rights",
+  "article 14": "fundamental-rights",
+  "article 19": "fundamental-rights",
+  "right to religion": "fundamental-rights",
+  "constitutional remedies": "fundamental-rights",
+  "fundamental duties": "dpsp-fundamental-duties",
+  "directive principles": "dpsp-fundamental-duties",
+  dpsp: "dpsp-fundamental-duties",
+  "uniform civil code": "dpsp-fundamental-duties",
+  "state policy": "dpsp-fundamental-duties",
+  "constitution schedule": "constitutional-schedules",
+  schedules: "constitutional-schedules",
+  "seventh schedule": "constitutional-schedules",
+  "union list": "constitutional-schedules",
+  "state list": "constitutional-schedules",
+  "concurrent list": "constitutional-schedules",
+  "constitution part": "constitutional-parts",
+  "part iii": "constitutional-parts",
+  "part iv": "constitutional-parts",
+  "emergency provisions": "constitutional-parts",
+  "constitutional amendment": "constitutional-amendments",
+  "constitutional amendments": "constitutional-amendments",
+  "amendment procedure": "constitutional-amendments",
   // Constitution articles (non-fundamental-rights) - map to constitution for direct article lookup
-  "article 124": "constitution", "article 125": "constitution", "article 126": "constitution", "article 127": "constitution", "article 128": "constitution", "article 129": "constitution", "article 130": "constitution", "article 131": "constitution", "article 132": "constitution", "article 133": "constitution", "article 134": "constitution", "article 134a": "constitution", "article 135": "constitution", "article 136": "constitution", "article 137": "constitution", "article 138": "constitution", "article 139": "constitution", "article 140": "constitution", "article 141": "constitution", "article 142": "constitution", "article 143": "constitution", "article 144": "constitution", "article 145": "constitution", "article 146": "constitution", "article 147": "constitution", "article 148": "constitution", "article 149": "constitution", "article 150": "constitution", "article 151": "constitution",
+  "article 124": "constitution",
+  "article 125": "constitution",
+  "article 126": "constitution",
+  "article 127": "constitution",
+  "article 128": "constitution",
+  "article 129": "constitution",
+  "article 130": "constitution",
+  "article 131": "constitution",
+  "article 132": "constitution",
+  "article 133": "constitution",
+  "article 134": "constitution",
+  "article 134a": "constitution",
+  "article 135": "constitution",
+  "article 136": "constitution",
+  "article 137": "constitution",
+  "article 138": "constitution",
+  "article 139": "constitution",
+  "article 140": "constitution",
+  "article 141": "constitution",
+  "article 142": "constitution",
+  "article 143": "constitution",
+  "article 144": "constitution",
+  "article 145": "constitution",
+  "article 146": "constitution",
+  "article 147": "constitution",
+  "article 148": "constitution",
+  "article 149": "constitution",
+  "article 150": "constitution",
+  "article 151": "constitution",
 };
 
 const fullTextActs = new Set([
-  "constitution", "bharatiya-nyaya-sanhita", "bharatiya-nagrik-suraksha-sanhita", "bharatiya-sakshya-adhiniyam",
-  "transfer-of-property-act", "indian-contract-act", "specific-relief-act",
-  "family-law", "indian-succession-act", "hindu-succession-act", "domestic-violence-act",
+  "constitution",
+  "bharatiya-nyaya-sanhita",
+  "bharatiya-nagrik-suraksha-sanhita",
+  "bharatiya-sakshya-adhiniyam",
+  "transfer-of-property-act",
+  "indian-contract-act",
+  "specific-relief-act",
+  "family-law",
+  "indian-succession-act",
+  "hindu-succession-act",
+  "domestic-violence-act",
   "consumer-protection-act",
-  "information-technology-act", "data-protection", "hacking-laws",
-  "identity-theft", "online-frauds", "cyber-crime-detection", "digital-evidence",
-  "constitutional-law-jurisprudence", "legal-terminology",
+  "information-technology-act",
+  "data-protection",
+  "hacking-laws",
+  "identity-theft",
+  "online-frauds",
+  "cyber-crime-detection",
+  "digital-evidence",
+  "constitutional-law-jurisprudence",
+  "legal-terminology",
   "tort-law",
-  "civil-appeals", "judicial-review", "writ-jurisprudence", "public-interest-litigation",
-  "police-act-1861", "fir-procedures", "arrest-guidelines", "search-and-seizure", "nia-act",
-  "charge-sheets", "preventive-detention",
-  "indian-polity", "local-government",
+  "civil-appeals",
+  "judicial-review",
+  "writ-jurisprudence",
+  "public-interest-litigation",
+  "police-act-1861",
+  "fir-procedures",
+  "arrest-guidelines",
+  "search-and-seizure",
+  "nia-act",
+  "charge-sheets",
+  "preventive-detention",
+  "indian-polity",
+  "local-government",
   "delegated-legislation",
-  "protection-of-human-rights-act", "women-rights", "child-rights", "minority-rights",
-  "posh-act", "maternity-benefit-act", "mental-healthcare-act", "national-food-security-act",
-  "rpwd-act", "child-labour-act",
-  "hindu-marriage-act", "special-marriage-act", "hindu-adoption-maintenance-act", "hindu-minority-guardianship-act",
-  "rera", "larr-act", "lokpal-act",
+  "protection-of-human-rights-act",
+  "women-rights",
+  "child-rights",
+  "minority-rights",
+  "posh-act",
+  "maternity-benefit-act",
+  "mental-healthcare-act",
+  "national-food-security-act",
+  "rpwd-act",
+  "child-labour-act",
+  "hindu-marriage-act",
+  "special-marriage-act",
+  "hindu-adoption-maintenance-act",
+  "hindu-minority-guardianship-act",
+  "rera",
+  "larr-act",
+  "lokpal-act",
   "corporate-business-laws",
-  "employment-law", "minimum-wages-act", "payment-of-wages-act", "industrial-disputes-act",
-  "social-security-act", "trade-unions-act",
-  "income-tax-act", "cgst-act", "customs-act", "central-excise-act", "taxation-law",
+  "employment-law",
+  "minimum-wages-act",
+  "payment-of-wages-act",
+  "industrial-disputes-act",
+  "social-security-act",
+  "trade-unions-act",
+  "income-tax-act",
+  "cgst-act",
+  "customs-act",
+  "central-excise-act",
+  "taxation-law",
   "legal-drafting",
-  "arms-act", "dowry-prohibition-act", "uapa-act", "pmla-act",
-  "explosive-substances-act", "prevention-of-corruption-amended-act", "armed-forces-special-powers-act",
-  "competition-act", "sebi-act", "fema-act", "fema-non-pci-act",
-  "msme-act", "benami-transactions-act", "black-money-act",
-  "arbitration-act", "companies-act", "copyright-act", "limitation-act",
-  "negotiable-instruments-act", "sale-of-goods-act", "registration-act",
-  "indian-partnership-act", "indian-stamp-act", "juvenile-justice-act",
-  "motor-vehicles-act", "ndps-act", "pocso-act", "sarfaesi-act",
-  "sc-st-act", "trade-marks-act", "banking-regulation-act",
+  "arms-act",
+  "dowry-prohibition-act",
+  "uapa-act",
+  "pmla-act",
+  "explosive-substances-act",
+  "prevention-of-corruption-amended-act",
+  "armed-forces-special-powers-act",
+  "competition-act",
+  "sebi-act",
+  "fema-act",
+  "fema-non-pci-act",
+  "msme-act",
+  "benami-transactions-act",
+  "black-money-act",
+  "arbitration-act",
+  "companies-act",
+  "copyright-act",
+  "limitation-act",
+  "negotiable-instruments-act",
+  "sale-of-goods-act",
+  "registration-act",
+  "indian-partnership-act",
+  "indian-stamp-act",
+  "juvenile-justice-act",
+  "motor-vehicles-act",
+  "ndps-act",
+  "pocso-act",
+  "sarfaesi-act",
+  "sc-st-act",
+  "trade-marks-act",
+  "banking-regulation-act",
   "prevention-of-corruption-act",
-  "muslim-personal-law-act", "dissolution-of-muslim-marriages-act",
-  "indian-divorce-act", "parsi-marriage-divorce-act", "indian-christian-marriage-act",
-  "prohibition-child-marriage-act", "guardian-wards-act", "maintenance-parents-senior-citizens-act",
-  "wildlife-protection-act", "forest-conservation-act", "water-act", "air-act",
-  "national-green-tribunal-act", "biological-diversity-act",
-  "factories-act", "essential-commodities-act",
-  "food-safety-standards-act", "drugs-cosmetics-act", "dpdp-act", "aadhaar-act",
-  "right-to-information-act", "consumer-protection-act-amended",
-  "fundamental-rights", "dpsp-fundamental-duties", "constitutional-schedules",
-  "constitutional-parts", "constitutional-amendments",
+  "muslim-personal-law-act",
+  "dissolution-of-muslim-marriages-act",
+  "indian-divorce-act",
+  "parsi-marriage-divorce-act",
+  "indian-christian-marriage-act",
+  "prohibition-child-marriage-act",
+  "guardian-wards-act",
+  "maintenance-parents-senior-citizens-act",
+  "wildlife-protection-act",
+  "forest-conservation-act",
+  "water-act",
+  "air-act",
+  "national-green-tribunal-act",
+  "biological-diversity-act",
+  "factories-act",
+  "essential-commodities-act",
+  "food-safety-standards-act",
+  "drugs-cosmetics-act",
+  "dpdp-act",
+  "aadhaar-act",
+  "right-to-information-act",
+  "consumer-protection-act-amended",
+  "fundamental-rights",
+  "dpsp-fundamental-duties",
+  "constitutional-schedules",
+  "constitutional-parts",
+  "constitutional-amendments",
   "environment-protection-act",
-  "court-hierarchy-procedure", "indian-legal-system",
-  "patents-act", "geographical-indications-act",
-  "rbi-act", "irdai-act",
-  "contempt-of-courts-act", "official-secrets-act", "passport-act",
-  "indian-telegraph-act", "census-act", "epidemic-diseases-act",
+  "court-hierarchy-procedure",
+  "indian-legal-system",
+  "patents-act",
+  "geographical-indications-act",
+  "rbi-act",
+  "irdai-act",
+  "contempt-of-courts-act",
+  "official-secrets-act",
+  "passport-act",
+  "indian-telegraph-act",
+  "census-act",
+  "epidemic-diseases-act",
 ]);
 
 function displayActName(act: string): string {
@@ -1138,13 +1712,16 @@ function displayActName(act: string): string {
     .join(" ");
 }
 
-async function getLegalKnowledge(query: string): Promise<{ context: string; citations: Citation[] }> {
+async function getLegalKnowledge(
+  query: string,
+): Promise<{ context: string; citations: Citation[] }> {
   const citations: Citation[] = [];
   try {
     const parts: string[] = [];
     const lower = query.toLowerCase();
 
-    const { sections: sectionMatches, articles: articleMatches } = extractRefNumbers(query);
+    const { sections: sectionMatches, articles: articleMatches } =
+      extractRefNumbers(query);
 
     // Cross-act section mapping: if a cited section matches a known old→new
     // law mapping (IPC→BNS, CrPC→BNSS, Evidence Act→BSA), fetch BOTH the old
@@ -1152,39 +1729,60 @@ async function getLegalKnowledge(query: string): Promise<{ context: string; cita
     const mappingParts: string[] = [];
     if (sectionMatches.length > 0) {
       const oldActKeys = new Set(SECTION_MAPPINGS.map((m) => m.actKey));
+      const mappingPromises: Promise<void>[] = [];
       for (const secNum of sectionMatches) {
-        // Old-law equivalents
         for (const key of oldActKeys) {
-          const sec = await s3kb.getSection(key, secNum);
-          if (sec) {
-            mappingParts.push(`[${key.toUpperCase()} Section ${sec.section}] ${sec.title}: ${sec.text}`);
-          }
+          mappingPromises.push(
+            s3kb.getSection(key, secNum).then((sec) => {
+              if (sec) {
+                mappingParts.push(
+                  `[${key.toUpperCase()} Section ${sec.section}] ${sec.title}: ${sec.text}`,
+                );
+              }
+            }),
+          );
         }
-        // New-law equivalents (via verified mapping table)
         for (const m of SECTION_MAPPINGS) {
           if (m.oldSection === secNum) {
-            const newSec = await s3kb.getSection(m.newActKey, m.newSection);
-            if (newSec) {
-              mappingParts.push(`[${m.newActKey.toUpperCase()} Section ${newSec.section} — ${m.offence}] ${newSec.title}: ${newSec.text}`);
-            }
+            mappingPromises.push(
+              s3kb.getSection(m.newActKey, m.newSection).then((newSec) => {
+                if (newSec) {
+                  mappingParts.push(
+                    `[${m.newActKey.toUpperCase()} Section ${newSec.section} — ${m.offence}] ${newSec.title}: ${newSec.text}`,
+                  );
+                }
+              }),
+            );
           }
         }
       }
+      await Promise.all(mappingPromises);
     }
 
     let targetAct = "";
     for (const [key, val] of Object.entries(actMap)) {
-      if (lower.includes(key)) { targetAct = val; break; }
+      if (lower.includes(key)) {
+        targetAct = val;
+        break;
+      }
     }
 
     if (targetAct && sectionMatches.length > 0) {
-      for (const secNum of sectionMatches) {
-        const sec = await s3kb.getSection(targetAct, secNum);
-        if (sec) {
-          parts.push(`[${targetAct.toUpperCase()} Section ${sec.section}] ${sec.title}: ${sec.text}`);
-          citations.push({ type: "act", label: `${displayActName(targetAct)} § ${sec.section}`, snippet: `${sec.title}: ${sec.text}` });
-        }
-      }
+      const sectionPromises = sectionMatches.map((secNum) =>
+        s3kb.getSection(targetAct, secNum).then((sec) => {
+          if (sec) {
+            parts.push(
+              `[${targetAct.toUpperCase()} Section ${sec.section}] ${sec.title}: ${sec.text}`,
+            );
+            citations.push({
+              type: "act",
+              label: `${displayActName(targetAct)} § ${sec.section}`,
+              snippet: `${sec.title}: ${sec.text}`,
+            });
+          }
+        }),
+      );
+      await Promise.all(sectionPromises);
     }
 
     if (!targetAct && sectionMatches.length > 0) {
@@ -1199,8 +1797,14 @@ async function getLegalKnowledge(query: string): Promise<{ context: string; cita
           for (const id of ids) {
             const sec = await s3kb.getSection(id, secNum);
             if (sec) {
-              parts.push(`[${id.toUpperCase()} Section ${sec.section}] ${sec.title}: ${sec.text}`);
-              citations.push({ type: "act", label: `${displayActName(id)} § ${sec.section}`, snippet: `${sec.title}: ${sec.text}` });
+              parts.push(
+                `[${id.toUpperCase()} Section ${sec.section}] ${sec.title}: ${sec.text}`,
+              );
+              citations.push({
+                type: "act",
+                label: `${displayActName(id)} § ${sec.section}`,
+                snippet: `${sec.title}: ${sec.text}`,
+              });
               break;
             }
           }
@@ -1209,26 +1813,58 @@ async function getLegalKnowledge(query: string): Promise<{ context: string; cita
     }
 
     if (articleMatches.length > 0) {
-      for (const artNum of articleMatches) {
-        const sec = await s3kb.getSection("constitution", artNum);
-        if (sec) {
-          parts.push(`[Constitution Article ${sec.section}] ${sec.title}: ${sec.text}`);
-          citations.push({ type: "act", label: `Constitution Art. ${sec.section}`, snippet: `${sec.title}: ${sec.text}` });
-        }
-      }
+      const articlePromises = articleMatches.map((artNum) =>
+        s3kb.getSection("constitution", artNum).then((sec) => {
+          if (sec) {
+            parts.push(
+              `[Constitution Article ${sec.section}] ${sec.title}: ${sec.text}`,
+            );
+            citations.push({
+              type: "act",
+              label: `Constitution Art. ${sec.section}`,
+              snippet: `${sec.title}: ${sec.text}`,
+            });
+          }
+        }),
+      );
+      await Promise.all(articlePromises);
     }
 
     if (targetAct && parts.length === 0) {
       if (fullTextActs.has(targetAct)) {
         const full = await s3kb.getFullText(targetAct);
         if (full) {
-          parts.push(`[${targetAct.toUpperCase()} Full Text]\n${full.substring(0, 3000)}...`);
-          citations.push({ type: "act", label: displayActName(targetAct), snippet: full.substring(0, 3000) });
+          parts.push(
+            `[${targetAct.toUpperCase()} Full Text]\n${full.substring(0, 3000)}...`,
+          );
+          citations.push({
+            type: "act",
+            label: displayActName(targetAct),
+            snippet: full.substring(0, 3000),
+          });
         }
       } else {
         const secList = await s3kb.getSectionList(targetAct);
         if (secList) {
-          const words = lower.replace(/[^a-z\s]/g, " ").split(/\s+/).filter(w => w.length > 3 && !["what", "the", "for", "and", "that", "this", "with", "under", "from", "about"].includes(w));
+          const words = lower
+            .replace(/[^a-z\s]/g, " ")
+            .split(/\s+/)
+            .filter(
+              (w) =>
+                w.length > 3 &&
+                ![
+                  "what",
+                  "the",
+                  "for",
+                  "and",
+                  "that",
+                  "this",
+                  "with",
+                  "under",
+                  "from",
+                  "about",
+                ].includes(w),
+            );
           let bestMatch = null;
           let bestScore = 0;
           for (const s of secList) {
@@ -1237,13 +1873,22 @@ async function getLegalKnowledge(query: string): Promise<{ context: string; cita
             for (const w of words) {
               if (titleLower.includes(w)) score++;
             }
-            if (score > bestScore) { bestScore = score; bestMatch = s; }
+            if (score > bestScore) {
+              bestScore = score;
+              bestMatch = s;
+            }
           }
           if (bestMatch && bestScore > 0) {
             const sec = await s3kb.getSection(targetAct, bestMatch.section);
             if (sec) {
-              parts.push(`[${targetAct.toUpperCase()} Section ${sec.section}] ${sec.title}: ${sec.text}`);
-              citations.push({ type: "act", label: `${displayActName(targetAct)} § ${sec.section}`, snippet: `${sec.title}: ${sec.text}` });
+              parts.push(
+                `[${targetAct.toUpperCase()} Section ${sec.section}] ${sec.title}: ${sec.text}`,
+              );
+              citations.push({
+                type: "act",
+                label: `${displayActName(targetAct)} § ${sec.section}`,
+                snippet: `${sec.title}: ${sec.text}`,
+              });
             }
           }
         }
@@ -1251,8 +1896,32 @@ async function getLegalKnowledge(query: string): Promise<{ context: string; cita
     }
 
     if (parts.length === 0) {
-      const keywords = lower.replace(/[^a-z\s]/g, " ").split(/\s+/)
-        .filter(w => w.length > 2 && !["the", "for", "and", "what", "can", "with", "are", "not", "under", "from", "about", "explain", "tell", "does", "say", "section", "article"].includes(w));
+      const keywords = lower
+        .replace(/[^a-z\s]/g, " ")
+        .split(/\s+/)
+        .filter(
+          (w) =>
+            w.length > 2 &&
+            ![
+              "the",
+              "for",
+              "and",
+              "what",
+              "can",
+              "with",
+              "are",
+              "not",
+              "under",
+              "from",
+              "about",
+              "explain",
+              "tell",
+              "does",
+              "say",
+              "section",
+              "article",
+            ].includes(w),
+        );
       const searchQuery = keywords.join(" ");
 
       const searchResults = await s3kb.searchActs(searchQuery);
@@ -1261,34 +1930,76 @@ async function getLegalKnowledge(query: string): Promise<{ context: string; cita
           const sec = await s3kb.getSection(r.act, r.section);
           const text = sec ? sec.text : "";
           if (text) {
-            parts.push(`[${r.act.toUpperCase()} ${r.section}] ${r.title}: ${text}`);
-            citations.push({ type: "act", label: `${displayActName(r.act)} § ${r.section}`, snippet: `${r.title}: ${text}` });
+            parts.push(
+              `[${r.act.toUpperCase()} ${r.section}] ${r.title}: ${text}`,
+            );
+            citations.push({
+              type: "act",
+              label: `${displayActName(r.act)} § ${r.section}`,
+              snippet: `${r.title}: ${text}`,
+            });
           }
         }
       }
     }
 
-    const refChecks: Array<{ keywords: string[]; key: string; label: string }> = [
-      { keywords: ["bail", "bailable", "non-bailable"], key: "bailable-offenses", label: "Bailable/Non-Bailable Offenses" },
-      { keywords: ["limitation", "time limit", "file a case", "file suit"], key: "limitation-periods", label: "Limitation Periods" },
-      { keywords: ["writ", "habeas", "mandamus", "certiorari", "quo warranto"], key: "writ-types", label: "Types of Writs" },
-      { keywords: ["court", "jurisdiction", "supreme court", "high court", "district court"], key: "court-hierarchy", label: "Court Hierarchy" },
-    ];
+    const refChecks: Array<{ keywords: string[]; key: string; label: string }> =
+      [
+        {
+          keywords: ["bail", "bailable", "non-bailable"],
+          key: "bailable-offenses",
+          label: "Bailable/Non-Bailable Offenses",
+        },
+        {
+          keywords: ["limitation", "time limit", "file a case", "file suit"],
+          key: "limitation-periods",
+          label: "Limitation Periods",
+        },
+        {
+          keywords: [
+            "writ",
+            "habeas",
+            "mandamus",
+            "certiorari",
+            "quo warranto",
+          ],
+          key: "writ-types",
+          label: "Types of Writs",
+        },
+        {
+          keywords: [
+            "court",
+            "jurisdiction",
+            "supreme court",
+            "high court",
+            "district court",
+          ],
+          key: "court-hierarchy",
+          label: "Court Hierarchy",
+        },
+      ];
 
     for (const ref of refChecks) {
-      if (ref.keywords.some(k => lower.includes(k))) {
+      if (ref.keywords.some((k) => lower.includes(k))) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const data = await s3kb.getReference<any>(ref.key);
         if (data) {
           parts.push(`\n[${ref.label}]:\n${JSON.stringify(data, null, 2)}`);
-          citations.push({ type: "act", label: ref.label, snippet: JSON.stringify(data, null, 2) });
+          citations.push({
+            type: "act",
+            label: ref.label,
+            snippet: JSON.stringify(data, null, 2),
+          });
         }
       }
     }
 
     const allParts = [...mappingParts, ...parts];
     return {
-      context: allParts.length > 0 ? `Legal Knowledge Base:\n${allParts.join("\n\n")}` : "",
+      context:
+        allParts.length > 0
+          ? `Legal Knowledge Base:\n${allParts.join("\n\n")}`
+          : "",
       citations,
     };
   } catch (error) {
@@ -1297,18 +2008,32 @@ async function getLegalKnowledge(query: string): Promise<{ context: string; cita
   }
 }
 
-function extractTextFromContent(content: string | Array<{ type: string; text?: string; image_url?: { url: string } }>): string {
+function extractTextFromContent(
+  content:
+    | string
+    | Array<{ type: string; text?: string; image_url?: { url: string } }>,
+): string {
   if (typeof content === "string") return content;
-  return content.filter((p: { type: string }) => p.type === "text").map((p: { text?: string }) => p.text || "").join(" ");
+  return content
+    .filter((p: { type: string }) => p.type === "text")
+    .map((p: { text?: string }) => p.text || "")
+    .join(" ");
 }
 
 export async function POST(request: NextRequest) {
   try {
     let session;
-    try {
-      session = await auth.api.getSession({ headers: request.headers });
-    } catch {
-      session = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        session = await auth.api.getSession({ headers: request.headers });
+        break;
+      } catch {
+        if (attempt === 0) {
+          await new Promise((r) => setTimeout(r, 200));
+          continue;
+        }
+        session = null;
+      }
     }
 
     if (!session) {
@@ -1320,7 +2045,10 @@ export async function POST(request: NextRequest) {
     if (!allowed) {
       return Response.json(
         { error: "Too many requests. Please try again later." },
-        { status: 429, headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)) } }
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)) },
+        },
       );
     }
 
@@ -1331,41 +2059,73 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const { messages, conversationType: rawConversationType } = body as { messages?: unknown; conversationType?: string };
+    const { messages, conversationType: rawConversationType } = body as {
+      messages?: unknown;
+      conversationType?: string;
+    };
     let conversationType = rawConversationType;
     if (conversationType === "chat") conversationType = "talk-to-ai";
 
     if (!Array.isArray(messages) || messages.length === 0) {
-      return Response.json({ error: "messages must be a non-empty array" }, { status: 400 });
+      return Response.json(
+        { error: "messages must be a non-empty array" },
+        { status: 400 },
+      );
     }
 
     if (messages.length > MAX_MESSAGES) {
-      return Response.json({ error: `Too many messages. Maximum is ${MAX_MESSAGES}.` }, { status: 400 });
+      return Response.json(
+        { error: `Too many messages. Maximum is ${MAX_MESSAGES}.` },
+        { status: 400 },
+      );
     }
 
     if (conversationType && !VALID_CONVERSATION_TYPES.has(conversationType)) {
-      return Response.json({ error: "Invalid conversationType" }, { status: 400 });
+      return Response.json(
+        { error: "Invalid conversationType" },
+        { status: 400 },
+      );
     }
 
     for (const msg of messages) {
       if (!msg || typeof msg !== "object") {
-        return Response.json({ error: "Each message must be an object" }, { status: 400 });
+        return Response.json(
+          { error: "Each message must be an object" },
+          { status: 400 },
+        );
       }
       const m = msg as { role?: string; content?: unknown };
       if (m.role !== "user" && m.role !== "assistant" && m.role !== "system") {
-        return Response.json({ error: "Each message must have role: user, assistant, or system" }, { status: 400 });
+        return Response.json(
+          { error: "Each message must have role: user, assistant, or system" },
+          { status: 400 },
+        );
       }
-      if (typeof m.content === "string" && m.content.length > MAX_MESSAGE_LENGTH) {
-        return Response.json({ error: `Message content too long. Maximum is ${MAX_MESSAGE_LENGTH} characters.` }, { status: 400 });
+      if (
+        typeof m.content === "string" &&
+        m.content.length > MAX_MESSAGE_LENGTH
+      ) {
+        return Response.json(
+          {
+            error: `Message content too long. Maximum is ${MAX_MESSAGE_LENGTH} characters.`,
+          },
+          { status: 400 },
+        );
       }
       if (Array.isArray(m.content)) {
         for (const part of m.content) {
           if (!part || typeof part !== "object") {
-            return Response.json({ error: "Invalid content part structure" }, { status: 400 });
+            return Response.json(
+              { error: "Invalid content part structure" },
+              { status: 400 },
+            );
           }
           const p = part as { type?: string };
           if (p.type !== "text" && p.type !== "image_url") {
-            return Response.json({ error: "Content parts must be type 'text' or 'image_url'" }, { status: 400 });
+            return Response.json(
+              { error: "Content parts must be type 'text' or 'image_url'" },
+              { status: 400 },
+            );
           }
         }
       }
@@ -1373,17 +2133,59 @@ export async function POST(request: NextRequest) {
 
     const apiKey = process.env.NVIDIA_API_KEY;
     if (!apiKey) {
-      return Response.json({ error: "NVIDIA_API_KEY is not configured" }, { status: 500 });
+      return Response.json(
+        { error: "NVIDIA_API_KEY is not configured" },
+        { status: 500 },
+      );
     }
 
-    const lastUserMessage = messages.filter((m: { role: string }) => m.role === "user").pop();
+    const lastUserMessage = messages
+      .filter((m: { role: string }) => m.role === "user")
+      .pop();
 
-    const userQuery = lastUserMessage ? extractTextFromContent(lastUserMessage.content) : "";
+    const userQuery = lastUserMessage
+      ? extractTextFromContent(lastUserMessage.content)
+      : "";
+
+    const isFollowUp = (() => {
+      const q = userQuery.trim().toLowerCase();
+      if (q.length > 80) return false;
+      const followUpPatterns =
+        /^(explain|tell me more|continue|elaborate|what do you mean|can you clarify|say more|go on|what else|how|why|when|where|who|what|which|details?|more|again|really|seriously|true|correct|right|yes|no|ok|okay|sure|thanks|thank you|help)$/i;
+      if (followUpPatterns.test(q)) return true;
+      const words = q.split(/\s+/).filter(Boolean);
+      if (
+        words.length <= 3 &&
+        !/\b(section|article|act|law|legal|court|ipc|crpc|bns|bnss|bsa|constitution)\b/i.test(
+          q,
+        )
+      ) {
+        const userMessages = messages.filter(
+          (m: { role: string }) => m.role === "user",
+        );
+        if (userMessages.length >= 2) return true;
+      }
+      return false;
+    })();
+
+    let contextQuery = userQuery;
+    if (isFollowUp) {
+      const userMessages = messages.filter(
+        (m: { role: string }) => m.role === "user",
+      );
+      for (let i = userMessages.length - 2; i >= 0; i--) {
+        const prevText = extractTextFromContent(userMessages[i].content).trim();
+        if (prevText.length > 20) {
+          contextQuery = prevText;
+          break;
+        }
+      }
+    }
 
     const refs = extractRefNumbers(userQuery);
     const refCount = refs.sections.length + refs.articles.length;
-    const multiRefQuery = refCount >= 2;
-    const tableAppropriate = refs.sections.length >= 2 && refs.articles.length === 0;
+    const tableAppropriate =
+      refs.sections.length >= 2 && refs.articles.length === 0;
 
     let systemPrompt = getSystemPrompt(conversationType);
     if (conversationType === "talk-to-ai" && tableAppropriate) {
@@ -1419,13 +2221,23 @@ PART 3 — KEY TAKEAWAYS:
 Never transpose tables, never leave a table cell blank, never invent section numbers or provisions. Only use facts from the legal knowledge provided.`;
     }
 
-    const greetingPattern = /^(hi|hello|hey|namaste|namaskar|good\s*(morning|afternoon|evening)|yo|sup|hii|helloo|hey there|hello there)\s*[!.]*$/i;
-    if (userQuery && greetingPattern.test(userQuery.trim()) && conversationType !== "grill") {
-      const greeting = "Hello! How can I assist you with Indian legal matters today?";
+    const greetingPattern =
+      /^(hi|hello|hey|namaste|namaskar|good\s*(morning|afternoon|evening)|yo|sup|hii|helloo|hey there|hello there)\s*[!.]*$/i;
+    if (
+      userQuery &&
+      greetingPattern.test(userQuery.trim()) &&
+      conversationType !== "grill"
+    ) {
+      const greeting =
+        "Hello! How can I assist you with Indian legal matters today?";
       const encoder = new TextEncoder();
       const stream = new ReadableStream({
         start(controller) {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: greeting })}\n\n`));
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ content: greeting })}\n\n`,
+            ),
+          );
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
         },
@@ -1434,25 +2246,27 @@ Never transpose tables, never leave a table cell blank, never invent section num
         headers: {
           "Content-Type": "text/event-stream",
           "Cache-Control": "no-cache, no-transform",
-          "Connection": "keep-alive",
+          Connection: "keep-alive",
           "X-Accel-Buffering": "no",
         },
       });
     }
 
     if (
-      userQuery &&
-      mentionsForeignJurisdiction(userQuery) &&
-      !/\b(india|indian|bharat|bharatiya|nri|domicile)\b/i.test(userQuery) &&
+      contextQuery &&
+      isNonLegalQuery(contextQuery) &&
       conversationType !== "grill" &&
       conversationType !== "draft" &&
       conversationType !== "review"
     ) {
-      const refusal = "I can only provide information related to Indian law. Please ask a legal question concerning India.";
+      const refusal =
+        "I can only provide information related to Indian law. Please ask a legal question concerning India.";
       const encoder = new TextEncoder();
       const stream = new ReadableStream({
         start(controller) {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: refusal })}\n\n`));
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ content: refusal })}\n\n`),
+          );
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
         },
@@ -1461,36 +2275,70 @@ Never transpose tables, never leave a table cell blank, never invent section num
         headers: {
           "Content-Type": "text/event-stream",
           "Cache-Control": "no-cache, no-transform",
-          "Connection": "keep-alive",
+          Connection: "keep-alive",
           "X-Accel-Buffering": "no",
         },
       });
     }
 
-    let needsSearch = false;
-    if (userQuery) {
-      needsSearch = await classifyQuery(userQuery);
-    }
-    let webSearchContext = "";
-    let citations: Citation[] = [];
-    if (needsSearch) {
-      const web = await webSearch(userQuery);
-      webSearchContext = web.context;
-      citations = web.citations;
+    if (
+      contextQuery &&
+      mentionsForeignJurisdiction(contextQuery) &&
+      !/\b(india|indian|bharat|bharatiya|nri|domicile)\b/i.test(contextQuery) &&
+      conversationType !== "grill" &&
+      conversationType !== "draft" &&
+      conversationType !== "review"
+    ) {
+      const refusal =
+        "I can only provide information related to Indian law. Please ask a legal question concerning India.";
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ content: refusal })}\n\n`),
+          );
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+        },
+      });
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache, no-transform",
+          Connection: "keep-alive",
+          "X-Accel-Buffering": "no",
+        },
+      });
     }
 
     const isTalkToAi = conversationType === "talk-to-ai";
     const isDraft = conversationType === "draft";
     const isAnalysis = conversationType === "analysis";
-    const isAnalysisMultiRef = conversationType === "analysis" && tableAppropriate;
+    const isAnalysisMultiRef =
+      conversationType === "analysis" && tableAppropriate;
     const hasRefs = refCount >= 1;
     const skipS3 = isTalkToAi && !hasRefs;
-    const legal = skipS3 ? { context: "", citations: [] as Citation[] } : await getLegalKnowledge(userQuery);
+
+    let needsSearch = false;
+    if (contextQuery) {
+      needsSearch = await classifyQuery(contextQuery);
+    }
+
+    const [webResult, legal] = await Promise.all([
+      needsSearch
+        ? webSearch(contextQuery)
+        : Promise.resolve({ context: "", citations: [] as Citation[] }),
+      skipS3
+        ? { context: "", citations: [] as Citation[] }
+        : getLegalKnowledge(contextQuery),
+    ]);
+    let webSearchContext = webResult.context;
+    let citations: Citation[] = [...webResult.citations];
     const legalContext = legal.context;
     citations = [...citations, ...legal.citations];
 
-    if (!skipS3 && !legalContext && !webSearchContext && userQuery) {
-      const web = await webSearch(userQuery);
+    if (!skipS3 && !legalContext && !webSearchContext && contextQuery) {
+      const web = await webSearch(contextQuery);
       webSearchContext = web.context;
       citations = [...citations, ...web.citations];
     }
@@ -1509,12 +2357,12 @@ Never transpose tables, never leave a table cell blank, never invent section num
     if (legalContext) contextParts.push(legalContext);
     if (refs.sections.length > 0) {
       contextParts.push(
-        `VERIFIED OLD→NEW SECTION MAPPINGS (effective 1 July 2024). Use these ONLY when the user cites an old SECTION number (IPC/CrPC/Evidence Act) — NEVER invent a different mapping, and NEVER apply these to Constitution ARTICLES:\n${mappingPromptBlock()}`
+        `VERIFIED OLD→NEW SECTION MAPPINGS (effective 1 July 2024). Use these ONLY when the user cites an old SECTION number (IPC/CrPC/Evidence Act) — NEVER invent a different mapping, and NEVER apply these to Constitution ARTICLES:\n${mappingPromptBlock()}`,
       );
     }
     if (refs.articles.length > 0) {
       contextParts.push(
-        `NOTE: "Article N" always refers to the Constitution of India (Articles are only in the Constitution). Never treat "Article N" as a section of CrPC/IPC/BNS/BNSS/BSA — those statutes have SECTIONS, not Articles.`
+        `NOTE: "Article N" always refers to the Constitution of India (Articles are only in the Constitution). Never treat "Article N" as a section of CrPC/IPC/BNS/BNSS/BSA — those statutes have SECTIONS, not Articles.`,
       );
     }
     if (contextParts.length > 0) {
@@ -1523,9 +2371,13 @@ Never transpose tables, never leave a table cell blank, never invent section num
 
     let messagesWithSystem: { role: string; content: unknown }[];
     if (isTalkToAi) {
-      const userMessages = messages.filter((m: { role: string }) => m.role === "user");
+      const userMessages = messages.filter(
+        (m: { role: string }) => m.role === "user",
+      );
       const recentMessages = userMessages.slice(-10);
-      const contextMessages = messages.filter((m: { role: string }) => m.role !== "system").slice(-20);
+      const contextMessages = messages
+        .filter((m: { role: string }) => m.role !== "system")
+        .slice(-20);
       messagesWithSystem = [
         { role: "system", content: finalSystemPrompt },
         ...contextMessages,
@@ -1543,44 +2395,90 @@ Never transpose tables, never leave a table cell blank, never invent section num
       ];
     }
 
-    const maxTokens = conversationType === "analysis" ? 16384 : conversationType === "talk-to-ai" ? 8192 : conversationType === "grill" ? 1024 : conversationType === "review" ? 4096 : conversationType === "draft" ? 12288 : 2048;
+    const maxTokens =
+      conversationType === "analysis"
+        ? 16384
+        : conversationType === "talk-to-ai"
+          ? 1024
+          : conversationType === "grill"
+            ? 1024
+            : conversationType === "review"
+              ? 4096
+              : conversationType === "draft"
+                ? 12288
+                : 2048;
 
-    const hasMultimodalContent = Array.isArray(lastUserMessage?.content) && lastUserMessage.content.some((p: { type: string }) => p.type === "image_url");
-    const model = (conversationType === "review" || hasMultimodalContent) ? REVIEW_MODEL : NVIDIA_MODEL;
+    const hasMultimodalContent =
+      Array.isArray(lastUserMessage?.content) &&
+      lastUserMessage.content.some(
+        (p: { type: string }) => p.type === "image_url",
+      );
+    const model =
+      conversationType === "review" || hasMultimodalContent
+        ? REVIEW_MODEL
+        : NVIDIA_MODEL;
 
     const payload: Record<string, unknown> = {
       messages: messagesWithSystem,
       max_tokens: maxTokens,
-      temperature: (isTalkToAi && tableAppropriate) || isAnalysisMultiRef ? 0.3 : 1.0,
+      temperature:
+        (isTalkToAi && tableAppropriate) || isAnalysisMultiRef ? 0.3 : 1.0,
       top_p: 0.95,
       stream: true,
-      chat_template_kwargs: { enable_thinking: false, force_nonempty_content: true },
+      chat_template_kwargs: {
+        enable_thinking: false,
+        force_nonempty_content: true,
+      },
     };
 
     const modelsToTry = model === NVIDIA_MODEL ? NVIDIA_MODELS : [model];
+    const encoder = new TextEncoder();
+    const needsPostProcess = isDraft;
     let responseText = "";
     let lastError = "";
-    console.log(`[ChatAPI] convType=${conversationType}, model=${model}, messages=${messagesWithSystem.length}, sysPromptLen=${finalSystemPrompt.length}`);
+    let nvidiaResponse: Response | null = null;
+    let workingModel = "";
+    console.log(
+      `[ChatAPI] convType=${conversationType}, model=${model}, messages=${messagesWithSystem.length}, sysPromptLen=${finalSystemPrompt.length}`,
+    );
+
     for (const m of modelsToTry) {
       const isReview = m === REVIEW_MODEL;
       const reqBody = isReview
-        ? { ...Object.fromEntries(Object.entries(payload).filter(([k]) => k !== "chat_template_kwargs")), model: m }
+        ? {
+            ...Object.fromEntries(
+              Object.entries(payload).filter(
+                ([k]) => k !== "chat_template_kwargs",
+              ),
+            ),
+            model: m,
+          }
         : { ...payload, model: m };
       try {
         const res = await fetchNvidia(NVIDIA_API_URL, {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${apiKey}`,
+            Authorization: `Bearer ${apiKey}`,
             "Content-Type": "application/json",
-            "Accept": "text/event-stream",
+            Accept: "text/event-stream",
           },
           body: JSON.stringify(reqBody),
         });
         if (!res.ok) {
           lastError = `${m}: HTTP ${res.status}`;
-          console.warn(`Model ${m} returned HTTP ${res.status}, trying next...`);
+          console.warn(
+            `Model ${m} returned HTTP ${res.status}, trying next...`,
+          );
           continue;
         }
+
+        if (!needsPostProcess) {
+          nvidiaResponse = res;
+          workingModel = m;
+          console.log(`[ChatAPI] model ${m} streaming directly to client`);
+          break;
+        }
+
         const text = await res.text();
         const lines = text.split("\n");
         let hasSSEError = false;
@@ -1597,14 +2495,22 @@ Never transpose tables, never leave a table cell blank, never invent section num
               console.warn(`Model ${m} SSE error:`, parsed.error);
               break;
             }
-            if (parsed.choices?.[0]?.delta?.content || parsed.choices?.[0]?.delta?.reasoning_content) {
+            if (
+              parsed.choices?.[0]?.delta?.content ||
+              parsed.choices?.[0]?.delta?.reasoning_content
+            ) {
               hasContent = true;
             }
-          } catch { /* skip */ }
+          } catch {
+            /* skip */
+          }
         }
         if (hasSSEError) continue;
         responseText = text;
-        console.log(`[ChatAPI] model ${m} OK, ${text.length} bytes, hasContent=${hasContent}`);
+        workingModel = m;
+        console.log(
+          `[ChatAPI] model ${m} OK, ${text.length} bytes, hasContent=${hasContent}`,
+        );
         break;
       } catch (err) {
         lastError = `${m}: ${(err as Error).message}`;
@@ -1613,45 +2519,217 @@ Never transpose tables, never leave a table cell blank, never invent section num
       }
     }
 
-    if (!responseText) {
+    if (!nvidiaResponse && !responseText) {
       console.error("All models failed:", lastError);
-      const fallbackMsg = "I apologize, but I'm experiencing temporary technical difficulties. Please try again in a moment, or rephrase your question about Indian law and I'll do my best to help.";
-      const encoder = new TextEncoder();
+      const fallbackMsg =
+        "I apologize, but I'm experiencing temporary technical difficulties. Please try again in a moment, or rephrase your question about Indian law and I'll do my best to help.";
       const stream = new ReadableStream({
         start(controller) {
           try {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: fallbackMsg } }] })}\n\n`));
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ choices: [{ delta: { content: fallbackMsg } }] })}\n\n`,
+              ),
+            );
             controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-          } catch { /* skip */ }
-          try { controller.close(); } catch { /* skip */ }
+          } catch {
+            /* skip */
+          }
+          try {
+            controller.close();
+          } catch {
+            /* skip */
+          }
         },
       });
       return new Response(stream, {
         headers: {
           "Content-Type": "text/event-stream",
           "Cache-Control": "no-cache, no-transform",
-          "Connection": "keep-alive",
+          Connection: "keep-alive",
           "X-Accel-Buffering": "no",
         },
       });
     }
 
-    const encoder = new TextEncoder();
+    if (nvidiaResponse && !needsPostProcess) {
+      const reader = nvidiaResponse.body!.getReader();
+      const stream = new ReadableStream({
+        async start(controller) {
+          const decoder = new TextDecoder();
+          let buffer = "";
+          let analysisFullContent = "";
+          let analysisReasoningContent = "";
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split("\n");
+              buffer = lines.pop() || "";
+              for (const line of lines) {
+                if (!line.startsWith("data: ")) {
+                  controller.enqueue(encoder.encode(line + "\n"));
+                  continue;
+                }
+                const data = line.slice(6).trim();
+                if (data === "[DONE]") {
+                  if (!isAnalysis) {
+                    controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+                  }
+                  continue;
+                }
+                if (!data) continue;
+                try {
+                  const parsed = JSON.parse(data);
+                  if (parsed.error) continue;
+                  const delta = parsed.choices?.[0]?.delta;
+                  const content = delta?.content;
+                  const reasoning = delta?.reasoning_content;
+                  if (reasoning && isAnalysis) {
+                    analysisReasoningContent += reasoning;
+                  }
+                  if (content) {
+                    if (isAnalysis) {
+                      analysisFullContent += content;
+                    }
+                    const cleaned = stripThinkingTokens(content);
+                    if (cleaned) {
+                      controller.enqueue(
+                        encoder.encode(
+                          `data: ${JSON.stringify({ content: fixArticleSectionTerminology(cleaned) })}\n\n`,
+                        ),
+                      );
+                    }
+                  }
+                } catch {
+                  controller.enqueue(encoder.encode(line + "\n"));
+                }
+              }
+            }
+            if (buffer.trim()) {
+              controller.enqueue(encoder.encode(buffer));
+            }
+
+            if (isAnalysis) {
+              const effectiveContent =
+                analysisFullContent || analysisReasoningContent;
+              let analysis = stripThinkingTokens(effectiveContent).trim();
+              if (analysis) {
+                if (isAnalysisMultiRef) {
+                  analysis = tightenMultiRefTable(analysis);
+                }
+                const requestedRefs = [...refs.sections, ...refs.articles].map(
+                  (r: string) => r.toUpperCase(),
+                );
+                const issues: string[] = [];
+                if (requestedRefs.length > 0) {
+                  const presentRefs = isAnalysisMultiRef
+                    ? extractTableRowRefs(analysis)
+                    : [];
+                  const missingRefs = requestedRefs.filter(
+                    (r: string) => !presentRefs.includes(r),
+                  );
+                  if (missingRefs.length > 0) {
+                    issues.push(
+                      `omitted these requested section(s)/article(s): ${missingRefs.join(", ")}`,
+                    );
+                  }
+                }
+                const blankCells = findBlankTableCells(analysis);
+                if (blankCells.length > 0) {
+                  issues.push(
+                    `left table cells blank or as placeholders: ${blankCells.slice(0, 5).join(", ")}${blankCells.length > 5 ? ` (+${blankCells.length - 5} more)` : ""}`,
+                  );
+                }
+                if (issues.length > 0) {
+                  console.log(
+                    `[ChatAPI] analysis quality issues, retrying: ${issues.join("; ")}`,
+                  );
+                  const check = (text: string) => {
+                    const normalized = isAnalysisMultiRef
+                      ? tightenMultiRefTable(text)
+                      : text;
+                    const blankCellsNow = findBlankTableCells(normalized);
+                    if (blankCellsNow.length > 0) return false;
+                    if (requestedRefs.length > 0) {
+                      const presentNow = isAnalysisMultiRef
+                        ? extractTableRowRefs(normalized)
+                        : [];
+                      if (
+                        requestedRefs.some(
+                          (r: string) => !presentNow.includes(r),
+                        )
+                      )
+                        return false;
+                    }
+                    return true;
+                  };
+                  const retried = await retryAnalysisContent(
+                    issues.join("; "),
+                    check,
+                    effectiveContent,
+                  );
+                  if (retried) {
+                    const cleaned = stripThinkingTokens(retried).trim();
+                    if (cleaned) {
+                      controller.enqueue(
+                        encoder.encode(
+                          `data: ${JSON.stringify({ content: fixArticleSectionTerminology(cleaned) })}\n\n`,
+                        ),
+                      );
+                    }
+                  }
+                }
+              }
+            }
+          } catch (err) {
+            console.warn("[ChatAPI] stream pipe error:", err);
+          } finally {
+            try {
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+              controller.close();
+            } catch {
+              /* already closed */
+            }
+          }
+        },
+      });
+      console.log(`[ChatAPI] streaming from model ${workingModel} to client`);
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache, no-transform",
+          Connection: "keep-alive",
+          "X-Accel-Buffering": "no",
+        },
+      });
+    }
 
     function truncateToTwoSentences(text: string): string {
       const cleaned = text
         .replace(/\*{1,2}/g, "")
         .replace(/^\s*\|.*$/gm, "")
         .replace(/\|/g, "")
-        .replace(/^(hello|hi|hey|good\s+morning|good\s+afternoon|good\s+evening|namaste|namaskar)[\s,!.]*/i, "")
-        .replace(/^(step|key takeaways|summary|conclusion|to summarize|in summary|warning|note|important)\s*\d*\s*:?\s*/gim, "")
+        .replace(
+          /^(hello|hi|hey|good\s+morning|good\s+afternoon|good\s+evening|namaste|namaskar)[\s,!.]*/i,
+          "",
+        )
+        .replace(
+          /^(step|key takeaways|summary|conclusion|to summarize|in summary|warning|note|important)\s*\d*\s*:?\s*/gim,
+          "",
+        )
         .replace(/^[-#>\d]+\.?\s*/gm, "")
         .replace(/^[A-Za-z\s,]+:\s*$/gm, "")
         .replace(/\n{3,}/g, "\n\n")
         .trim();
       const sentences = [...cleaned.matchAll(/[A-Z][^.!?\n]+[.!?\n]+/g)];
       if (sentences.length >= 2) {
-        return sentences.slice(0, 2).map(m => m[0].trim()).join(" ").trim();
+        return sentences
+          .slice(0, 2)
+          .map((m) => m[0].trim())
+          .join(" ")
+          .trim();
       }
       if (sentences.length === 1) {
         return sentences[0][0].trim();
@@ -1683,7 +2761,9 @@ Never transpose tables, never leave a table cell blank, never invent section num
         }
         // Reconstruct a well-formed 3-column row even when the model dropped the trailing pipe.
         const cells = trimmed.split("|").map((c) => c.trim());
-        const body = trimmed.endsWith("|") ? cells.slice(1, -1) : cells.slice(1);
+        const body = trimmed.endsWith("|")
+          ? cells.slice(1, -1)
+          : cells.slice(1);
         if (body.length !== 3) {
           out.push(line);
           continue;
@@ -1702,7 +2782,9 @@ Never transpose tables, never leave a table cell blank, never invent section num
           const w = s.split(/\s+/).filter(Boolean);
           return w.length > n ? w.slice(0, n).join(" ") + "…" : s;
         };
-        out.push(`| ${body[0]} | ${cap(body[1], MAX_OFFENCE_WORDS)} | ${cap(body[2], MAX_PUNISHMENT_WORDS)} |`);
+        out.push(
+          `| ${body[0]} | ${cap(body[1], MAX_OFFENCE_WORDS)} | ${cap(body[2], MAX_PUNISHMENT_WORDS)} |`,
+        );
       }
       return out.join("\n");
     }
@@ -1738,7 +2820,8 @@ Never transpose tables, never leave a table cell blank, never invent section num
     }
 
     function findBlankTableCells(text: string): string[] {
-      const placeholderRe = /^\s*(?:[-–—]{1,4}|n\/?a\.?|nil|none|not applicable|same as (?:above|previous|the (?:above|previous))|ditto)\s*$/i;
+      const placeholderRe =
+        /^\s*(?:[-–—]{1,4}|n\/?a\.?|nil|none|not applicable|same as (?:above|previous|the (?:above|previous))|ditto)\s*$/i;
       const problems: string[] = [];
       let header: string[] | null = null;
       let afterSeparator = false;
@@ -1778,37 +2861,52 @@ Never transpose tables, never leave a table cell blank, never invent section num
     function isDraftRefusal(text: string): boolean {
       const c = stripThinkingTokens(text).trim();
       if (c.length > 400) return false;
-      return /(?:cannot|can't|unable to|am unable|cannot create|cannot draft|cannot provide|not able to|as an ai|intimidat|harass|unlawful|against (?:my|our) (?:guidelines|policy|principles)|refus)/i.test(c);
+      return /(?:cannot|can't|unable to|am unable|cannot create|cannot draft|cannot provide|not able to|as an ai|intimidat|harass|unlawful|against (?:my|our) (?:guidelines|policy|principles)|refus)/i.test(
+        c,
+      );
     }
 
     function isBlankDraftRequest(query: string): boolean {
-      return /^please draft a .+ with the following details:?\s*$/i.test(query.trim());
+      return /^please draft a .+ with the following details:?\s*$/i.test(
+        query.trim(),
+      );
     }
 
     function isFabricatedBlankDraft(text: string): boolean {
       const c = stripThinkingTokens(text).trim();
       if (c.length < 100) return false;
-      const labels = new Set([...c.matchAll(/\[[^\]]+\]/g)].map((m) => m[0].toLowerCase()));
+      const labels = new Set(
+        [...c.matchAll(/\[[^\]]+\]/g)].map((m) => m[0].toLowerCase()),
+      );
       labels.delete("[current date]");
       return labels.size < 2;
     }
 
-    async function retryMultiRefTable(missingRefs: string[], allRefs: string[], prevContent: string): Promise<string | null> {
-      const lastUserMsg = messagesWithSystem.filter((m: { role: string }) => m.role === "user").slice(-1)[0];
+    async function retryMultiRefTable(
+      missingRefs: string[],
+      allRefs: string[],
+      prevContent: string,
+    ): Promise<string | null> {
+      const lastUserMsg = messagesWithSystem
+        .filter((m: { role: string }) => m.role === "user")
+        .slice(-1)[0];
       const overrideMessage = `The previous response omitted these requested section(s)/article(s): ${missingRefs.join(", ")}. This is not acceptable. Reproduce the ENTIRE compact markdown table again with EXACTLY ONE row for EACH of: ${allRefs.join(", ")} — in the order listed. NEVER skip any, never add extra rows. Header: | Section | Offence | Punishment |. Offence cell: max 6 words. Punishment cell: max 8 words. After the table add exactly ONE short closing sentence (max 15 words). Nothing else.`;
       const retryMessages: { role: string; content: unknown }[] = [
         { role: "system", content: finalSystemPrompt },
       ];
       if (lastUserMsg) retryMessages.push(lastUserMsg);
-      retryMessages.push({ role: "assistant", content: stripThinkingTokens(prevContent).trim() });
+      retryMessages.push({
+        role: "assistant",
+        content: stripThinkingTokens(prevContent).trim(),
+      });
       retryMessages.push({ role: "user", content: overrideMessage });
       try {
         const retryRes = await fetchNvidia(NVIDIA_API_URL, {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${apiKey}`,
+            Authorization: `Bearer ${apiKey}`,
             "Content-Type": "application/json",
-            "Accept": "text/event-stream",
+            Accept: "text/event-stream",
           },
           body: JSON.stringify({
             model,
@@ -1831,7 +2929,9 @@ Never transpose tables, never leave a table cell blank, never invent section num
             if (parsed.error) continue;
             const delta = parsed.choices?.[0]?.delta?.content;
             if (delta) retryContent += delta;
-          } catch { /* skip */ }
+          } catch {
+            /* skip */
+          }
         }
         const cleaned = stripThinkingTokens(retryContent).trim();
         if (!cleaned) return null;
@@ -1846,26 +2946,36 @@ Never transpose tables, never leave a table cell blank, never invent section num
       }
     }
 
-    async function retryAnalysisContent(issueSummary: string, check: (text: string) => boolean, prevContent: string): Promise<string | null> {
-      const lastUserMsg = messagesWithSystem.filter((m: { role: string }) => m.role === "user").slice(-1)[0];
+    async function retryAnalysisContent(
+      issueSummary: string,
+      check: (text: string) => boolean,
+      prevContent: string,
+    ): Promise<string | null> {
+      const lastUserMsg = messagesWithSystem
+        .filter((m: { role: string }) => m.role === "user")
+        .slice(-1)[0];
       const overrideMessage = `The previous response is not acceptable: ${issueSummary}. Reproduce the ENTIRE analysis again with the same overall structure, fixing every issue. Rules: fill EVERY table cell with specific, distinct content — never leave a cell blank and never write "same as above", "same as previous", "ditto", "N/A", "-", or "Nil" (if an item has no value, write "Not specified in [relevant Act]"). Never skip any requested section or article. Keep cells concise.`;
       const base: { role: string; content: string }[] = [
         { role: "system", content: finalSystemPrompt },
       ];
-      if (lastUserMsg) base.push(lastUserMsg as { role: string; content: string });
+      if (lastUserMsg)
+        base.push(lastUserMsg as { role: string; content: string });
       try {
         for (let attempt = 0; attempt < 2; attempt++) {
           const retryMessages = [
             ...base,
-            { role: "assistant", content: stripThinkingTokens(prevContent).trim() },
+            {
+              role: "assistant",
+              content: stripThinkingTokens(prevContent).trim(),
+            },
             { role: "user", content: overrideMessage },
           ];
           const retryRes = await fetchNvidia(NVIDIA_API_URL, {
             method: "POST",
             headers: {
-              "Authorization": `Bearer ${apiKey}`,
+              Authorization: `Bearer ${apiKey}`,
               "Content-Type": "application/json",
-              "Accept": "text/event-stream",
+              Accept: "text/event-stream",
             },
             body: JSON.stringify({
               model,
@@ -1888,7 +2998,9 @@ Never transpose tables, never leave a table cell blank, never invent section num
               if (parsed.error) continue;
               const delta = parsed.choices?.[0]?.delta?.content;
               if (delta) retryContent += delta;
-            } catch { /* skip */ }
+            } catch {
+              /* skip */
+            }
           }
           const cleaned = stripThinkingTokens(retryContent).trim();
           if (!cleaned) return null;
@@ -1904,14 +3016,20 @@ Never transpose tables, never leave a table cell blank, never invent section num
     }
 
     const stream = new ReadableStream({
-      cancel() { /* client disconnected, clean up */ },
+      cancel() {
+        /* client disconnected, clean up */
+      },
       async start(controller) {
         let fullContent = "";
         let reasoningContent = "";
         let emittedAny = false;
         const emit = (content: string) => {
           // Fix LLM hallucination: Acts (BNS/BNSS/BSA) have Sections, not Articles.
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: fixArticleSectionTerminology(content) })}\n\n`));
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ content: fixArticleSectionTerminology(content) })}\n\n`,
+            ),
+          );
           emittedAny = true;
         };
 
@@ -1932,7 +3050,7 @@ Never transpose tables, never leave a table cell blank, never invent section num
               }
               if (content) {
                 fullContent += content;
-                if (isTalkToAi || isDraft || isAnalysis) {
+                if (isDraft || isAnalysis) {
                   // accumulate for post-stream processing
                 } else {
                   const cleaned = stripThinkingTokens(content);
@@ -1941,16 +3059,23 @@ Never transpose tables, never leave a table cell blank, never invent section num
                   }
                 }
               }
-            } catch { /* skip */ }
+            } catch {
+              /* skip */
+            }
           }
-          console.log(`[ChatAPI] parsed. fullContent=${fullContent.length}chars, reasoningContent=${reasoningContent.length}chars, emittedAny=${emittedAny}`);
+          console.log(
+            `[ChatAPI] parsed. fullContent=${fullContent.length}chars, reasoningContent=${reasoningContent.length}chars, emittedAny=${emittedAny}`,
+          );
 
           const effectiveContent = fullContent || reasoningContent;
 
           if (isTalkToAi) {
             const strippedFull = stripThinkingTokens(effectiveContent);
             const rawContent = cleanTalkToAiContent(strippedFull);
-            const explicitTableRequest = /(comparison|compare|difference|differences|in a table|as a table|\btable\b)/i.test(userQuery);
+            const explicitTableRequest =
+              /(comparison|compare|difference|differences|in a table|as a table|\btable\b)/i.test(
+                userQuery,
+              );
             let truncated: string | null = null;
             if (tableAppropriate) {
               truncated = tightenMultiRefTable(rawContent);
@@ -1960,20 +3085,34 @@ Never transpose tables, never leave a table cell blank, never invent section num
               truncated = truncateToTwoSentences(strippedFull);
             }
             if (truncated && /^\s*\|/.test(truncated)) {
-              const requestedRefs = [...refs.sections, ...refs.articles].map((r) => r.toUpperCase());
+              const requestedRefs = [...refs.sections, ...refs.articles].map(
+                (r) => r.toUpperCase(),
+              );
               const presentRefs = extractTableRowRefs(truncated);
-              const missingRefs = requestedRefs.filter((r) => !presentRefs.includes(r));
+              const missingRefs = requestedRefs.filter(
+                (r) => !presentRefs.includes(r),
+              );
               const blankCells = findBlankTableCells(truncated);
               if (missingRefs.length > 0 || blankCells.length > 0) {
                 if (tableAppropriate) {
-                  const retried = await retryMultiRefTable(missingRefs, requestedRefs, effectiveContent);
+                  const retried = await retryMultiRefTable(
+                    missingRefs,
+                    requestedRefs,
+                    effectiveContent,
+                  );
                   if (retried) truncated = retried;
                 } else {
-                  const check = (t: string) => findBlankTableCells(normalizeTableRows(t)).length === 0;
-                  const issue = blankCells.length > 0
-                    ? `left table cells blank or as placeholders ("same as above", "N/A", "-", "Nil"): ${blankCells.slice(0, 5).join(", ")}${blankCells.length > 5 ? ` (+${blankCells.length - 5} more)` : ""}`
-                    : "omitted requested item(s)";
-                  const retried = await retryAnalysisContent(issue, check, effectiveContent);
+                  const check = (t: string) =>
+                    findBlankTableCells(normalizeTableRows(t)).length === 0;
+                  const issue =
+                    blankCells.length > 0
+                      ? `left table cells blank or as placeholders ("same as above", "N/A", "-", "Nil"): ${blankCells.slice(0, 5).join(", ")}${blankCells.length > 5 ? ` (+${blankCells.length - 5} more)` : ""}`
+                      : "omitted requested item(s)";
+                  const retried = await retryAnalysisContent(
+                    issue,
+                    check,
+                    effectiveContent,
+                  );
                   if (retried) truncated = normalizeTableRows(retried);
                 }
               }
@@ -1981,7 +3120,9 @@ Never transpose tables, never leave a table cell blank, never invent section num
             if (truncated) {
               emit(truncated);
             }
-            console.log(`[ChatAPI] talk-to-ai: effectiveContent=${effectiveContent.length}chars, strippedFull=${strippedFull.length}chars, truncated=${truncated?.length ?? "null"}chars, emittedAny=${emittedAny}`);
+            console.log(
+              `[ChatAPI] talk-to-ai: effectiveContent=${effectiveContent.length}chars, strippedFull=${strippedFull.length}chars, truncated=${truncated?.length ?? "null"}chars, emittedAny=${emittedAny}`,
+            );
           }
 
           if (isAnalysis) {
@@ -1990,31 +3131,50 @@ Never transpose tables, never leave a table cell blank, never invent section num
               if (isAnalysisMultiRef) {
                 analysis = tightenMultiRefTable(analysis);
               }
-              const requestedRefs = [...refs.sections, ...refs.articles].map((r) => r.toUpperCase());
+              const requestedRefs = [...refs.sections, ...refs.articles].map(
+                (r) => r.toUpperCase(),
+              );
               const issues: string[] = [];
               if (requestedRefs.length > 0) {
-                const presentRefs = isAnalysisMultiRef ? extractTableRowRefs(analysis) : [];
-                const missingRefs = requestedRefs.filter((r) => !presentRefs.includes(r));
+                const presentRefs = isAnalysisMultiRef
+                  ? extractTableRowRefs(analysis)
+                  : [];
+                const missingRefs = requestedRefs.filter(
+                  (r) => !presentRefs.includes(r),
+                );
                 if (missingRefs.length > 0) {
-                  issues.push(`omitted these requested section(s)/article(s): ${missingRefs.join(", ")}`);
+                  issues.push(
+                    `omitted these requested section(s)/article(s): ${missingRefs.join(", ")}`,
+                  );
                 }
               }
               const blankCells = findBlankTableCells(analysis);
               if (blankCells.length > 0) {
-                issues.push(`left table cells blank or as placeholders ("same as above", "N/A", "-", "Nil"): ${blankCells.slice(0, 5).join(", ")}${blankCells.length > 5 ? ` (+${blankCells.length - 5} more)` : ""}`);
+                issues.push(
+                  `left table cells blank or as placeholders ("same as above", "N/A", "-", "Nil"): ${blankCells.slice(0, 5).join(", ")}${blankCells.length > 5 ? ` (+${blankCells.length - 5} more)` : ""}`,
+                );
               }
               if (issues.length > 0) {
                 const check = (text: string) => {
-                  const normalized = isAnalysisMultiRef ? tightenMultiRefTable(text) : text;
+                  const normalized = isAnalysisMultiRef
+                    ? tightenMultiRefTable(text)
+                    : text;
                   const blankCellsNow = findBlankTableCells(normalized);
                   if (blankCellsNow.length > 0) return false;
                   if (requestedRefs.length > 0) {
-                    const presentNow = isAnalysisMultiRef ? extractTableRowRefs(normalized) : [];
-                    if (requestedRefs.some((r) => !presentNow.includes(r))) return false;
+                    const presentNow = isAnalysisMultiRef
+                      ? extractTableRowRefs(normalized)
+                      : [];
+                    if (requestedRefs.some((r) => !presentNow.includes(r)))
+                      return false;
                   }
                   return true;
                 };
-                const retried = await retryAnalysisContent(issues.join("; "), check, effectiveContent);
+                const retried = await retryAnalysisContent(
+                  issues.join("; "),
+                  check,
+                  effectiveContent,
+                );
                 if (retried) analysis = retried;
               }
               emit(analysis);
@@ -2028,15 +3188,20 @@ Never transpose tables, never leave a table cell blank, never invent section num
             const MAX_DRAFT_RETRIES = 3;
             while (
               attempt < MAX_DRAFT_RETRIES &&
-              (isDraftRefusal(draftContent) || (blankDraftRequest && isFabricatedBlankDraft(draftContent)))
+              (isDraftRefusal(draftContent) ||
+                (blankDraftRequest && isFabricatedBlankDraft(draftContent)))
             ) {
-              console.warn("Draft guard triggered (refusal or fabricated details), retrying with override instruction");
+              console.warn(
+                "Draft guard triggered (refusal or fabricated details), retrying with override instruction",
+              );
               const overrideMessage = isDraftRefusal(draftContent)
                 ? `The previous response was a refusal, which is not allowed. The user's document request is a legitimate, routine legal document (Legal Notice, FIR, Consumer Complaint, RTI, Will, Affidavit, Petition, or Contract) and MUST be drafted. Refusal is forbidden. Draft the complete document now using the exact template. Do not refuse, do not apologize, do not mention refusal.`
                 : `The user submitted a BLANK draft request with no details. You MUST output the FULL blank template exactly as defined in the system prompt, with EVERY bracketed placeholder label kept intact and empty (e.g. [complainant name], [opponent name], [address], [amount]). NEVER invent, fabricate, or fill in names, addresses, amounts, dates, invoice numbers, model numbers, or any other details — the user will fill them in. Do NOT provide an example or sample document. Output ONLY the blank template structure with its empty bracketed labels.`;
               const retryMessages = [
                 { role: "system", content: finalSystemPrompt },
-                ...messages.filter((m: { role: string }) => m.role !== "system"),
+                ...messages.filter(
+                  (m: { role: string }) => m.role !== "system",
+                ),
                 { role: "user", content: userQuery },
                 { role: "assistant", content: draftContent },
                 { role: "user", content: overrideMessage },
@@ -2044,9 +3209,9 @@ Never transpose tables, never leave a table cell blank, never invent section num
               const retryRes = await fetchNvidia(NVIDIA_API_URL, {
                 method: "POST",
                 headers: {
-                  "Authorization": `Bearer ${apiKey}`,
+                  Authorization: `Bearer ${apiKey}`,
                   "Content-Type": "application/json",
-                  "Accept": "text/event-stream",
+                  Accept: "text/event-stream",
                 },
                 body: JSON.stringify({
                   model,
@@ -2069,7 +3234,9 @@ Never transpose tables, never leave a table cell blank, never invent section num
                     if (parsed.error) continue;
                     const delta = parsed.choices?.[0]?.delta?.content;
                     if (delta) retryContent += delta;
-                  } catch { /* skip */ }
+                  } catch {
+                    /* skip */
+                  }
                 }
                 const cleanedRetry = stripThinkingTokens(retryContent).trim();
                 if (cleanedRetry) {
@@ -2085,31 +3252,51 @@ Never transpose tables, never leave a table cell blank, never invent section num
             if (draftContent) emit(draftContent);
           }
 
-
           if (!emittedAny && effectiveContent.trim()) {
-            const fallback = cleanTalkToAiContent(stripThinkingTokens(effectiveContent)).trim();
+            const fallback = cleanTalkToAiContent(
+              stripThinkingTokens(effectiveContent),
+            ).trim();
             if (fallback) {
               emit(fallback);
             } else {
-              console.warn("[ChatAPI] All content was stripped (thinking tokens?). rawLength:", effectiveContent.length);
-              emit("I apologize, but I couldn't complete that response. Please try rephrasing your question about Indian law.");
+              console.warn(
+                "[ChatAPI] All content was stripped (thinking tokens?). rawLength:",
+                effectiveContent.length,
+              );
+              emit(
+                "I apologize, but I couldn't complete that response. Please try rephrasing your question about Indian law.",
+              );
             }
           } else if (!emittedAny) {
-            emit("I apologize, but I couldn't generate a response. Please try again or ask a specific question about Indian law.");
+            emit(
+              "I apologize, but I couldn't generate a response. Please try again or ask a specific question about Indian law.",
+            );
           }
 
           if (citations.length > 0) {
             try {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ citations })}\n\n`));
-            } catch { /* skip */ }
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify({ citations })}\n\n`),
+              );
+            } catch {
+              /* skip */
+            }
           }
 
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         } catch (error) {
           console.warn("Stream interrupted:", (error as Error).message);
         } finally {
-          try { controller.enqueue(encoder.encode("data: [DONE]\n\n")); } catch { /* skip */ }
-          try { controller.close(); } catch { /* stream already closed */ }
+          try {
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          } catch {
+            /* skip */
+          }
+          try {
+            controller.close();
+          } catch {
+            /* stream already closed */
+          }
         }
       },
     });
@@ -2118,28 +3305,39 @@ Never transpose tables, never leave a table cell blank, never invent section num
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache, no-transform",
-        "Connection": "keep-alive",
+        Connection: "keep-alive",
         "X-Accel-Buffering": "no",
       },
     });
   } catch (error) {
     console.warn("Chat API error:", (error as Error).message);
-    const fallbackMsg = "I apologize, but something went wrong. Please try again or ask a question about Indian law.";
+    const fallbackMsg =
+      "I apologize, but something went wrong. Please try again or ask a question about Indian law.";
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       start(controller) {
         try {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: fallbackMsg } }] })}\n\n`));
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ choices: [{ delta: { content: fallbackMsg } }] })}\n\n`,
+            ),
+          );
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-        } catch { /* skip */ }
-        try { controller.close(); } catch { /* skip */ }
+        } catch {
+          /* skip */
+        }
+        try {
+          controller.close();
+        } catch {
+          /* skip */
+        }
       },
     });
     return new Response(stream, {
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache, no-transform",
-        "Connection": "keep-alive",
+        Connection: "keep-alive",
         "X-Accel-Buffering": "no",
       },
     });
