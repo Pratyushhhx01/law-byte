@@ -2575,30 +2575,6 @@ export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
                 <div className="my-1 border-t border-white/[0.06]" />
                 <button
                   type="button"
-                  onClick={async (e) => {
-                    e.stopPropagation();
-                    setContextMenuId(null);
-                    await shareConversation(conv, "copy");
-                  }}
-                  className="flex w-full items-center gap-3 px-3.5 py-2.5 text-[13px] text-white/70 transition-colors hover:bg-white/[0.06] hover:text-white"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-3.5 w-3.5 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                  </svg>
-                  Copy Share Link
-                </button>
-                <div className="my-1 border-t border-white/[0.06]" />
-                <button
-                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     setConfirmAction({
