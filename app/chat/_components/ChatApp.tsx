@@ -1995,21 +1995,45 @@ export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
     syncDeleteServer(removedIds);
   }
 
-  function shareConversation(conv: Conversation, platform?: string) {
-    const text = `${conv.title}\n\n${conv.messages.map((m) => `${m.role === "user" ? "You" : "Lawbite"}: ${m.content}`).join("\n\n")}`;
-    const url = typeof window !== "undefined" ? window.location.href : "";
-
-    if (platform === "more" && navigator.share) {
-      navigator.share({ title: conv.title, text, url }).catch(() => {});
+  async function shareConversation(conv: Conversation, platform?: string) {
+    let shareUrl = "";
+    try {
+      const res = await fetch("/api/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ conversationId: conv.id }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        shareUrl = `${window.location.origin}${data.url}`;
+      }
+    } catch {
+      /* ignore */
+    }
+    if (!shareUrl) {
+      alert("Failed to generate share link.");
       return;
     }
 
+    if (platform === "more" && navigator.share) {
+      navigator.share({ title: conv.title, url: shareUrl }).catch(() => {});
+      return;
+    }
+
+    if (platform === "copy") {
+      await navigator.clipboard.writeText(shareUrl);
+      alert("Share link copied to clipboard!");
+      return;
+    }
+
+    const shareText = `Check out this conversation on Lawbite: ${conv.title}`;
     const shareUrls: Record<string, string> = {
-      twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`,
-      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(text)}`,
-      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`,
-      whatsapp: `https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}`,
-      email: `mailto:?subject=${encodeURIComponent(conv.title)}&body=${encodeURIComponent(`${text}\n${url}`)}`,
+      twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`,
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareText)}`,
+      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`,
+      whatsapp: `https://wa.me/?text=${encodeURIComponent(`${shareText}\n${shareUrl}`)}`,
+      email: `mailto:?subject=${encodeURIComponent(conv.title)}&body=${encodeURIComponent(`${shareText}\n\n${shareUrl}`)}`,
     };
 
     if (shareUrls[platform ?? ""]) {
@@ -2577,22 +2601,7 @@ export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
                   onClick={async (e) => {
                     e.stopPropagation();
                     setContextMenuId(null);
-                    try {
-                      const res = await fetch("/api/share", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        credentials: "include",
-                        body: JSON.stringify({ conversationId: conv.id }),
-                      });
-                      if (res.ok) {
-                        const data = await res.json();
-                        const url = `${window.location.origin}${data.url}`;
-                        await navigator.clipboard.writeText(url);
-                        alert("Share link copied to clipboard!");
-                      }
-                    } catch {
-                      alert("Failed to generate share link.");
-                    }
+                    await shareConversation(conv, "copy");
                   }}
                   className="flex w-full items-center gap-3 px-3.5 py-2.5 text-[13px] text-white/70 transition-colors hover:bg-white/[0.06] hover:text-white"
                 >
