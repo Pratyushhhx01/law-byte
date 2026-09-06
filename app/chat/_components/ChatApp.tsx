@@ -2578,52 +2578,6 @@ export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
                   onClick={async (e) => {
                     e.stopPropagation();
                     setContextMenuId(null);
-                    try {
-                      const res = await fetch("/api/export", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        credentials: "include",
-                        body: JSON.stringify({
-                          title: conv.title,
-                          messages: conv.messages,
-                          format: "txt",
-                        }),
-                      });
-                      if (res.ok) {
-                        const blob = await res.blob();
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = url;
-                        a.download = `${(conv.title || "conversation").replace(/[^a-z0-9]/gi, "_")}.txt`;
-                        a.click();
-                        URL.revokeObjectURL(url);
-                      }
-                    } catch {
-                      /* skip */
-                    }
-                  }}
-                  className="flex w-full items-center gap-3 px-3.5 py-2.5 text-[13px] text-white/70 transition-colors hover:bg-white/[0.06] hover:text-white"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-3.5 w-3.5 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
-                  </svg>
-                  Export as TXT
-                </button>
-                <button
-                  type="button"
-                  onClick={async (e) => {
-                    e.stopPropagation();
-                    setContextMenuId(null);
                     await shareConversation(conv, "copy");
                   }}
                   className="flex w-full items-center gap-3 px-3.5 py-2.5 text-[13px] text-white/70 transition-colors hover:bg-white/[0.06] hover:text-white"
