@@ -7,7 +7,10 @@ import type { FormEvent, KeyboardEvent, ReactNode } from "react";
 import { signOut } from "@/lib/auth-client";
 import LogoIcon from "../../components/LogoIcon";
 import { stripThinkingTokens } from "@/lib/utils";
-import { CalculatorLimitsModal, CalculatorInterestModal } from "./CalculatorModals";
+import {
+  CalculatorLimitsModal,
+  CalculatorInterestModal,
+} from "./CalculatorModals";
 import { RemindersModal } from "./RemindersModal";
 import { TemplatesModal, FilingModal } from "./ToolsModals";
 import { formatCitation, copyToClipboard } from "@/lib/citations";
@@ -39,9 +42,11 @@ type ChatUser = {
 
 type ChatAppProps = {
   user: ChatUser;
+  shareId?: string | null;
 };
 
-type ConversationType = "chat" | "analysis" | "talk-to-ai" | "grill" | "draft" | "review";
+type ConversationType =
+  "chat" | "analysis" | "talk-to-ai" | "grill" | "draft" | "review";
 
 type Conversation = {
   id: string;
@@ -114,12 +119,14 @@ const initialConversations: Conversation[] = [
       {
         id: "m-1-1",
         role: "user",
-        content: "What is the punishment for theft under the Bharatiya Nyaya Sanhita?",
+        content:
+          "What is the punishment for theft under the Bharatiya Nyaya Sanhita?",
       },
       {
         id: "m-1-2",
         role: "assistant",
-        content: "Under Section 303 of the BNS (formerly IPC Section 378), theft is punishable with imprisonment of either description for up to 3 years, or with a fine, or both. For a first conviction, the term may extend to 7 years in cases of theft in a building, vessel, or public conveyance (Section 303(2)).",
+        content:
+          "Under Section 303 of the BNS (formerly IPC Section 378), theft is punishable with imprisonment of either description for up to 3 years, or with a fine, or both. For a first conviction, the term may extend to 7 years in cases of theft in a building, vessel, or public conveyance (Section 303(2)).",
       },
       {
         id: "m-1-3",
@@ -129,7 +136,8 @@ const initialConversations: Conversation[] = [
       {
         id: "m-1-4",
         role: "assistant",
-        content: "If theft is committed after 8 p.m. and before 6 a.m. (in a building, tent, or vessel used for human habitation), the BNS provides enhanced punishment — imprisonment for up to 7 years, along with a fine.",
+        content:
+          "If theft is committed after 8 p.m. and before 6 a.m. (in a building, tent, or vessel used for human habitation), the BNS provides enhanced punishment — imprisonment for up to 7 years, along with a fine.",
       },
     ],
   },
@@ -143,12 +151,14 @@ const initialConversations: Conversation[] = [
       {
         id: "m-2-1",
         role: "user",
-        content: "My tenant has stopped paying rent for 4 months. How do I get him evicted?",
+        content:
+          "My tenant has stopped paying rent for 4 months. How do I get him evicted?",
       },
       {
         id: "m-2-2",
         role: "assistant",
-        content: "Start by serving a written demand notice requiring payment of arrears within a specified period (often 15 days). If the tenant fails to comply, you can file for eviction under the rent control law of your state (e.g., the Rent Control Act applicable where the property is located), or under Section 106 of the Transfer of Property Act, 1882 after terminating the tenancy. A police complaint is not the correct route for a rent dispute — this is a civil matter.",
+        content:
+          "Start by serving a written demand notice requiring payment of arrears within a specified period (often 15 days). If the tenant fails to comply, you can file for eviction under the rent control law of your state (e.g., the Rent Control Act applicable where the property is located), or under Section 106 of the Transfer of Property Act, 1882 after terminating the tenancy. A police complaint is not the correct route for a rent dispute — this is a civil matter.",
       },
     ],
   },
@@ -167,7 +177,8 @@ const initialConversations: Conversation[] = [
       {
         id: "m-3-2",
         role: "assistant",
-        content: "A void contract is treated as if it never existed — no enforceable obligations on either side, and either party can raise the issue. A voidable contract is valid until the injured party elects to rescind (for example, contracts entered into under duress, fraud, or with a minor). Once rescinded, it is treated as void.",
+        content:
+          "A void contract is treated as if it never existed — no enforceable obligations on either side, and either party can raise the issue. A voidable contract is valid until the injured party elects to rescind (for example, contracts entered into under duress, fraud, or with a minor). Once rescinded, it is treated as void.",
       },
     ],
   },
@@ -186,7 +197,8 @@ const initialConversations: Conversation[] = [
       {
         id: "m-4-2",
         role: "assistant",
-        content: "You can file an FIR at the police station having jurisdiction over the place where the offence occurred. The police are duty-bound to register it under the BNSS if the information discloses a cognizable offence — they cannot refuse. If the local police refuse, you can write to the Superintendent of Police or approach the Magistrate under Section 156(3) of the CrPC (now the BNSS). Since July 2024, zero FIR and e-FIR options are available across most states.",
+        content:
+          "You can file an FIR at the police station having jurisdiction over the place where the offence occurred. The police are duty-bound to register it under the BNSS if the information discloses a cognizable offence — they cannot refuse. If the local police refuse, you can write to the Superintendent of Police or approach the Magistrate under Section 156(3) of the CrPC (now the BNSS). Since July 2024, zero FIR and e-FIR options are available across most states.",
       },
     ],
   },
@@ -205,7 +217,7 @@ const freshConversation: Conversation = {
   messages: [],
 };
 
-export default function ChatApp({ user: initialUser }: ChatAppProps) {
+export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
   const [user, setUser] = useState<ChatUser>(initialUser);
   const [conversations, setConversations] = useState<Conversation[]>(() => {
     const demos = initialConversations.map((c) => ({
@@ -222,13 +234,24 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/conversations", { method: "GET", credentials: "include" });
+        const res = await fetch("/api/conversations", {
+          method: "GET",
+          credentials: "include",
+        });
         if (!res.ok) throw new Error(`status ${res.status}`);
         const data = await res.json();
         if (cancelled) return;
         const server: Conversation[] = data.conversations ?? [];
         if (server.length > 0) {
-          setConversations(server);
+          setConversations((prev) => {
+            const activeInServer = server.some((c) => c.id === activeId);
+            if (activeInServer) return server;
+            const currentActive = prev.find((c) => c.id === activeId);
+            if (currentActive && currentActive.messages.length === 0) {
+              return [currentActive, ...server];
+            }
+            return server;
+          });
         } else {
           const local = loadConversations();
           if (local && local.length > 0) {
@@ -250,7 +273,39 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     };
   }, []);
 
-  
+  useEffect(() => {
+    if (!shareId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/share?id=${shareId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled || !data?.messages) return;
+        const sharedConv: Conversation = {
+          id: newId("c"),
+          title: data.title || "Shared conversation",
+          preview: data.messages[0]?.content?.slice(0, 100) || "Shared chat",
+          type: (data.type as ConversationType) || "chat",
+          createdAt: Date.now(),
+          messages: data.messages.map(
+            (m: { role: string; content: string }) => ({
+              id: newId("msg"),
+              role: m.role as Role,
+              content: m.content,
+            }),
+          ),
+        };
+        setConversations((prev) => [sharedConv, ...prev]);
+        setActiveId(sharedConv.id);
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [shareId]);
 
   const [draft, setDraft] = useState("");
   const [isThinking, setIsThinking] = useState(false);
@@ -260,11 +315,17 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [showClearNotifications, setShowClearNotifications] = useState(false);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
-  const [activeCalculator, setActiveCalculator] = useState<"limits" | "interest" | null>(null);
+  const [activeCalculator, setActiveCalculator] = useState<
+    "limits" | "interest" | null
+  >(null);
   const [toolsOpen, setToolsOpen] = useState(false);
-  const [activeTool, setActiveTool] = useState<"templates" | "filing" | null>(null);
+  const [activeTool, setActiveTool] = useState<"templates" | "filing" | null>(
+    null,
+  );
   const [remindersOpen, setRemindersOpen] = useState(false);
-  const [dismissedNotifications, setDismissedNotifications] = useState<{ id: string; threshold: number }[]>(() => {
+  const [dismissedNotifications, setDismissedNotifications] = useState<
+    { id: string; threshold: number }[]
+  >(() => {
     try {
       const stored = localStorage.getItem("lawbite-dismissed-notifications");
       return stored ? JSON.parse(stored) : [];
@@ -272,7 +333,15 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       return [];
     }
   });
-  const [upcomingReminders, setUpcomingReminders] = useState<{ id: string; title: string; deadlineAt: string; type: string; daysLeft: number }[]>([]);
+  const [upcomingReminders, setUpcomingReminders] = useState<
+    {
+      id: string;
+      title: string;
+      deadlineAt: string;
+      type: string;
+      daysLeft: number;
+    }[]
+  >([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [bellShake, setBellShake] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
@@ -281,8 +350,12 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [contextMenuId, setContextMenuId] = useState<string | null>(null);
   const [myCasesOpen, setMyCasesOpen] = useState(false);
-  const [savedCases, setSavedCases] = useState<SavedCase[]>(() => loadSavedCases());
-  const [caseFolders, setCaseFolders] = useState<{ id: string; name: string }[]>([]);
+  const [savedCases, setSavedCases] = useState<SavedCase[]>(() =>
+    loadSavedCases(),
+  );
+  const [caseFolders, setCaseFolders] = useState<
+    { id: string; name: string }[]
+  >([]);
   const [caseFoldersOpen, setCaseFoldersOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const lastTalkIdRef = useRef<string | null>(null);
@@ -295,12 +368,48 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   useEffect(() => {
     if (syncStatus !== "synced" || freshChatInitializedRef.current) return;
     freshChatInitializedRef.current = true;
-    const prefix = mode === "analysis" ? "a" : mode === "grill" ? "g" : mode === "draft" ? "d" : mode === "review" ? "r" : "t";
-    const convType: ConversationType = mode === "analysis" ? "analysis" : mode === "grill" ? "grill" : mode === "draft" ? "draft" : mode === "review" ? "review" : "talk-to-ai";
+    const prefix =
+      mode === "analysis"
+        ? "a"
+        : mode === "grill"
+          ? "g"
+          : mode === "draft"
+            ? "d"
+            : mode === "review"
+              ? "r"
+              : "t";
+    const convType: ConversationType =
+      mode === "analysis"
+        ? "analysis"
+        : mode === "grill"
+          ? "grill"
+          : mode === "draft"
+            ? "draft"
+            : mode === "review"
+              ? "review"
+              : "talk-to-ai";
     const fresh: Conversation = {
       id: newId(prefix),
-      title: mode === "analysis" ? "New analysis" : mode === "grill" ? "New case" : mode === "draft" ? "New draft" : mode === "review" ? "New review" : "New conversation",
-      preview: mode === "analysis" ? "In-depth analysis" : mode === "grill" ? "Case intake" : mode === "draft" ? "Document drafting" : mode === "review" ? "Document review" : "Just started",
+      title:
+        mode === "analysis"
+          ? "New analysis"
+          : mode === "grill"
+            ? "New case"
+            : mode === "draft"
+              ? "New draft"
+              : mode === "review"
+                ? "New review"
+                : "New conversation",
+      preview:
+        mode === "analysis"
+          ? "Deep analysis"
+          : mode === "grill"
+            ? "Case intake"
+            : mode === "draft"
+              ? "Document drafting"
+              : mode === "review"
+                ? "Document review"
+                : "Just started",
       type: convType,
       createdAt: Date.now(),
       messages: [],
@@ -316,7 +425,11 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const conversationsRef = useRef<Conversation[]>([]);
   const escCountRef = useRef(0);
   const escTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [confirmAction, setConfirmAction] = useState<{ type: "clearHistory"; section?: ConversationType } | { type: "deleteConversation"; id: string } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<
+    | { type: "clearHistory"; section?: ConversationType }
+    | { type: "deleteConversation"; id: string }
+    | null
+  >(null);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [disclaimerOpen, setDisclaimerOpen] = useState<boolean>(() => {
     try {
@@ -328,9 +441,15 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   });
   const [citationOpen, setCitationOpen] = useState<Citation | null>(null);
   const [copiedCitation, setCopiedCitation] = useState<string | null>(null);
-  const [feedbackGiven, setFeedbackGiven] = useState<Record<string, "up" | "down">>({});
-  const [feedbackComment, setFeedbackComment] = useState<Record<string, string>>({});
-  const [feedbackCommentOpen, setFeedbackCommentOpen] = useState<string | null>(null);
+  const [feedbackGiven, setFeedbackGiven] = useState<
+    Record<string, "up" | "down">
+  >({});
+  const [feedbackComment, setFeedbackComment] = useState<
+    Record<string, string>
+  >({});
+  const [feedbackCommentOpen, setFeedbackCommentOpen] = useState<string | null>(
+    null,
+  );
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [bugOpen, setBugOpen] = useState(false);
   const [selectedDocType, setSelectedDocType] = useState<string | null>(null);
@@ -339,7 +458,13 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const [lastReviewIdRef, setLastReviewIdRef] = useState<string | null>(null);
   const [reviewFileUploading, setReviewFileUploading] = useState(false);
   const [reviewAttachOpen, setReviewAttachOpen] = useState(false);
-  const [pendingAttachment, setPendingAttachment] = useState<{ type: "pdf" | "image"; fileName: string; text?: string; imageBase64?: string; truncated?: boolean } | null>(null);
+  const [pendingAttachment, setPendingAttachment] = useState<{
+    type: "pdf" | "image";
+    fileName: string;
+    text?: string;
+    imageBase64?: string;
+    truncated?: boolean;
+  } | null>(null);
   const reviewFileInputRef = useRef<HTMLInputElement | null>(null);
   const reviewAttachMenuRef = useRef<HTMLDivElement | null>(null);
   const chatFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -352,29 +477,62 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   const [draftDocTypeOpen, setDraftDocTypeOpen] = useState(false);
   const draftDocTypeMenuRef = useRef<HTMLDivElement | null>(null);
 
-  const active = conversations.find((c) => c.id === activeId) ?? conversations[0];
+  const active =
+    conversations.find((c) => c.id === activeId) ?? conversations[0];
 
   const showSuggestion = useMemo(() => {
     if (isThinking) return false;
-    if (mode === "analysis" || mode === "grill" || mode === "draft" || mode === "review") return false;
-    if (active?.type === "grill" || active?.type === "draft" || active?.type === "review") return false;
+    if (
+      mode === "analysis" ||
+      mode === "grill" ||
+      mode === "draft" ||
+      mode === "review"
+    )
+      return false;
+    if (
+      active?.type === "grill" ||
+      active?.type === "draft" ||
+      active?.type === "review"
+    )
+      return false;
     if (!active || active.messages.length === 0) return false;
     const lastMsg = active.messages[active.messages.length - 1];
     const userMsgs = active.messages.filter((m) => m.role === "user");
     const lastUserMsg = userMsgs[userMsgs.length - 1];
     const content = lastUserMsg?.content?.toLowerCase().trim() ?? "";
-    const isGreeting = /^(hi|hello|hey|namaste|good\s*(morning|afternoon|evening|night)|yo|sup|hola|howdy|greetings)/.test(content);
-    const isCompliment = /(thank|thanks|thx|good\s*(job|work|bot|ai)|great|awesome|nice|amazing|perfect|excellent|well\s*done|bravo|superb|fantastic|love\s*you)/.test(content);
-    const isOffTopic = /only\s+provide\s+information.*indian\s+law/i.test(lastMsg?.content?.trim() ?? "");
-    const isAiGreeting = lastMsg?.content?.trim().toLowerCase().startsWith("hello") && lastMsg?.content?.toLowerCase().includes("how can i assist you");
-    if (lastMsg && lastMsg.role === "assistant" && lastMsg.content && !isOffTopic && !isGreeting && !isCompliment && !isAiGreeting) {
+    const isGreeting =
+      /^(hi|hello|hey|namaste|good\s*(morning|afternoon|evening|night)|yo|sup|hola|howdy|greetings)/.test(
+        content,
+      );
+    const isCompliment =
+      /(thank|thanks|thx|good\s*(job|work|bot|ai)|great|awesome|nice|amazing|perfect|excellent|well\s*done|bravo|superb|fantastic|love\s*you)/.test(
+        content,
+      );
+    const isOffTopic = /only\s+provide\s+information.*indian\s+law/i.test(
+      lastMsg?.content?.trim() ?? "",
+    );
+    const isAiGreeting =
+      lastMsg?.content?.trim().toLowerCase().startsWith("hello") &&
+      lastMsg?.content?.toLowerCase().includes("how can i assist you");
+    if (
+      lastMsg &&
+      lastMsg.role === "assistant" &&
+      lastMsg.content &&
+      !isOffTopic &&
+      !isGreeting &&
+      !isCompliment &&
+      !isAiGreeting
+    ) {
       return true;
     }
     return false;
   }, [active, mode, isThinking]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    messagesEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "end",
+    });
   }, [active?.messages.length, isThinking, showSuggestion]);
 
   useEffect(() => {
@@ -410,15 +568,22 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           const data = await res.json();
           setCaseFolders(Array.isArray(data.folders) ? data.folders : []);
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
     if (!plusMenuOpen) return;
     const handler = (e: MouseEvent) => {
-      if (plusMenuRef.current && !plusMenuRef.current.contains(e.target as Node)) {
+      if (
+        plusMenuRef.current &&
+        !plusMenuRef.current.contains(e.target as Node)
+      ) {
         setPlusMenuOpen(false);
       }
     };
@@ -429,7 +594,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   useEffect(() => {
     if (!draftDocTypeOpen) return;
     const handler = (e: MouseEvent) => {
-      if (draftDocTypeMenuRef.current && !draftDocTypeMenuRef.current.contains(e.target as Node)) {
+      if (
+        draftDocTypeMenuRef.current &&
+        !draftDocTypeMenuRef.current.contains(e.target as Node)
+      ) {
         setDraftDocTypeOpen(false);
       }
     };
@@ -457,7 +625,9 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       if (e.key !== "Escape" || !isThinking) return;
       escCountRef.current += 1;
       if (escTimerRef.current) clearTimeout(escTimerRef.current);
-      escTimerRef.current = setTimeout(() => { escCountRef.current = 0; }, 1500);
+      escTimerRef.current = setTimeout(() => {
+        escCountRef.current = 0;
+      }, 1500);
       if (escCountRef.current >= 3) {
         escCountRef.current = 0;
         if (escTimerRef.current) clearTimeout(escTimerRef.current);
@@ -470,7 +640,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (reviewAttachMenuRef.current && !reviewAttachMenuRef.current.contains(e.target as Node)) {
+      if (
+        reviewAttachMenuRef.current &&
+        !reviewAttachMenuRef.current.contains(e.target as Node)
+      ) {
         setReviewAttachOpen(false);
       }
     }
@@ -482,7 +655,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (chatAttachMenuRef.current && !chatAttachMenuRef.current.contains(e.target as Node)) {
+      if (
+        chatAttachMenuRef.current &&
+        !chatAttachMenuRef.current.contains(e.target as Node)
+      ) {
         setChatAttachOpen(false);
       }
     }
@@ -494,7 +670,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (analysisAttachMenuRef.current && !analysisAttachMenuRef.current.contains(e.target as Node)) {
+      if (
+        analysisAttachMenuRef.current &&
+        !analysisAttachMenuRef.current.contains(e.target as Node)
+      ) {
         setAnalysisAttachOpen(false);
       }
     }
@@ -505,19 +684,22 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   }, [analysisAttachOpen]);
 
   function renderBold(text: string): ReactNode {
-    const cleaned = text
-      .split("\n")
-      .map((line) => line.replace(/^\s*[-*+>]{1,2}\s+/, ""))
-      .join("\n");
-    if (cleaned.startsWith("**") && !cleaned.includes("**", 2)) {
-      return <strong className="font-semibold text-white">{cleaned.slice(2)}</strong>;
+    if (text.startsWith("**") && !text.includes("**", 2)) {
+      return (
+        <strong className="font-semibold text-white">{text.slice(2)}</strong>
+      );
     }
-    const parts = cleaned.split(/(\*{2}[^*]+\*{2})/g);
+    const parts = text.split(/(\*{2}[^*]+\*{2})/g);
     return parts.map((part, i) => {
       if (part.startsWith("**") && part.endsWith("**")) {
-        return <strong key={i} className="font-semibold text-white">{part.slice(2, -2)}</strong>;
+        return (
+          <strong key={i} className="font-semibold text-white">
+            {part.slice(2, -2)}
+          </strong>
+        );
       }
-      if (part.endsWith("**") && !part.startsWith("**")) return part.slice(0, -2);
+      if (part.endsWith("**") && !part.startsWith("**"))
+        return part.slice(0, -2);
       return part;
     });
   }
@@ -526,7 +708,11 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     | { type: "text"; content: string }
     | { type: "table"; headers: string[]; rows: string[][] }
     | { type: "steps"; steps: { title: string; content: string }[] }
-    | { type: "warning"; content: string; variant: "warning" | "important" | "note" }
+    | {
+        type: "warning";
+        content: string;
+        variant: "warning" | "important" | "note";
+      }
     | { type: "definition"; term: string; content: string }
     | { type: "summary"; content: string[] };
 
@@ -538,18 +724,31 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     while (i < lines.length) {
       const line = lines[i].trim();
 
-      if (!line) { i++; continue; }
+      if (!line) {
+        i++;
+        continue;
+      }
 
-      const stepMatch = line.match(/^\*\*Step\s+(\d+)[:\u2013\u2014\-]+\s*(.+?)\*\*\s*(.*)/i);
+      const stepMatch = line.match(
+        /^\*\*Step\s+(\d+)[:\u2013\u2014\-]+\s*(.+?)\*\*\s*(.*)/i,
+      );
       if (stepMatch) {
         const steps: { title: string; content: string }[] = [];
-        steps.push({ title: stepMatch[1], content: (stepMatch[2] + " " + stepMatch[3]).trim() });
+        steps.push({
+          title: stepMatch[1],
+          content: (stepMatch[2] + " " + stepMatch[3]).trim(),
+        });
         i++;
         while (i < lines.length) {
           const next = lines[i].trim();
-          const nextStep = next.match(/^\*\*Step\s+(\d+)[:\u2013\u2014\-]+\s*(.+?)\*\*\s*(.*)/i);
+          const nextStep = next.match(
+            /^\*\*Step\s+(\d+)[:\u2013\u2014\-]+\s*(.+?)\*\*\s*(.*)/i,
+          );
           if (nextStep) {
-            steps.push({ title: nextStep[1], content: (nextStep[2] + " " + nextStep[3]).trim() });
+            steps.push({
+              title: nextStep[1],
+              content: (nextStep[2] + " " + nextStep[3]).trim(),
+            });
             i++;
           } else if (!next) {
             i++;
@@ -563,15 +762,23 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
         continue;
       }
 
-      const warningMatch = line.match(/^\*\*(Warning|Important|Note|Disclaimer|Caution)[:\u2013\u2014\-]\s*(.+)/i);
+      const warningMatch = line.match(
+        /^\*\*(Warning|Important|Note|Disclaimer|Caution)[:\u2013\u2014\-]\s*(.+)/i,
+      );
       if (warningMatch) {
         let content = warningMatch[2];
-        const variant = warningMatch[1].toLowerCase() as "warning" | "important" | "note";
+        const variant = warningMatch[1].toLowerCase() as
+          "warning" | "important" | "note";
         i++;
         while (i < lines.length) {
           const next = lines[i].trim();
-          if (!next) { i++; break; }
-          const nextWarning = next.match(/^\*\*(Warning|Important|Note|Disclaimer|Caution)[:\u2013\u2014\-]/i);
+          if (!next) {
+            i++;
+            break;
+          }
+          const nextWarning = next.match(
+            /^\*\*(Warning|Important|Note|Disclaimer|Caution)[:\u2013\u2014\-]/i,
+          );
           if (nextWarning) break;
           content += " " + next;
           i++;
@@ -589,13 +796,19 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           i++;
         }
         if (tableLines.length >= 3) {
-          const noSep = tableLines.filter((l) => !/^\|[\s\-:]+\|[\s\-:]+\|/.test(l));
+          const noSep = tableLines.filter(
+            (l) => !/^\|[\s\-:]+\|[\s\-:]+\|/.test(l),
+          );
           if (noSep.length >= 2) {
-            const headers = noSep[0].split("|").map((h) => h.trim()).filter(Boolean);
+            const headers = noSep[0]
+              .split("|")
+              .map((h) => h.trim())
+              .filter(Boolean);
             const rows = noSep.slice(1).map((r) => {
               const cells = r.split("|").map((c) => c.trim());
               while (cells.length > 0 && cells[0] === "") cells.shift();
-              while (cells.length > 0 && cells[cells.length - 1] === "") cells.pop();
+              while (cells.length > 0 && cells[cells.length - 1] === "")
+                cells.pop();
               return cells;
             });
             if (rows.length > 0 && rows[0].length > 1) {
@@ -616,8 +829,16 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           i++;
         }
         if (tabLines.length >= 2) {
-          const headers = tabLines[0].split("\t").map((h) => h.trim()).filter(Boolean);
-          const rows = tabLines.slice(1).map((r) => r.split("\t").map((c) => c.trim()).filter(Boolean));
+          const headers = tabLines[0]
+            .split("\t")
+            .map((h) => h.trim())
+            .filter(Boolean);
+          const rows = tabLines.slice(1).map((r) =>
+            r
+              .split("\t")
+              .map((c) => c.trim())
+              .filter(Boolean),
+          );
           if (headers.length >= 2 && rows.length > 0 && rows[0].length >= 2) {
             blocks.push({ type: "table", headers, rows });
             continue;
@@ -632,7 +853,14 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
         i++;
         while (i < lines.length) {
           const next = lines[i].trim();
-          if (!next || next.startsWith("**") || next.startsWith("|") || next.startsWith("#")) { break; }
+          if (
+            !next ||
+            next.startsWith("**") ||
+            next.startsWith("|") ||
+            next.startsWith("#")
+          ) {
+            break;
+          }
           content += " " + next;
           i++;
         }
@@ -640,24 +868,37 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
         continue;
       }
 
-      const summaryMatch = line.match(/^\*{0,2}(Key Takeaways|Summary|To Summarize|In Summary|Conclusion)\*{0,2}\s*[:\u2013\u2014\-]?\s*(.*)/i);
+      const summaryMatch = line.match(
+        /^\*{0,2}(Key Takeaways|Summary|To Summarize|In Summary|Conclusion)\*{0,2}\s*[:\u2013\u2014\-]?\s*(.*)/i,
+      );
       if (summaryMatch) {
         const points: string[] = [];
         if (summaryMatch[2]) {
-          const s = summaryMatch[2].trim().replace(/^\s*[-*+>]\s*/, "").trim();
+          const s = summaryMatch[2]
+            .trim()
+            .replace(/^\s*[-*+>]\s*/, "")
+            .trim();
           if (/[a-zA-Z0-9]/.test(s)) points.push(summaryMatch[2].trim());
         }
         i++;
         while (i < lines.length) {
           const next = lines[i].trim();
-          if (!next) { i++; continue; }
+          if (!next) {
+            i++;
+            continue;
+          }
           if (/^[*#|]/.test(next)) break;
-          if (/[a-zA-Z0-9]/.test(next.replace(/^\s*[-*+>]\s*/, ""))) points.push(next);
+          if (/[a-zA-Z0-9]/.test(next.replace(/^\s*[-*+>]\s*/, "")))
+            points.push(next);
           i++;
         }
-        if (points.length === 0) { continue; }
+        if (points.length === 0) {
+          continue;
+        }
         if (blocks.length > 0 && blocks[blocks.length - 1].type === "summary") {
-          (blocks[blocks.length - 1] as { type: "summary"; content: string[] }).content.push(...points);
+          (
+            blocks[blocks.length - 1] as { type: "summary"; content: string[] }
+          ).content.push(...points);
         } else {
           blocks.push({ type: "summary", content: points });
         }
@@ -668,7 +909,12 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       i++;
       while (i < lines.length) {
         const next = lines[i];
-        if (!next.trim() || next.trim().startsWith("**") || next.trim().startsWith("|")) break;
+        if (
+          !next.trim() ||
+          next.trim().startsWith("**") ||
+          next.trim().startsWith("|")
+        )
+          break;
         if (/^\d+\.?\s/.test(next.trim())) break;
         textContent += "\n" + next;
         i++;
@@ -684,12 +930,18 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       switch (block.type) {
         case "table":
           return (
-            <div key={bi} className="my-3 overflow-x-auto rounded-xl border border-white/[0.08] bg-white/[0.02] shadow-sm">
+            <div
+              key={bi}
+              className="my-3 overflow-x-auto rounded-xl border border-white/[0.08] bg-white/[0.02] shadow-sm"
+            >
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-white/[0.08] bg-white/[0.04]">
                     {block.headers.map((h, hi) => (
-                      <th key={hi} className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-white/70 first:pl-5 last:pr-5">
+                      <th
+                        key={hi}
+                        className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-white/70 first:pl-5 last:pr-5"
+                      >
                         {renderBold(h)}
                       </th>
                     ))}
@@ -697,11 +949,17 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 </thead>
                 <tbody>
                   {block.rows.map((row, ri) => (
-                    <tr key={ri} className={`border-b border-white/[0.04] last:border-0 transition-colors hover:bg-white/[0.04] ${ri % 2 === 1 ? "bg-white/[0.03]" : ""}`}>
+                    <tr
+                      key={ri}
+                      className={`border-b border-white/[0.04] last:border-0 transition-colors hover:bg-white/[0.04] ${ri % 2 === 1 ? "bg-white/[0.03]" : ""}`}
+                    >
                       {block.headers.map((_, ci) => {
                         const cell = row[ci] ?? "";
                         return (
-                          <td key={ci} className={`px-4 py-3 leading-snug align-top first:pl-5 last:pr-5 ${ci === 0 ? "font-semibold text-white/90" : "text-white/75"}`}>
+                          <td
+                            key={ci}
+                            className={`px-4 py-3 leading-snug align-top first:pl-5 last:pr-5 ${ci === 0 ? "font-semibold text-white/90" : "text-white/75"}`}
+                          >
                             {cell ? renderBold(cell) : ""}
                           </td>
                         );
@@ -731,35 +989,92 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
         case "warning": {
           const colors = {
-            warning: { bg: "bg-red-400/[0.06]", border: "border-red-400/20", icon: "text-red-400", text: "text-white/85" },
-            important: { bg: "bg-amber-400/[0.06]", border: "border-amber-400/20", icon: "text-amber-400", text: "text-white/85" },
-            note: { bg: "bg-blue-400/[0.06]", border: "border-blue-400/20", icon: "text-blue-400", text: "text-white/85" },
+            warning: {
+              bg: "bg-red-400/[0.06]",
+              border: "border-red-400/20",
+              icon: "text-red-400",
+              header: "text-red-400/70",
+              text: "text-white/85",
+              dot: "bg-red-400/60",
+            },
+            important: {
+              bg: "bg-amber-400/[0.06]",
+              border: "border-amber-400/20",
+              icon: "text-amber-400",
+              header: "text-amber-400/70",
+              text: "text-white/85",
+              dot: "bg-amber-400/60",
+            },
+            note: {
+              bg: "bg-blue-400/[0.06]",
+              border: "border-blue-400/20",
+              icon: "text-blue-400",
+              header: "text-blue-400/70",
+              text: "text-white/85",
+              dot: "bg-blue-400/60",
+            },
           };
           const c = colors[block.variant] ?? colors.warning;
+          const label =
+            block.variant === "warning"
+              ? "Warning"
+              : block.variant === "important"
+                ? "Important"
+                : "Note";
           return (
-            <div key={bi} className={`my-3 flex gap-3 rounded-lg border ${c.border} ${c.bg} px-4 py-3`}>
-              <div className={`mt-0.5 shrink-0 ${c.icon}`}>
+            <div
+              key={bi}
+              className={`my-3 rounded-lg border ${c.border} ${c.bg} px-4 py-3`}
+            >
+              <div
+                className={`flex items-center gap-2 text-xs font-semibold uppercase tracking-wider ${c.header}`}
+              >
                 {block.variant === "warning" ? (
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
                     <line x1="12" y1="9" x2="12" y2="13" />
                     <line x1="12" y1="17" x2="12.01" y2="17" />
                   </svg>
                 ) : block.variant === "important" ? (
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <circle cx="12" cy="12" r="10" />
                     <line x1="12" y1="8" x2="12" y2="12" />
                     <line x1="12" y1="16" x2="12.01" y2="16" />
                   </svg>
                 ) : (
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <circle cx="12" cy="12" r="10" />
                     <line x1="12" y1="16" x2="12" y2="12" />
                     <line x1="12" y1="8" x2="12.01" y2="8" />
                   </svg>
                 )}
+                {label}
               </div>
-              <div className={`text-sm leading-relaxed ${c.text}`}>
+              <div className={`mt-2 text-sm leading-relaxed ${c.text}`}>
                 {renderBold(block.content)}
               </div>
             </div>
@@ -768,10 +1083,17 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
         case "definition":
           return (
-            <div key={bi} className="my-3 rounded-lg border border-white/[0.06] bg-white/[0.03] px-4 py-3">
+            <div
+              key={bi}
+              className="my-3 rounded-lg border border-white/[0.06] bg-white/[0.03] px-4 py-3"
+            >
               <div className="flex flex-wrap items-baseline gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-white/50">Term</span>
-                <span className="text-sm font-semibold text-amber-400">{renderBold(block.term)}</span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-white/50">
+                  Term
+                </span>
+                <span className="text-sm font-semibold text-amber-400">
+                  {renderBold(block.term)}
+                </span>
               </div>
               <div className="mt-2 text-sm leading-relaxed text-white/80">
                 {renderBold(block.content)}
@@ -781,9 +1103,20 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
         case "summary":
           return (
-            <div key={bi} className="my-3 rounded-lg border border-emerald-400/15 bg-emerald-400/[0.04] px-4 py-3">
+            <div
+              key={bi}
+              className="my-3 rounded-lg border border-emerald-400/15 bg-emerald-400/[0.04] px-4 py-3"
+            >
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-emerald-400/70">
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                   <polyline points="14 2 14 8 20 8" />
                   <line x1="16" y1="13" x2="8" y2="13" />
@@ -793,12 +1126,19 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               </div>
               <div className="mt-2 space-y-1.5">
                 {block.content
-                  .filter((point) => /[a-zA-Z0-9]/.test(point.trim().replace(/^\s*[-*+>]\s*/, "")))
+                  .filter((point) =>
+                    /[a-zA-Z0-9]/.test(
+                      point.trim().replace(/^\s*[-*+>]\s*/, ""),
+                    ),
+                  )
                   .map((point, pi) => {
                     const trimmed = point.trim();
                     const text = trimmed.replace(/^\s*[-*+>]{1,2}\s*/, "");
                     return (
-                      <div key={pi} className="flex items-start gap-2 text-sm leading-relaxed text-white/80">
+                      <div
+                        key={pi}
+                        className="flex items-start gap-2 text-sm leading-relaxed text-white/80"
+                      >
                         <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400/60" />
                         <span className="min-w-0">{renderBold(text)}</span>
                       </div>
@@ -809,20 +1149,26 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           );
 
         default:
-          const textContent = (block as { type: "text"; content: string }).content;
+          const textContent = (block as { type: "text"; content: string })
+            .content;
           const numMatch = textContent.trim().match(/^(\d+)\.?\s*/);
           if (numMatch) {
             const num = numMatch[1];
             const text = textContent.trim().replace(/^\d+\.?\s*/, "");
             return (
-              <div key={bi} className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-4 py-3">
+              <div
+                key={bi}
+                className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-4 py-3"
+              >
                 <div className="flex gap-3">
                   <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-xs font-bold text-white/80">
                     {num}
                   </span>
                   <div className="whitespace-pre-wrap leading-relaxed">
                     {text.split(/\n+/).map((para, j) => (
-                      <p key={j} className={j > 0 ? "mt-3" : ""}>{renderBold(para)}</p>
+                      <p key={j} className={j > 0 ? "mt-3" : ""}>
+                        {renderBold(para)}
+                      </p>
                     ))}
                   </div>
                 </div>
@@ -835,27 +1181,57 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 const lines = textContent.split("\n");
                 const elements: ReactNode[] = [];
                 let currentPara: string[] = [];
+                const flushPara = () => {
+                  if (currentPara.length > 0) {
+                    elements.push(
+                      <p
+                        key={"p" + elements.length}
+                        className={elements.length > 0 ? "mt-3" : ""}
+                      >
+                        {renderBold(currentPara.join("\n"))}
+                      </p>,
+                    );
+                    currentPara = [];
+                  }
+                };
                 for (let li = 0; li < lines.length; li++) {
                   const l = lines[li];
                   const headingMatch = l.match(/^#{1,6}\s+(.+)/);
+                  const bulletMatch = l.match(/^\s*[-*+]\s+(.*)/);
                   if (headingMatch) {
-                    if (currentPara.length > 0) {
-                      elements.push(<p key={"p" + elements.length} className={elements.length > 0 ? "mt-3" : ""}>{renderBold(currentPara.join("\n"))}</p>);
-                      currentPara = [];
-                    }
-                    elements.push(<p key={"h" + elements.length} className={elements.length > 0 ? "mt-4 text-sm font-semibold text-white/90" : "text-sm font-semibold text-white/90"}>{renderBold(headingMatch[1])}</p>);
+                    flushPara();
+                    elements.push(
+                      <p
+                        key={"h" + elements.length}
+                        className={
+                          elements.length > 0
+                            ? "mt-4 text-sm font-semibold text-white/90"
+                            : "text-sm font-semibold text-white/90"
+                        }
+                      >
+                        {renderBold(headingMatch[1])}
+                      </p>,
+                    );
+                  } else if (bulletMatch) {
+                    flushPara();
+                    elements.push(
+                      <div
+                        key={"b" + elements.length}
+                        className="flex items-start gap-2 py-0.5"
+                      >
+                        <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-white/50" />
+                        <span className="min-w-0 text-sm leading-relaxed text-white/80">
+                          {renderBold(bulletMatch[1])}
+                        </span>
+                      </div>,
+                    );
                   } else if (!l.trim()) {
-                    if (currentPara.length > 0) {
-                      elements.push(<p key={"p" + elements.length} className={elements.length > 0 ? "mt-3" : ""}>{renderBold(currentPara.join("\n"))}</p>);
-                      currentPara = [];
-                    }
+                    flushPara();
                   } else {
                     currentPara.push(l);
                   }
                 }
-                if (currentPara.length > 0) {
-                  elements.push(<p key={"p" + elements.length} className={elements.length > 0 ? "mt-3" : ""}>{renderBold(currentPara.join("\n"))}</p>);
-                }
+                flushPara();
                 return elements;
               })()}
             </div>
@@ -865,12 +1241,16 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   }
 
   function extractTopic(text: string): string {
-    const stopWords = /^(what|who|when|where|why|how|is|are|do|does|did|can|could|would|should|will|shall|may|might|the|a|an|me|about|it|its|this|that|these|those|by|in|on|of|to|for|with|under|between|from|please|i|want|to|know|like|tell|explain|define|describe|give|me|some|info|information|detail|details|regarding|concerning|related|question|answer|something|anything|everything)$/i;
-    const cleaned = text.replace(/[?.,!]+$/, "").trim();
-    const words = cleaned.split(/\s+/);
-    const keywords = words.filter((w) => !stopWords.test(w));
-    if (keywords.length === 0) return cleaned.slice(0, 40);
-    const title = keywords.join(" ");
+    const cleaned = text
+      .replace(/[?.,!;:]+$/g, "")
+      .replace(
+        /^(can you|could you|please|i want to|i need to|tell me about|explain|what are|what is|what does|how do|how does|how can|how to|why do|why does|is there|are there|do you|does the|define|describe|give me|info on|details about|regarding|concerning)\s*/i,
+        "",
+      )
+      .trim();
+    const words = cleaned.split(/\s+/).filter(Boolean);
+    const title = words.slice(0, 6).join(" ");
+    if (title.length === 0) return cleaned.slice(0, 40) || "New conversation";
     return title.charAt(0).toUpperCase() + title.slice(1);
   }
 
@@ -882,12 +1262,48 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   }
 
   function startNewChat() {
-    const prefix = mode === "analysis" ? "a" : mode === "grill" ? "g" : mode === "draft" ? "d" : mode === "review" ? "r" : "t";
-    const convType: ConversationType = mode === "analysis" ? "analysis" : mode === "grill" ? "grill" : mode === "draft" ? "draft" : mode === "review" ? "review" : "talk-to-ai";
+    const prefix =
+      mode === "analysis"
+        ? "a"
+        : mode === "grill"
+          ? "g"
+          : mode === "draft"
+            ? "d"
+            : mode === "review"
+              ? "r"
+              : "t";
+    const convType: ConversationType =
+      mode === "analysis"
+        ? "analysis"
+        : mode === "grill"
+          ? "grill"
+          : mode === "draft"
+            ? "draft"
+            : mode === "review"
+              ? "review"
+              : "talk-to-ai";
     const conv: Conversation = {
       id: newId(prefix),
-      title: mode === "analysis" ? "New analysis" : mode === "grill" ? "New case" : mode === "draft" ? "New draft" : mode === "review" ? "New review" : "New conversation",
-      preview: mode === "analysis" ? "In-depth analysis" : mode === "grill" ? "Case intake" : mode === "draft" ? "Document drafting" : mode === "review" ? "Document review" : "Just started",
+      title:
+        mode === "analysis"
+          ? "New analysis"
+          : mode === "grill"
+            ? "New case"
+            : mode === "draft"
+              ? "New draft"
+              : mode === "review"
+                ? "New review"
+                : "New conversation",
+      preview:
+        mode === "analysis"
+          ? "Deep analysis"
+          : mode === "grill"
+            ? "Case intake"
+            : mode === "draft"
+              ? "Document drafting"
+              : mode === "review"
+                ? "Document review"
+                : "Just started",
       type: convType,
       createdAt: Date.now(),
       messages: [],
@@ -924,14 +1340,20 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     setFormData({});
   }
 
-  async function handleReviewFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleReviewFileUpload(
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) {
     const file = e.target.files?.[0];
     if (!file) return;
     setReviewFileUploading(true);
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch("/api/review", { method: "POST", body: fd, credentials: "include" });
+      const res = await fetch("/api/review", {
+        method: "POST",
+        body: fd,
+        credentials: "include",
+      });
       if (!res.ok) {
         const err = await res.json().catch(() => null);
         throw new Error(err?.error || "Failed to process file");
@@ -939,20 +1361,40 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       const data = await res.json();
 
       if (data.type === "image") {
-        setPendingAttachment({ type: "image", fileName: data.fileName, imageBase64: data.imageBase64 });
+        setPendingAttachment({
+          type: "image",
+          fileName: data.fileName,
+          imageBase64: data.imageBase64,
+        });
       } else {
-        setPendingAttachment({ type: "pdf", fileName: data.fileName, text: data.text, truncated: data.truncated });
+        setPendingAttachment({
+          type: "pdf",
+          fileName: data.fileName,
+          text: data.text,
+          truncated: data.truncated,
+        });
       }
     } catch (err) {
       console.error("File upload error:", err);
-      const errorMsg = err instanceof Error ? err.message : "Failed to process file";
+      const errorMsg =
+        err instanceof Error ? err.message : "Failed to process file";
       const assistantId = newId("a");
       setConversations((prev) =>
         prev.map((c) =>
           c.id === activeId
-            ? { ...c, messages: [...c.messages, { id: assistantId, role: "assistant", content: `Error: ${errorMsg}. Please try uploading the file again.` }] }
-            : c
-        )
+            ? {
+                ...c,
+                messages: [
+                  ...c.messages,
+                  {
+                    id: assistantId,
+                    role: "assistant",
+                    content: `Error: ${errorMsg}. Please try uploading the file again.`,
+                  },
+                ],
+              }
+            : c,
+        ),
       );
     } finally {
       setReviewFileUploading(false);
@@ -961,34 +1403,61 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     }
   }
 
-  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>, closeMenu?: () => void) {
+  async function handleFileUpload(
+    e: React.ChangeEvent<HTMLInputElement>,
+    closeMenu?: () => void,
+  ) {
     const file = e.target.files?.[0];
     if (!file) return;
     setFileUploading(true);
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch("/api/review", { method: "POST", body: fd, credentials: "include" });
+      const res = await fetch("/api/review", {
+        method: "POST",
+        body: fd,
+        credentials: "include",
+      });
       if (!res.ok) {
         const err = await res.json().catch(() => null);
         throw new Error(err?.error || "Failed to process file");
       }
       const data = await res.json();
       if (data.type === "image") {
-        setPendingAttachment({ type: "image", fileName: data.fileName, imageBase64: data.imageBase64 });
+        setPendingAttachment({
+          type: "image",
+          fileName: data.fileName,
+          imageBase64: data.imageBase64,
+        });
       } else {
-        setPendingAttachment({ type: "pdf", fileName: data.fileName, text: data.text, truncated: data.truncated });
+        setPendingAttachment({
+          type: "pdf",
+          fileName: data.fileName,
+          text: data.text,
+          truncated: data.truncated,
+        });
       }
     } catch (err) {
       console.error("File upload error:", err);
-      const errorMsg = err instanceof Error ? err.message : "Failed to process file";
+      const errorMsg =
+        err instanceof Error ? err.message : "Failed to process file";
       const assistantId = newId("a");
       setConversations((prev) =>
         prev.map((c) =>
           c.id === activeId
-            ? { ...c, messages: [...c.messages, { id: assistantId, role: "assistant", content: `Error: ${errorMsg}. Please try uploading the file again.` }] }
-            : c
-        )
+            ? {
+                ...c,
+                messages: [
+                  ...c.messages,
+                  {
+                    id: assistantId,
+                    role: "assistant",
+                    content: `Error: ${errorMsg}. Please try uploading the file again.`,
+                  },
+                ],
+              }
+            : c,
+        ),
       );
     } finally {
       setFileUploading(false);
@@ -1021,12 +1490,21 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     else if (target === "review") savedId = lastReviewIdRef;
     else savedId = lastTalkIdRef.current;
 
-    const existing = savedId ? conversations.find((c) => c.id === savedId) : null;
+    const existing = savedId
+      ? conversations.find((c) => c.id === savedId)
+      : null;
 
     if (existing) {
       setActiveId(existing.id);
     } else {
-      const prefix = target === "analysis" ? "a" : target === "draft" ? "d" : target === "review" ? "r" : "t";
+      const prefix =
+        target === "analysis"
+          ? "a"
+          : target === "draft"
+            ? "d"
+            : target === "review"
+              ? "r"
+              : "t";
       const conv: Conversation = {
         id: newId(prefix),
         title: "New conversation",
@@ -1052,19 +1530,42 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ messageId, rating, comment: feedbackComment[messageId] || null }),
+        body: JSON.stringify({
+          messageId,
+          rating,
+          comment: feedbackComment[messageId] || null,
+        }),
       });
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
-  async function sendMessage(text: string, documentName?: string, imageDataUrl?: string, attachment?: { type: "pdf" | "image"; fileName: string; text?: string; imageBase64?: string; truncated?: boolean }) {
+  async function sendMessage(
+    text: string,
+    documentName?: string,
+    imageDataUrl?: string,
+    attachment?: {
+      type: "pdf" | "image";
+      fileName: string;
+      text?: string;
+      imageBase64?: string;
+      truncated?: boolean;
+    },
+  ) {
     const trimmed = text.trim();
     if (!trimmed || isThinking) return;
 
     const controller = new AbortController();
     abortRef.current = controller;
 
-    const userMsg: Message = { id: newId("u"), role: "user", content: trimmed, type: mode, documentName: documentName ?? attachment?.fileName };
+    const userMsg: Message = {
+      id: newId("u"),
+      role: "user",
+      content: trimmed,
+      type: mode,
+      documentName: documentName ?? attachment?.fileName,
+    };
     const assistantId = newId("a");
 
     setConversations((prev) => {
@@ -1091,9 +1592,13 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     setIsThinking(true);
 
     const currentConversations = conversationsRef.current;
-    const activeConversation = currentConversations.find((c) => c.id === activeId);
+    const activeConversation = currentConversations.find(
+      (c) => c.id === activeId,
+    );
 
-    let userApiContent: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
+    let userApiContent:
+      | string
+      | Array<{ type: string; text?: string; image_url?: { url: string } }>;
     if (attachment?.type === "image" && attachment.imageBase64) {
       userApiContent = [
         { type: "text", text: trimmed },
@@ -1112,7 +1617,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     }
 
     const conversationMessages = [
-      ...(activeConversation?.messages ?? []).map((m) => ({ role: m.role, content: m.content })),
+      ...(activeConversation?.messages ?? []).map((m) => ({
+        role: m.role,
+        content: m.content,
+      })),
       { role: "user" as const, content: userApiContent },
     ];
 
@@ -1150,7 +1658,18 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       setConversations((prev) =>
         prev.map((c) =>
           c.id === activeId
-            ? { ...c, messages: [...c.messages, { id: assistantId, role: "assistant", content: "", type: mode }] }
+            ? {
+                ...c,
+                messages: [
+                  ...c.messages,
+                  {
+                    id: assistantId,
+                    role: "assistant",
+                    content: "",
+                    type: mode,
+                  },
+                ],
+              }
             : c,
         ),
       );
@@ -1173,6 +1692,9 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               const parsed = JSON.parse(data);
               if (parsed.content) {
                 assistantContent += parsed.content;
+                if (assistantContent.length === parsed.content.length) {
+                  setIsThinking(false);
+                }
                 const content = assistantContent;
                 setConversations((prev) =>
                   prev.map((c) =>
@@ -1220,7 +1742,11 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                   ...c,
                   messages: c.messages.map((m) =>
                     m.id === assistantId
-                      ? { ...m, content: "Sorry, I encountered an error. Please try again." }
+                      ? {
+                          ...m,
+                          content:
+                            "Sorry, I encountered an error. Please try again.",
+                        }
                       : m,
                   ),
                 }
@@ -1241,7 +1767,9 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           if (!lastMsg || lastMsg.role !== "assistant") return prev;
           if (!lastMsg.content.includes("[ADVICE_COMPLETE]")) return prev;
 
-          const summary = lastMsg.content.replace("[ADVICE_COMPLETE]", "").trim();
+          const summary = lastMsg.content
+            .replace("[ADVICE_COMPLETE]", "")
+            .trim();
           const firstUserMsg = conv.messages.find((m) => m.role === "user");
           const problem = firstUserMsg?.content ?? "Legal problem";
 
@@ -1250,15 +1778,23 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             .filter((m) => m.role === "user")
             .slice(1)
             .find((m) =>
-              /bihar|gujarat|up|delhi|mumbai|karnataka|tamil|kerala|rajasthan|maharashtra|west bengal|assam|odisha|telangana|andhra|punjab|haryana|madhya|jharkhand|chhattisgarh|goa|himachal|uttarakhand|sikkim|manipur|meghalaya|nagaland|mizoram|tripura|arunachal|lucknow|patna|ahmedabad|surat|vadodara|gandhinagar/i.test(m.content)
+              /bihar|gujarat|up|delhi|mumbai|karnataka|tamil|kerala|rajasthan|maharashtra|west bengal|assam|odisha|telangana|andhra|punjab|haryana|madhya|jharkhand|chhattisgarh|goa|himachal|uttarakhand|sikkim|manipur|meghalaya|nagaland|mizoram|tripura|arunachal|lucknow|patna|ahmedabad|surat|vadodara|gandhinagar/i.test(
+                m.content,
+              ),
             );
           const state = stateMatch
-            ? stateMatch.content.replace(/.*?(bihar|gujarat|up|delhi|mumbai|karnataka|tamil|kerala|rajasthan|maharashtra|west bengal|assam|odisha|telangana|andhra|punjab|haryana|madhya|jharkhand|chhattisgarh|goa|himachal|uttarakhand|sikkim|manipur|meghalaya|nagaland|mizoram|tripura|arunachal|lucknow|patna|ahmedabad|surat|vadodara|gandhinagar).*/i, "$1").trim()
+            ? stateMatch.content
+                .replace(
+                  /.*?(bihar|gujarat|up|delhi|mumbai|karnataka|tamil|kerala|rajasthan|maharashtra|west bengal|assam|odisha|telangana|andhra|punjab|haryana|madhya|jharkhand|chhattisgarh|goa|himachal|uttarakhand|sikkim|manipur|meghalaya|nagaland|mizoram|tripura|arunachal|lucknow|patna|ahmedabad|surat|vadodara|gandhinagar).*/i,
+                  "$1",
+                )
+                .trim()
             : "India";
 
           const newCase: SavedCase = {
             id: newId("sc"),
-            title: conv.title === "New case" ? extractTopic(problem) : conv.title,
+            title:
+              conv.title === "New case" ? extractTopic(problem) : conv.title,
             summary,
             problem,
             state,
@@ -1270,17 +1806,18 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           const cleanedConv = {
             ...conv,
             messages: conv.messages.map((m) =>
-              m.id === lastMsg.id
-                ? { ...m, content: summary }
-                : m
+              m.id === lastMsg.id ? { ...m, content: summary } : m,
             ),
           };
           setConversations((prev) =>
-            prev.map((c) => (c.id === activeId ? cleanedConv : c))
+            prev.map((c) => (c.id === activeId ? cleanedConv : c)),
           );
 
           setSavedCases((prev) => {
-            const updated = [newCase, ...prev.filter((sc) => sc.conversationId !== conv.id)];
+            const updated = [
+              newCase,
+              ...prev.filter((sc) => sc.conversationId !== conv.id),
+            ];
             saveSavedCases(updated);
             return updated;
           });
@@ -1294,9 +1831,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pendingAttachment && !draft.trim()) {
-      const defaultPrompt = pendingAttachment.type === "image"
-        ? "Please review this image for any text, legal clauses, or important information. Analyze the content and provide a clause-by-clause breakdown with risk ratings where applicable."
-        : "Please review this document for risky clauses, unfair terms, and legal consequences. Provide a clause-by-clause analysis with risk ratings.";
+      const defaultPrompt =
+        pendingAttachment.type === "image"
+          ? "Please review this image for any text, legal clauses, or important information. Analyze the content and provide a clause-by-clause breakdown with risk ratings where applicable."
+          : "Please review this document for risky clauses, unfair terms, and legal consequences. Provide a clause-by-clause analysis with risk ratings.";
       sendMessage(defaultPrompt, undefined, undefined, pendingAttachment);
     } else {
       sendMessage(draft, undefined, undefined, pendingAttachment ?? undefined);
@@ -1308,12 +1846,18 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       if (pendingAttachment && !draft.trim()) {
-        const defaultPrompt = pendingAttachment.type === "image"
-          ? "Please review this image for any text, legal clauses, or important information. Analyze the content and provide a clause-by-clause breakdown with risk ratings where applicable."
-          : "Please review this document for risky clauses, unfair terms, and legal consequences. Provide a clause-by-clause analysis with risk ratings.";
+        const defaultPrompt =
+          pendingAttachment.type === "image"
+            ? "Please review this image for any text, legal clauses, or important information. Analyze the content and provide a clause-by-clause breakdown with risk ratings where applicable."
+            : "Please review this document for risky clauses, unfair terms, and legal consequences. Provide a clause-by-clause analysis with risk ratings.";
         sendMessage(defaultPrompt, undefined, undefined, pendingAttachment);
       } else {
-        sendMessage(draft, undefined, undefined, pendingAttachment ?? undefined);
+        sendMessage(
+          draft,
+          undefined,
+          undefined,
+          pendingAttachment ?? undefined,
+        );
       }
       setPendingAttachment(null);
     }
@@ -1378,9 +1922,25 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
   function clearHistory(section?: ConversationType) {
     if (section === undefined) {
       const removedIds = conversations.map((c) => c.id);
-      const types: ConversationType[] = ["talk-to-ai", "analysis", "grill", "draft", "review"];
+      const types: ConversationType[] = [
+        "talk-to-ai",
+        "analysis",
+        "grill",
+        "draft",
+        "review",
+      ];
       const freshConversations: Conversation[] = types.map((type) => ({
-        id: newId(type === "analysis" ? "a" : type === "talk-to-ai" ? "t" : type === "grill" ? "g" : type === "review" ? "r" : "d"),
+        id: newId(
+          type === "analysis"
+            ? "a"
+            : type === "talk-to-ai"
+              ? "t"
+              : type === "grill"
+                ? "g"
+                : type === "review"
+                  ? "r"
+                  : "d",
+        ),
         title: "New conversation",
         preview: "Just started",
         type,
@@ -1396,9 +1956,24 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     }
     const clearType = section ?? active?.type ?? "talk-to-ai";
     const removedIds = conversations
-      .filter((c) => c.type === clearType || (clearType === "talk-to-ai" && c.type === "chat"))
+      .filter(
+        (c) =>
+          c.type === clearType ||
+          (clearType === "talk-to-ai" && c.type === "chat"),
+      )
       .map((c) => c.id);
-    const prefix = clearType === "analysis" ? "a" : clearType === "talk-to-ai" ? "t" : clearType === "grill" ? "g" : clearType === "review" ? "r" : clearType === "draft" ? "d" : "c";
+    const prefix =
+      clearType === "analysis"
+        ? "a"
+        : clearType === "talk-to-ai"
+          ? "t"
+          : clearType === "grill"
+            ? "g"
+            : clearType === "review"
+              ? "r"
+              : clearType === "draft"
+                ? "d"
+                : "c";
     const fresh: Conversation = {
       id: newId(prefix),
       title: "New conversation",
@@ -1407,7 +1982,14 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       createdAt: Date.now(),
       messages: [],
     };
-    setConversations((prev) => [fresh, ...prev.filter((c) => c.type !== clearType && !(clearType === "talk-to-ai" && c.type === "chat"))]);
+    setConversations((prev) => [
+      fresh,
+      ...prev.filter(
+        (c) =>
+          c.type !== clearType &&
+          !(clearType === "talk-to-ai" && c.type === "chat"),
+      ),
+    ]);
     setActiveId(fresh.id);
     setContextMenuId(null);
     syncDeleteServer(removedIds);
@@ -1451,7 +2033,9 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
         setNewFolderName("");
         setCaseFoldersOpen(true);
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   async function deleteCaseFolder(id: string) {
@@ -1464,30 +2048,39 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       });
       setCaseFolders((prev) => prev.filter((f) => f.id !== id));
       setConversations((prev) =>
-        prev.map((c) => (c.folderId === id ? { ...c, folderId: null } : c))
+        prev.map((c) => (c.folderId === id ? { ...c, folderId: null } : c)),
       );
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   function assignToFolder(convId: string, folderId: string | null) {
     setConversations((prev) =>
-      prev.map((c) => (c.id === convId ? { ...c, folderId } : c))
+      prev.map((c) => (c.id === convId ? { ...c, folderId } : c)),
     );
     setContextMenuId(null);
     fetch("/api/cases", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ id: folderId ?? "", assignConversationId: convId, clear: folderId === null }),
+      body: JSON.stringify({
+        id: folderId ?? "",
+        assignConversationId: convId,
+        clear: folderId === null,
+      }),
     }).catch(() => {});
   }
 
   function groupConversations(type: ConversationType, now: number) {
     const DAY = 1000 * 60 * 60 * 24;
 
-    const filtered = type === "talk-to-ai"
-      ? conversations.filter((c) => c.type === "talk-to-ai" || c.type === "chat")
-      : conversations.filter((c) => c.type === type);
+    const filtered =
+      type === "talk-to-ai"
+        ? conversations.filter(
+            (c) => c.type === "talk-to-ai" || c.type === "chat",
+          )
+        : conversations.filter((c) => c.type === type);
     const pinned = filtered.filter((c) => c.pinned);
     const unpinned = filtered.filter((c) => !c.pinned);
 
@@ -1541,11 +2134,11 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             onBlur={() => commitRename(conv.id)}
             className="min-w-0 flex-1 bg-transparent text-[13px] text-white outline-none"
           />
-    </div>
-  );
-}
+        </div>
+      );
+    }
 
-  return (
+    return (
       <div
         className={`flex items-center gap-1 rounded-lg px-3 py-2 text-left transition-colors duration-150 ${
           isActive
@@ -1560,141 +2153,496 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           className="flex min-w-0 flex-1 items-center gap-2"
         >
           {isAnalysis ? (
-            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-white/30" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /><path d="M11 8v6M8 11h6" />
+            <svg
+              viewBox="0 0 24 24"
+              className="h-3.5 w-3.5 shrink-0 text-white/30"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="M21 21l-4.35-4.35" />
+              <path d="M11 8v6M8 11h6" />
             </svg>
           ) : isTalkToAI ? (
-            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-white/30" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2a4 4 0 0 1 4 4v2a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z" /><path d="M16 14h.01M8 14h.01M12 17v4M8 21h8" />
+            <svg
+              viewBox="0 0 24 24"
+              className="h-3.5 w-3.5 shrink-0 text-white/30"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 2a4 4 0 0 1 4 4v2a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z" />
+              <path d="M16 14h.01M8 14h.01M12 17v4M8 21h8" />
             </svg>
           ) : isGrill ? (
-            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-amber-400/70" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /><path d="M11 8v6M8 11h6" /><path d="M9 2L7 5l2 3M15 2l2 3-2 3" />
+            <svg
+              viewBox="0 0 24 24"
+              className="h-3.5 w-3.5 shrink-0 text-amber-400/70"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="M21 21l-4.35-4.35" />
+              <path d="M11 8v6M8 11h6" />
+              <path d="M9 2L7 5l2 3M15 2l2 3-2 3" />
             </svg>
           ) : isDraft ? (
-            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-blue-400/70" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" />
+            <svg
+              viewBox="0 0 24 24"
+              className="h-3.5 w-3.5 shrink-0 text-blue-400/70"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
             </svg>
           ) : isReview ? (
-            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-emerald-400/70" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><path d="M12 18v-6" /><path d="M9 15h6" />
+            <svg
+              viewBox="0 0 24 24"
+              className="h-3.5 w-3.5 shrink-0 text-emerald-400/70"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <path d="M12 18v-6" />
+              <path d="M9 15h6" />
             </svg>
           ) : (
-            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-white/30" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              viewBox="0 0 24 24"
+              className="h-3.5 w-3.5 shrink-0 text-white/30"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
           )}
           <div className="min-w-0 flex-1">
-            <span className="line-clamp-1 block text-[13px]">
-              {conv.title}
-            </span>
+            <span className="line-clamp-1 block text-[13px]">{conv.title}</span>
             <span className="block text-[10px] text-white/25">
-              {conv.type === "analysis" ? "In-depth Analysis" : conv.type === "talk-to-ai" ? "Talk to AI" : conv.type === "grill" ? "Case Intake" : conv.type === "draft" ? "Document Drafter" : conv.type === "review" ? "Document Reviewer" : "Chat"}
+              {conv.type === "analysis"
+                ? "Deep Analysis"
+                : conv.type === "talk-to-ai"
+                  ? "Talk to AI"
+                  : conv.type === "grill"
+                    ? "Case Intake"
+                    : conv.type === "draft"
+                      ? "Document Drafter"
+                      : conv.type === "review"
+                        ? "Document Reviewer"
+                        : "Chat"}
             </span>
           </div>
         </button>
 
         {(hoveredId === conv.id || isActive || menuOpen) && (
-          <div ref={menuOpen ? contextMenuRef : undefined} className="relative shrink-0">
+          <div
+            ref={menuOpen ? contextMenuRef : undefined}
+            className="relative shrink-0"
+          >
             <span
               role="button"
               tabIndex={0}
-              onClick={(e) => { e.stopPropagation(); setContextMenuId(menuOpen ? null : conv.id); }}
-              onKeyDown={(e) => { if (e.key === "Enter") setContextMenuId(menuOpen ? null : conv.id); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setContextMenuId(menuOpen ? null : conv.id);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter")
+                  setContextMenuId(menuOpen ? null : conv.id);
+              }}
               className="rounded p-1 text-white/40 transition-colors hover:text-white cursor-pointer"
               aria-label="More options"
             >
-              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" />
+              <svg
+                viewBox="0 0 24 24"
+                className="h-3.5 w-3.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="5" cy="12" r="1" />
+                <circle cx="12" cy="12" r="1" />
+                <circle cx="19" cy="12" r="1" />
               </svg>
             </span>
 
             {menuOpen && (
               <div className="animate-dropdown-in absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-xl border border-white/10 bg-[#141414] shadow-2xl">
-                <button type="button" onClick={(e) => { e.stopPropagation(); startRename(conv.id, conv.title); setContextMenuId(null); }} className="flex w-full items-center gap-3 px-3.5 py-2.5 text-[13px] text-white/70 transition-colors hover:bg-white/[0.06] hover:text-white">
-                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startRename(conv.id, conv.title);
+                    setContextMenuId(null);
+                  }}
+                  className="flex w-full items-center gap-3 px-3.5 py-2.5 text-[13px] text-white/70 transition-colors hover:bg-white/[0.06] hover:text-white"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-3.5 w-3.5 shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
                   Rename
                 </button>
-                <button type="button" onClick={(e) => { e.stopPropagation(); togglePin(conv.id); setContextMenuId(null); }} className="flex w-full items-center gap-3 px-3.5 py-2.5 text-[13px] text-white/70 transition-colors hover:bg-white/[0.06] hover:text-white">
-                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill={conv.pinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L8.5 8.5 2 9.3l4.7 4.5L5.5 21 12 17.5 18.5 21l-1.2-7.2L22 9.3l-6.5-.8z" /></svg>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    togglePin(conv.id);
+                    setContextMenuId(null);
+                  }}
+                  className="flex w-full items-center gap-3 px-3.5 py-2.5 text-[13px] text-white/70 transition-colors hover:bg-white/[0.06] hover:text-white"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-3.5 w-3.5 shrink-0"
+                    fill={conv.pinned ? "currentColor" : "none"}
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 2L8.5 8.5 2 9.3l4.7 4.5L5.5 21 12 17.5 18.5 21l-1.2-7.2L22 9.3l-6.5-.8z" />
+                  </svg>
                   {conv.pinned ? "Unpin" : "Pin"}
                 </button>
                 <div className="my-1 border-t border-white/[0.06]" />
-                <div className="px-3.5 py-2"><p className="text-[11px] font-medium uppercase tracking-wider text-white/30">Case Folder</p></div>
-                <button type="button" onClick={(e) => { e.stopPropagation(); assignToFolder(conv.id, null); }} className={`flex w-full items-center gap-3 px-3.5 py-2 text-[13px] transition-colors hover:bg-white/[0.06] ${!conv.folderId ? "text-white" : "text-white/70 hover:text-white"}`}>
-                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18" /></svg>
+                <div className="px-3.5 py-2">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-white/30">
+                    Case Folder
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    assignToFolder(conv.id, null);
+                  }}
+                  className={`flex w-full items-center gap-3 px-3.5 py-2 text-[13px] transition-colors hover:bg-white/[0.06] ${!conv.folderId ? "text-white" : "text-white/70 hover:text-white"}`}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-3.5 w-3.5 shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect x="3" y="4" width="18" height="16" rx="2" />
+                    <path d="M3 9h18" />
+                  </svg>
                   No folder
-                  {!conv.folderId && <span className="ml-auto text-white/60">✓</span>}
+                  {!conv.folderId && (
+                    <span className="ml-auto text-white/60">✓</span>
+                  )}
                 </button>
                 {caseFolders.length > 0 && (
                   <div className="max-h-40 overflow-y-auto py-1">
                     {caseFolders.map((f) => (
-                      <button key={f.id} type="button" onClick={(e) => { e.stopPropagation(); assignToFolder(conv.id, f.id); }} className={`flex w-full items-center gap-3 px-3.5 py-2 text-[13px] transition-colors hover:bg-white/[0.06] ${conv.folderId === f.id ? "text-white" : "text-white/70 hover:text-white"}`}>
-                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-amber-400/70" fill="currentColor"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v2H3z" /><path d="M3 10h18l-1.5 9a2 2 0 0 1-2 1.7H6.5a2 2 0 0 1-2-1.7z" /></svg>
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          assignToFolder(conv.id, f.id);
+                        }}
+                        className={`flex w-full items-center gap-3 px-3.5 py-2 text-[13px] transition-colors hover:bg-white/[0.06] ${conv.folderId === f.id ? "text-white" : "text-white/70 hover:text-white"}`}
+                      >
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="h-3.5 w-3.5 shrink-0 text-amber-400/70"
+                          fill="currentColor"
+                        >
+                          <path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v2H3z" />
+                          <path d="M3 10h18l-1.5 9a2 2 0 0 1-2 1.7H6.5a2 2 0 0 1-2-1.7z" />
+                        </svg>
                         <span className="truncate">{f.name}</span>
-                        {conv.folderId === f.id && <span className="ml-auto text-white/60">✓</span>}
+                        {conv.folderId === f.id && (
+                          <span className="ml-auto text-white/60">✓</span>
+                        )}
                       </button>
                     ))}
                   </div>
                 )}
                 <div className="my-1 border-t border-white/[0.06]" />
-                <div className="px-3.5 py-2"><p className="text-[11px] font-medium uppercase tracking-wider text-white/30">Share</p></div>
+                <div className="px-3.5 py-2">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-white/30">
+                    Share
+                  </p>
+                </div>
                 <div className="flex items-center gap-1 px-3 pb-2">
-                  <button type="button" onClick={(e) => { e.stopPropagation(); shareConversation(conv, "twitter"); setContextMenuId(null); }} className="flex h-8 w-8 items-center justify-center rounded-lg text-white/50 transition-colors hover:bg-white/[0.08] hover:text-[#E7E7E7]" aria-label="Share on X">
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      shareConversation(conv, "twitter");
+                      setContextMenuId(null);
+                    }}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-white/50 transition-colors hover:bg-white/[0.08] hover:text-[#E7E7E7]"
+                    aria-label="Share on X"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-3.5 w-3.5"
+                      fill="currentColor"
+                    >
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                    </svg>
                   </button>
-                  <button type="button" onClick={(e) => { e.stopPropagation(); shareConversation(conv, "facebook"); setContextMenuId(null); }} className="flex h-8 w-8 items-center justify-center rounded-lg text-white/50 transition-colors hover:bg-white/[0.08] hover:text-[#1877F2]" aria-label="Share on Facebook">
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" /></svg>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      shareConversation(conv, "facebook");
+                      setContextMenuId(null);
+                    }}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-white/50 transition-colors hover:bg-white/[0.08] hover:text-[#1877F2]"
+                    aria-label="Share on Facebook"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-3.5 w-3.5"
+                      fill="currentColor"
+                    >
+                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                    </svg>
                   </button>
-                  <button type="button" onClick={(e) => { e.stopPropagation(); shareConversation(conv, "linkedin"); setContextMenuId(null); }} className="flex h-8 w-8 items-center justify-center rounded-lg text-white/50 transition-colors hover:bg-white/[0.08] hover:text-[#0A66C2]" aria-label="Share on LinkedIn">
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" /></svg>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      shareConversation(conv, "linkedin");
+                      setContextMenuId(null);
+                    }}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-white/50 transition-colors hover:bg-white/[0.08] hover:text-[#0A66C2]"
+                    aria-label="Share on LinkedIn"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-3.5 w-3.5"
+                      fill="currentColor"
+                    >
+                      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+                    </svg>
                   </button>
-                  <button type="button" onClick={(e) => { e.stopPropagation(); shareConversation(conv, "whatsapp"); setContextMenuId(null); }} className="flex h-8 w-8 items-center justify-center rounded-lg text-white/50 transition-colors hover:bg-white/[0.08] hover:text-[#25D366]" aria-label="Share on WhatsApp">
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" /></svg>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      shareConversation(conv, "whatsapp");
+                      setContextMenuId(null);
+                    }}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-white/50 transition-colors hover:bg-white/[0.08] hover:text-[#25D366]"
+                    aria-label="Share on WhatsApp"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-3.5 w-3.5"
+                      fill="currentColor"
+                    >
+                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                    </svg>
                   </button>
-                  <button type="button" onClick={(e) => { e.stopPropagation(); shareConversation(conv, "email"); setContextMenuId(null); }} className="flex h-8 w-8 items-center justify-center rounded-lg text-white/50 transition-colors hover:bg-white/[0.08] hover:text-[#EA4335]" aria-label="Share via Email">
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      shareConversation(conv, "email");
+                      setContextMenuId(null);
+                    }}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-white/50 transition-colors hover:bg-white/[0.08] hover:text-[#EA4335]"
+                    aria-label="Share via Email"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-3.5 w-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <rect x="2" y="4" width="20" height="16" rx="2" />
+                      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                    </svg>
                   </button>
                 </div>
-                <button type="button" onClick={(e) => { e.stopPropagation(); shareConversation(conv, "more"); setContextMenuId(null); }} className="flex w-full items-center gap-3 border-t border-white/[0.06] px-3.5 py-2.5 text-[13px] text-white/70 transition-colors hover:bg-white/[0.06] hover:text-white">
-                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" /></svg>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    shareConversation(conv, "more");
+                    setContextMenuId(null);
+                  }}
+                  className="flex w-full items-center gap-3 border-t border-white/[0.06] px-3.5 py-2.5 text-[13px] text-white/70 transition-colors hover:bg-white/[0.06] hover:text-white"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-3.5 w-3.5 shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="18" cy="5" r="3" />
+                    <circle cx="6" cy="12" r="3" />
+                    <circle cx="18" cy="19" r="3" />
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                  </svg>
                   More…
                 </button>
                 <div className="my-1 border-t border-white/[0.06]" />
-                <button type="button" onClick={async (e) => {
-                  e.stopPropagation();
-                  setContextMenuId(null);
-                  try {
-                    const res = await fetch("/api/export", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title: conv.title, messages: conv.messages, format: "txt" }) });
-                    if (res.ok) { const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `${(conv.title || "conversation").replace(/[^a-z0-9]/gi, "_")}.txt`; a.click(); URL.revokeObjectURL(url); }
-                  } catch { /* skip */ }
-                }} className="flex w-full items-center gap-3 px-3.5 py-2.5 text-[13px] text-white/70 transition-colors hover:bg-white/[0.06] hover:text-white">
-                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+                <button
+                  type="button"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    setContextMenuId(null);
+                    try {
+                      const res = await fetch("/api/export", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "include",
+                        body: JSON.stringify({
+                          title: conv.title,
+                          messages: conv.messages,
+                          format: "txt",
+                        }),
+                      });
+                      if (res.ok) {
+                        const blob = await res.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = `${(conv.title || "conversation").replace(/[^a-z0-9]/gi, "_")}.txt`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }
+                    } catch {
+                      /* skip */
+                    }
+                  }}
+                  className="flex w-full items-center gap-3 px-3.5 py-2.5 text-[13px] text-white/70 transition-colors hover:bg-white/[0.06] hover:text-white"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-3.5 w-3.5 shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
                   Export as TXT
                 </button>
-                <button type="button" onClick={async (e) => {
-                  e.stopPropagation();
-                  setContextMenuId(null);
-                  try {
-                    const res = await fetch("/api/share", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ conversationId: conv.id }) });
-                    if (res.ok) { const data = await res.json(); const url = `${window.location.origin}${data.url}`; await navigator.clipboard.writeText(url); alert("Share link copied to clipboard!"); }
-                  } catch { alert("Failed to generate share link."); }
-                }} className="flex w-full items-center gap-3 px-3.5 py-2.5 text-[13px] text-white/70 transition-colors hover:bg-white/[0.06] hover:text-white">
-                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
+                <button
+                  type="button"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    setContextMenuId(null);
+                    try {
+                      const res = await fetch("/api/share", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "include",
+                        body: JSON.stringify({ conversationId: conv.id }),
+                      });
+                      if (res.ok) {
+                        const data = await res.json();
+                        const url = `${window.location.origin}${data.url}`;
+                        await navigator.clipboard.writeText(url);
+                        alert("Share link copied to clipboard!");
+                      }
+                    } catch {
+                      alert("Failed to generate share link.");
+                    }
+                  }}
+                  className="flex w-full items-center gap-3 px-3.5 py-2.5 text-[13px] text-white/70 transition-colors hover:bg-white/[0.06] hover:text-white"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-3.5 w-3.5 shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                  </svg>
                   Copy Share Link
                 </button>
                 <div className="my-1 border-t border-white/[0.06]" />
-                <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmAction({ type: "deleteConversation", id: conv.id }); setContextMenuId(null); }} className="flex w-full items-center gap-3 px-3.5 py-2.5 text-[13px] text-red-400 transition-colors hover:bg-red-500/10">
-                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirmAction({
+                      type: "deleteConversation",
+                      id: conv.id,
+                    });
+                    setContextMenuId(null);
+                  }}
+                  className="flex w-full items-center gap-3 px-3.5 py-2.5 text-[13px] text-red-400 transition-colors hover:bg-red-500/10"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-3.5 w-3.5 shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
                   Delete
                 </button>
               </div>
             )}
           </div>
         )}
-    </div>
-  );
-}
+      </div>
+    );
+  }
 
   function getNotificationThreshold(days: number): number {
     if (days <= 1) return 1;
@@ -1715,44 +2663,61 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               if (r.completed) return false;
               const deadline = new Date(r.deadlineAt);
               deadline.setHours(0, 0, 0, 0);
-              const days = Math.round((deadline.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+              const days = Math.round(
+                (deadline.getTime() - now.getTime()) / (24 * 60 * 60 * 1000),
+              );
               return days >= 0 && days <= 7;
             })
-            .map((r: { id: string; title: string; deadlineAt: string; type: string }) => {
-              const deadline = new Date(r.deadlineAt);
-              deadline.setHours(0, 0, 0, 0);
-              const days = Math.round((deadline.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
-              return { ...r, daysLeft: days };
-            })
+            .map(
+              (r: {
+                id: string;
+                title: string;
+                deadlineAt: string;
+                type: string;
+              }) => {
+                const deadline = new Date(r.deadlineAt);
+                deadline.setHours(0, 0, 0, 0);
+                const days = Math.round(
+                  (deadline.getTime() - now.getTime()) / (24 * 60 * 60 * 1000),
+                );
+                return { ...r, daysLeft: days };
+              },
+            )
             .filter((r: { id: string; daysLeft: number }) => {
               const threshold = getNotificationThreshold(r.daysLeft);
-              return !dismissedNotifications.some((d) => d.id === r.id && d.threshold === threshold);
+              return !dismissedNotifications.some(
+                (d) => d.id === r.id && d.threshold === threshold,
+              );
             })
-            .sort((a: { daysLeft: number }, b: { daysLeft: number }) => a.daysLeft - b.daysLeft);
+            .sort(
+              (a: { daysLeft: number }, b: { daysLeft: number }) =>
+                a.daysLeft - b.daysLeft,
+            );
           setUpcomingReminders(upcoming);
+          if (upcoming.length > 0) {
+            setBellShake(true);
+            setTimeout(() => setBellShake(false), 3000);
+          }
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     })();
   }, [dismissedNotifications]);
 
   useEffect(() => {
     if (!notificationsOpen) return;
     function handleClickOutside(e: MouseEvent) {
-      if (notificationRef.current && !notificationRef.current.contains(e.target as Node)) {
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(e.target as Node)
+      ) {
         setNotificationsOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [notificationsOpen]);
-
-  useEffect(() => {
-    if (upcomingReminders.length > 0) {
-      setBellShake(true);
-      const timer = setTimeout(() => setBellShake(false), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, []);
 
   function clearAllNotifications() {
     const newDismissed = upcomingReminders.map((r) => ({
@@ -1761,7 +2726,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
     }));
     const updated = [...dismissedNotifications, ...newDismissed];
     setDismissedNotifications(updated);
-    localStorage.setItem("lawbite-dismissed-notifications", JSON.stringify(updated));
+    localStorage.setItem(
+      "lawbite-dismissed-notifications",
+      JSON.stringify(updated),
+    );
     setUpcomingReminders([]);
     setShowClearNotifications(false);
     setNotificationsOpen(false);
@@ -1978,7 +2946,15 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 className="shrink-0 rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white"
                 aria-label="Settings"
               >
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <circle cx="12" cy="12" r="3" />
                   <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
                 </svg>
@@ -1989,7 +2965,15 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 className="shrink-0 rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white"
                 aria-label="Sign out"
               >
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                   <polyline points="16 17 21 12 16 7" />
                   <line x1="21" y1="12" x2="9" y2="12" />
@@ -2000,8 +2984,12 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
         </div>
       </aside>
 
-      <main className={`flex min-w-0 flex-1 flex-col ${(mode === "analysis" || mode === "talk-to-ai" || mode === "grill") ? "bg-black/80" : ""}`}>
-        <header className={`flex items-center justify-between border-b border-white/10 px-5 py-4 sm:px-8 ${(mode === "analysis" || mode === "talk-to-ai" || mode === "grill") ? "bg-black/50" : ""}`}>
+      <main
+        className={`flex min-w-0 flex-1 flex-col ${mode === "analysis" || mode === "talk-to-ai" || mode === "grill" ? "bg-black/80" : ""}`}
+      >
+        <header
+          className={`flex items-center justify-between border-b border-white/10 px-5 py-4 sm:px-8 ${mode === "analysis" || mode === "talk-to-ai" || mode === "grill" ? "bg-black/50" : ""}`}
+        >
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
@@ -2027,17 +3015,49 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 {active?.title ?? "New conversation"}
               </h1>
               <p className="text-[11px] uppercase tracking-[0.2em] text-white/40">
-                {mode === "analysis" ? "In-depth Analysis" : mode === "talk-to-ai" || mode === "chat" ? "Talk to AI" : mode === "grill" ? "My Cases" : mode === "draft" ? "Document Drafter" : mode === "review" ? "Document Reviewer" : "Talk to AI"}
+                {mode === "analysis"
+                  ? "Deep Analysis"
+                  : mode === "talk-to-ai" || mode === "chat"
+                    ? "Talk to AI"
+                    : mode === "grill"
+                      ? "My Cases"
+                      : mode === "draft"
+                        ? "Document Drafter"
+                        : mode === "review"
+                          ? "Document Reviewer"
+                          : "Talk to AI"}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <div className="relative" ref={notificationRef}>
               {(() => {
-                const minDays = upcomingReminders.length > 0 ? Math.min(...upcomingReminders.map((r) => r.daysLeft)) : -1;
-                const bellGlow = minDays <= 1 ? "animate-bell-glow-red" : minDays <= 3 ? "animate-bell-glow-amber" : minDays <= 7 ? "animate-bell-glow-green" : "";
-                const bellColor = minDays <= 1 ? "text-red-400" : minDays <= 3 ? "text-amber-400" : minDays <= 7 ? "text-emerald-400" : "text-white/60";
-                const badgeBg = minDays <= 1 ? "bg-red-500" : minDays <= 3 ? "bg-amber-500" : "bg-emerald-500";
+                const minDays =
+                  upcomingReminders.length > 0
+                    ? Math.min(...upcomingReminders.map((r) => r.daysLeft))
+                    : -1;
+                const bellGlow =
+                  minDays <= 1
+                    ? "animate-bell-glow-red"
+                    : minDays <= 3
+                      ? "animate-bell-glow-amber"
+                      : minDays <= 7
+                        ? "animate-bell-glow-green"
+                        : "";
+                const bellColor =
+                  minDays <= 1
+                    ? "text-red-400"
+                    : minDays <= 3
+                      ? "text-amber-400"
+                      : minDays <= 7
+                        ? "text-emerald-400"
+                        : "text-white/60";
+                const badgeBg =
+                  minDays <= 1
+                    ? "bg-red-500"
+                    : minDays <= 3
+                      ? "bg-amber-500"
+                      : "bg-emerald-500";
                 return (
                   <button
                     type="button"
@@ -2045,12 +3065,22 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                     className={`relative rounded-full p-2 transition-colors hover:bg-white/5 hover:text-white ${bellGlow} ${bellShake ? "animate-bell-shake" : ""} ${upcomingReminders.length > 0 ? bellColor : "text-white/60"}`}
                     aria-label="Notifications"
                   >
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
                       <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                       <path d="M13.73 21a2 2 0 0 1-3.46 0" />
                     </svg>
                     {upcomingReminders.length > 0 && (
-                      <span className={`absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full ${badgeBg} text-[9px] font-bold text-white`}>
+                      <span
+                        className={`absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full ${badgeBg} text-[9px] font-bold text-white`}
+                      >
                         {upcomingReminders.length}
                       </span>
                     )}
@@ -2060,21 +3090,33 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               {notificationsOpen && (
                 <div className="animate-dropdown-in absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-xl border border-white/10 bg-[#141414] shadow-2xl">
                   <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
-                    <p className="text-xs font-medium text-white/70">Upcoming Deadlines</p>
+                    <p className="text-xs font-medium text-white/70">
+                      Upcoming Deadlines
+                    </p>
                     <button
                       type="button"
                       onClick={() => setNotificationsOpen(false)}
                       className="flex h-6 w-6 items-center justify-center rounded-md border border-transparent text-white/40 transition-all duration-200 hover:border-white/10 hover:bg-white/5 hover:text-white/70"
                       aria-label="Close"
                     >
-                      <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="h-3 w-3"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
                         <path d="M18 6L6 18M6 6l12 12" />
                       </svg>
                     </button>
                   </div>
                   {upcomingReminders.length === 0 ? (
                     <div className="px-4 py-6 text-center">
-                      <p className="text-xs text-white/35">No upcoming deadlines</p>
+                      <p className="text-xs text-white/35">
+                        No upcoming deadlines
+                      </p>
                     </div>
                   ) : (
                     <div className="max-h-72 overflow-y-auto">
@@ -2082,18 +3124,34 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                         <div
                           key={r.id}
                           className={`flex items-center gap-3 border-b border-white/[0.04] px-4 py-3 transition-colors hover:bg-white/[0.03] ${
-                            r.daysLeft <= 1 ? "bg-red-500/[0.06]" : r.daysLeft <= 3 ? "bg-amber-500/[0.04]" : ""
+                            r.daysLeft <= 1
+                              ? "bg-red-500/[0.06]"
+                              : r.daysLeft <= 3
+                                ? "bg-amber-500/[0.04]"
+                                : ""
                           }`}
                         >
-                          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                            r.daysLeft <= 1 ? "bg-red-500/20 text-red-400" : r.daysLeft <= 3 ? "bg-amber-500/20 text-amber-400" : "bg-emerald-500/20 text-emerald-400"
-                          }`}>
+                          <div
+                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                              r.daysLeft <= 1
+                                ? "bg-red-500/20 text-red-400"
+                                : r.daysLeft <= 3
+                                  ? "bg-amber-500/20 text-amber-400"
+                                  : "bg-emerald-500/20 text-emerald-400"
+                            }`}
+                          >
                             {r.daysLeft}d
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-xs font-medium text-white/80">{r.title}</p>
+                            <p className="truncate text-xs font-medium text-white/80">
+                              {r.title}
+                            </p>
                             <p className="mt-0.5 text-[10px] text-white/35">
-                              {r.daysLeft === 0 ? "Due today" : r.daysLeft === 1 ? "Tomorrow" : `${r.daysLeft} days left`}
+                              {r.daysLeft === 0
+                                ? "Due today"
+                                : r.daysLeft === 1
+                                  ? "Tomorrow"
+                                  : `${r.daysLeft} days left`}
                             </p>
                           </div>
                         </div>
@@ -2103,7 +3161,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                   <div className="flex items-center border-t border-white/[0.06]">
                     <button
                       type="button"
-                      onClick={() => { setNotificationsOpen(false); setRemindersOpen(true); }}
+                      onClick={() => {
+                        setNotificationsOpen(false);
+                        setRemindersOpen(true);
+                      }}
                       className="flex-1 px-4 py-2.5 text-center text-[11px] text-white/40 transition-colors hover:bg-white/[0.04] hover:text-white/60"
                     >
                       View all reminders
@@ -2117,7 +3178,15 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                           className="px-4 py-2.5 text-[11px] text-white/40 transition-colors hover:bg-red-500/10 hover:text-red-400"
                           title="Clear all notifications"
                         >
-                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-3.5 w-3.5"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
                             <polyline points="3 6 5 6 21 6" />
                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                           </svg>
@@ -2132,7 +3201,9 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               aria-hidden
               className="hidden h-2 w-2 rounded-full bg-emerald-400 sm:block"
             />
-            <span className="hidden text-xs text-white/50 sm:inline">Online</span>
+            <span className="hidden text-xs text-white/50 sm:inline">
+              Online
+            </span>
           </div>
         </header>
 
@@ -2140,12 +3211,17 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           {active && active.messages.length > 0 ? (
             <ul className="mx-auto flex max-w-3xl flex-col gap-6">
               {active.messages.map((message) => {
-                const isGrillAssistant = message.role === "assistant" && (message.type ?? active?.type) === "grill";
-                const hasAdviceComplete = message.content.includes("[ADVICE_COMPLETE]");
+                const isGrillAssistant =
+                  message.role === "assistant" &&
+                  (message.type ?? active?.type) === "grill";
+                const hasAdviceComplete =
+                  message.content.includes("[ADVICE_COMPLETE]");
                 const hasDelimiter = message.content.includes("---");
 
                 if (isGrillAssistant && !hasAdviceComplete) {
-                  const cleaned = stripThinkingTokens(message.content.replace(/\[ADVICE_COMPLETE\]/g, "").trim());
+                  const cleaned = stripThinkingTokens(
+                    message.content.replace(/\[ADVICE_COMPLETE\]/g, "").trim(),
+                  );
                   let response = "";
                   let question = "";
 
@@ -2158,7 +3234,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                     const lastIdx = paragraphs.length - 1;
                     const lastPara = paragraphs[lastIdx]?.trim() ?? "";
                     if (paragraphs.length > 1 && /\?\s*$/.test(lastPara)) {
-                      response = paragraphs.slice(0, lastIdx).join("\n\n").trim();
+                      response = paragraphs
+                        .slice(0, lastIdx)
+                        .join("\n\n")
+                        .trim();
                       question = lastPara;
                     }
                   }
@@ -2171,7 +3250,9 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                             <div className="max-w-[85%] rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm leading-relaxed text-white/70 sm:text-[15px]">
                               <div className="whitespace-pre-wrap leading-relaxed">
                                 {response.split(/\n\n+/).map((para, i) => (
-                                  <p key={i} className={i > 0 ? "mt-2" : ""}>{renderBold(para)}</p>
+                                  <p key={i} className={i > 0 ? "mt-2" : ""}>
+                                    {renderBold(para)}
+                                  </p>
                                 ))}
                               </div>
                             </div>
@@ -2181,7 +3262,15 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                           <li className="animate-message-in flex justify-start">
                             <div className="max-w-[85%] rounded-2xl border border-amber-400/20 bg-amber-400/[0.06] px-4 py-3 text-sm leading-relaxed sm:text-[15px]">
                               <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-amber-400/70">
-                                <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  className="h-3 w-3"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
                                   <path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7z" />
                                   <path d="M10 21h4M9 17h6" />
                                 </svg>
@@ -2189,7 +3278,9 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                               </div>
                               <div className="whitespace-pre-wrap leading-relaxed text-white/90">
                                 {question.split(/\n\n+/).map((para, i) => (
-                                  <p key={i} className={i > 0 ? "mt-2" : ""}>{renderBold(para)}</p>
+                                  <p key={i} className={i > 0 ? "mt-2" : ""}>
+                                    {renderBold(para)}
+                                  </p>
                                 ))}
                               </div>
                             </div>
@@ -2200,250 +3291,440 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                   }
                 }
                 return (
-                <li
-                  key={message.id}
-                  className={`animate-message-in group flex flex-col ${
-                    message.role === "user" ? "items-end" : "items-start"
-                  }`}
-                >
-                  <div
-                    className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed sm:text-[15px] ${
-                      message.role === "user"
-                        ? "bg-white text-black"
-                        : "border border-white/10 bg-white/[0.03] text-white/85"
+                  <li
+                    key={message.id}
+                    className={`animate-message-in group flex flex-col ${
+                      message.role === "user" ? "items-end" : "items-start"
                     }`}
                   >
-                    {message.role === "user" && message.documentName ? (
-                      <div className="flex items-center gap-2">
-                        <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-black/60" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                          <polyline points="14 2 14 8 20 8" />
-                        </svg>
-                        <span className="text-sm font-medium">{message.documentName}</span>
-                      </div>
-                    ) : message.role === "user" ? (
-                      <div className="whitespace-pre-wrap leading-relaxed">
-                        {typeof message.content === "string" ? message.content.split(/\n\n+/).map((para, i) => (
-                          <p key={i} className={i > 0 ? "mt-3" : ""}>{renderBold(para)}</p>
-                        )) : JSON.stringify(message.content)}
-                      </div>
-                    ) : (
-                      <div className="flex flex-col gap-2">
-                        {(() => {
-                          const msgType = message.type ?? active?.type;
-                          const cleaned = stripThinkingTokens(message.content).replace(/\[ADVICE_COMPLETE\]/g, "");
-                          if (msgType === "draft" && cleaned.trim()) {
-                            return (
-                              <div className="w-full overflow-x-auto">
-                                <div className="whitespace-pre-wrap font-mono text-sm leading-relaxed text-white/90">
-                                  {cleaned.split(/\n{2,}/).map((para, i) => {
-                                    const trimmed = para.trim();
-                                    const isHeading = /^(LEGAL NOTICE|NOTICE|FIRST INFORMATION REPORT|FIR DRAFT|CONSUMER COMPLAINT|RTI APPLICATION|WILL|AFFIDAVIT|PETITION|CONTRACT|AGREEMENT)\b/i.test(trimmed);
-                                    const isSignature = /^(Yours faithfully|Yours sincerely|Thanking you)/i.test(trimmed);
-                                    const isLabel = /^(Date|From|To|Subject|Sir\/Madam):/i.test(trimmed);
-                                    return (
-                                      <p key={i} className={`${i > 0 ? "mt-4" : ""} ${isHeading ? "text-center text-base font-bold tracking-wide text-white" : ""} ${isSignature ? "mt-8" : ""} ${isLabel ? "font-semibold text-white/80" : ""}`}>
-                                        {trimmed}
-                                      </p>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            );
-                          }
-                          const blocks = parseContent(cleaned);
-                          if (!cleaned.trim() || blocks.length === 0) {
-                            return (
-                              <p className="text-sm italic text-white/50">
-                                No content was generated. This may happen if the AI service is temporarily unavailable. Please try again.
-                              </p>
-                            );
-                          }
-                          return renderContentBlocks(blocks);
-                        })()}
-                        {message.citations && message.citations.length > 0 && (
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="text-[11px] font-semibold uppercase tracking-wider text-white/35">Sources</span>
-                            {message.citations.slice(0, 2).map((cit, i) => (
-                              <div
-                                key={i}
-                                className="inline-flex max-w-full items-center gap-1 rounded-full border border-white/15 bg-white/[0.05] py-1 pl-2.5 pr-1 text-[11px] font-medium text-white/75 transition-colors hover:border-white/30 hover:text-white"
-                              >
-                                <button
-                                  type="button"
-                                  onClick={() => setCitationOpen(cit)}
-                                  className="inline-flex max-w-full items-center gap-1"
-                                >
-                                  <svg viewBox="0 0 24 24" className="h-3 w-3 shrink-0 text-blue-400/70" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    {cit.type === "web" ? (
-                                      <>
-                                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                                      </>
-                                    ) : (
-                                      <>
-                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                        <polyline points="14 2 14 8 20 8" />
-                                      </>
-                                    )}
-                                  </svg>
-                                  <span className="truncate">{cit.label}</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  aria-label="Copy citation"
-                                  title="Copy citation"
-                                  onClick={async (e) => {
-                                    e.stopPropagation();
-                                    const ok = await copyToClipboard(formatCitation(cit));
-                                    if (ok) setCopiedCitation(`chip-${i}`);
-                                    setTimeout(() => setCopiedCitation(null), 1800);
-                                  }}
-                                  className="shrink-0 rounded-full p-1 text-white/35 transition-colors hover:bg-white/10 hover:text-white"
-                                >
-                                  {copiedCitation === `chip-${i}` ? (
-                                    <svg viewBox="0 0 24 24" className="h-3 w-3 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                      <polyline points="20 6 9 17 4 12" />
-                                    </svg>
-                                  ) : (
-                                    <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                                    </svg>
-                                  )}
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        {((message.type ?? active?.type) === "review" || (message.type ?? active?.type) === "draft" || message.content.includes("[ADVICE_COMPLETE]")) && (
-                          <p className="mt-2 text-xs italic text-white/40 border-t border-white/10 pt-3">
-                            This is an AI-generated analysis for reference purposes. Please consult a practicing lawyer before making any legal decisions.
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  {message.role === "assistant" && message.id && !message.id.startsWith("assistant-") && (
-                    <div className="mt-1 flex items-center gap-0.5">
-                      {feedbackGiven[message.id] ? (
-                        <p className="px-1 py-1 text-[11px] text-emerald-400/70">Thanks for the feedback</p>
+                    <div
+                      className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed sm:text-[15px] ${
+                        message.role === "user"
+                          ? "bg-white text-black"
+                          : "border border-white/10 bg-white/[0.03] text-white/85"
+                      }`}
+                    >
+                      {message.role === "user" && message.documentName ? (
+                        <div className="flex items-center gap-2">
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-5 w-5 shrink-0 text-black/60"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                          </svg>
+                          <span className="text-sm font-medium">
+                            {message.documentName}
+                          </span>
+                        </div>
+                      ) : message.role === "user" ? (
+                        <div className="whitespace-pre-wrap leading-relaxed">
+                          {typeof message.content === "string"
+                            ? message.content.split(/\n\n+/).map((para, i) => (
+                                <p key={i} className={i > 0 ? "mt-3" : ""}>
+                                  {renderBold(para)}
+                                </p>
+                              ))
+                            : JSON.stringify(message.content)}
+                        </div>
                       ) : (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => submitFeedback(message.id, "up")}
-                            className="rounded-md p-1 text-white/30 transition-colors hover:text-white/60"
-                            title="Helpful"
-                          >
-                            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => { submitFeedback(message.id, "down"); setFeedbackCommentOpen(message.id); }}
-                            className="rounded-md p-1 text-white/30 transition-colors hover:text-white/60"
-                            title="Not helpful"
-                          >
-                            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17" />
-                            </svg>
-                          </button>
-                        </>
-                      )}
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const text = stripThinkingTokens(message.content).replace(/\[ADVICE_COMPLETE\]/g, "").trim();
-                          const ok = await copyToClipboard(text);
-                          if (ok) { setCopiedMessageId(message.id); setTimeout(() => setCopiedMessageId(null), 2000); }
-                        }}
-                        className="rounded-md p-1 text-white/30 transition-colors hover:text-white/60"
-                        title="Copy"
-                      >
-                        {copiedMessageId === message.id ? (
-                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                        ) : (
-                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                          </svg>
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const text = stripThinkingTokens(message.content).replace(/\[ADVICE_COMPLETE\]/g, "").trim();
-                          if (navigator.share) {
-                            navigator.share({ title: "Lawbite Response", text }).catch(() => {});
-                          } else {
-                            copyToClipboard(text);
-                          }
-                        }}
-                        className="rounded-md p-1 text-white/30 transition-colors hover:text-white/60"
-                        title="Share"
-                      >
-                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="18" cy="5" r="3" />
-                          <circle cx="6" cy="12" r="3" />
-                          <circle cx="18" cy="19" r="3" />
-                          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-                        </svg>
-                      </button>
-                      {(message.type ?? active?.type) === "draft" && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => import("@/lib/export").then((mod) => mod.exportAsWord(message.content, active?.title || "Legal Document"))}
-                            className="rounded-md p-1 text-white/30 transition-colors hover:text-white/60"
-                            title="Download Word"
-                          >
-                            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                              <polyline points="14 2 14 8 20 8" />
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => import("@/lib/export").then((mod) => mod.exportAsPdf(message.content, active?.title || "Legal Document"))}
-                            className="rounded-md p-1 text-white/30 transition-colors hover:text-white/60"
-                            title="Download PDF"
-                          >
-                            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                              <polyline points="14 2 14 8 20 8" />
-                              <line x1="12" y1="18" x2="12" y2="12" />
-                              <polyline points="9 15 12 18 15 15" />
-                            </svg>
-                          </button>
-                        </>
+                        <div className="flex flex-col gap-2">
+                          {(() => {
+                            const msgType = message.type ?? active?.type;
+                            const cleaned = stripThinkingTokens(
+                              message.content,
+                            ).replace(/\[ADVICE_COMPLETE\]/g, "");
+                            if (msgType === "draft" && cleaned.trim()) {
+                              return (
+                                <div className="w-full overflow-x-auto">
+                                  <div className="whitespace-pre-wrap font-mono text-sm leading-relaxed text-white/90">
+                                    {cleaned.split(/\n{2,}/).map((para, i) => {
+                                      const trimmed = para.trim();
+                                      const isHeading =
+                                        /^(LEGAL NOTICE|NOTICE|FIRST INFORMATION REPORT|FIR DRAFT|CONSUMER COMPLAINT|RTI APPLICATION|WILL|AFFIDAVIT|PETITION|CONTRACT|AGREEMENT)\b/i.test(
+                                          trimmed,
+                                        );
+                                      const isSignature =
+                                        /^(Yours faithfully|Yours sincerely|Thanking you)/i.test(
+                                          trimmed,
+                                        );
+                                      const isLabel =
+                                        /^(Date|From|To|Subject|Sir\/Madam):/i.test(
+                                          trimmed,
+                                        );
+                                      return (
+                                        <p
+                                          key={i}
+                                          className={`${i > 0 ? "mt-4" : ""} ${isHeading ? "text-center text-base font-bold tracking-wide text-white" : ""} ${isSignature ? "mt-8" : ""} ${isLabel ? "font-semibold text-white/80" : ""}`}
+                                        >
+                                          {trimmed}
+                                        </p>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            }
+                            const blocks = parseContent(cleaned);
+                            if (!cleaned.trim() || blocks.length === 0) {
+                              return (
+                                <p className="text-sm italic text-white/50">
+                                  No content was generated. This may happen if
+                                  the AI service is temporarily unavailable.
+                                  Please try again.
+                                </p>
+                              );
+                            }
+                            return renderContentBlocks(blocks);
+                          })()}
+                          {message.citations &&
+                            message.citations.length > 0 && (
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="text-[11px] font-semibold uppercase tracking-wider text-white/35">
+                                  Sources
+                                </span>
+                                {message.citations.slice(0, 2).map((cit, i) => (
+                                  <div
+                                    key={i}
+                                    className="inline-flex max-w-full items-center gap-1 rounded-full border border-white/15 bg-white/[0.05] py-1 pl-2.5 pr-1 text-[11px] font-medium text-white/75 transition-colors hover:border-white/30 hover:text-white"
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() => setCitationOpen(cit)}
+                                      className="inline-flex max-w-full items-center gap-1"
+                                    >
+                                      <svg
+                                        viewBox="0 0 24 24"
+                                        className="h-3 w-3 shrink-0 text-blue-400/70"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                      >
+                                        {cit.type === "web" ? (
+                                          <>
+                                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                                          </>
+                                        ) : (
+                                          <>
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                            <polyline points="14 2 14 8 20 8" />
+                                          </>
+                                        )}
+                                      </svg>
+                                      <span className="truncate">
+                                        {cit.label}
+                                      </span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      aria-label="Copy citation"
+                                      title="Copy citation"
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        const ok = await copyToClipboard(
+                                          formatCitation(cit),
+                                        );
+                                        if (ok) setCopiedCitation(`chip-${i}`);
+                                        setTimeout(
+                                          () => setCopiedCitation(null),
+                                          1800,
+                                        );
+                                      }}
+                                      className="shrink-0 rounded-full p-1 text-white/35 transition-colors hover:bg-white/10 hover:text-white"
+                                    >
+                                      {copiedCitation === `chip-${i}` ? (
+                                        <svg
+                                          viewBox="0 0 24 24"
+                                          className="h-3 w-3 text-emerald-400"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          strokeWidth="2.5"
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                        >
+                                          <polyline points="20 6 9 17 4 12" />
+                                        </svg>
+                                      ) : (
+                                        <svg
+                                          viewBox="0 0 24 24"
+                                          className="h-3 w-3"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          strokeWidth="2"
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                        >
+                                          <rect
+                                            x="9"
+                                            y="9"
+                                            width="13"
+                                            height="13"
+                                            rx="2"
+                                            ry="2"
+                                          />
+                                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                        </svg>
+                                      )}
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          {((message.type ?? active?.type) === "review" ||
+                            (message.type ?? active?.type) === "draft" ||
+                            message.content.includes("[ADVICE_COMPLETE]")) && (
+                            <p className="mt-2 text-xs italic text-white/40 border-t border-white/10 pt-3">
+                              This is an AI-generated analysis for reference
+                              purposes. Please consult a practicing lawyer
+                              before making any legal decisions.
+                            </p>
+                          )}
+                        </div>
                       )}
                     </div>
-                  )}
-                  {feedbackCommentOpen === message.id && feedbackGiven[message.id] === "down" && (
-                    <div className="mt-1 flex w-full max-w-md gap-2">
-                      <input
-                        type="text"
-                        placeholder="What was wrong? (optional)"
-                        value={feedbackComment[message.id] || ""}
-                        onChange={(e) => setFeedbackComment((prev) => ({ ...prev, [message.id]: e.target.value }))}
-                        onKeyDown={(e) => { if (e.key === "Enter") { submitFeedback(message.id, "down"); setFeedbackCommentOpen(null); } }}
-                        className="flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => { submitFeedback(message.id, "down"); setFeedbackCommentOpen(null); }}
-                        className="rounded-lg border border-white/10 bg-white/[0.05] px-3 py-1.5 text-xs text-white/60 hover:text-white"
-                      >
-                        Send
-                      </button>
-                    </div>
-                  )}
-                </li>
+                    {message.role === "assistant" &&
+                      message.id &&
+                      !message.id.startsWith("assistant-") && (
+                        <div className="mt-1 flex items-center gap-0.5">
+                          {feedbackGiven[message.id] ? (
+                            <p className="px-1 py-1 text-[11px] text-emerald-400/70">
+                              Thanks for the feedback
+                            </p>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => submitFeedback(message.id, "up")}
+                                className="rounded-md p-1 text-white/30 transition-colors hover:text-white/60"
+                                title="Helpful"
+                              >
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  className="h-3.5 w-3.5"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
+                                </svg>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  submitFeedback(message.id, "down");
+                                  setFeedbackCommentOpen(message.id);
+                                }}
+                                className="rounded-md p-1 text-white/30 transition-colors hover:text-white/60"
+                                title="Not helpful"
+                              >
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  className="h-3.5 w-3.5"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17" />
+                                </svg>
+                              </button>
+                            </>
+                          )}
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const text = stripThinkingTokens(message.content)
+                                .replace(/\[ADVICE_COMPLETE\]/g, "")
+                                .trim();
+                              const ok = await copyToClipboard(text);
+                              if (ok) {
+                                setCopiedMessageId(message.id);
+                                setTimeout(
+                                  () => setCopiedMessageId(null),
+                                  2000,
+                                );
+                              }
+                            }}
+                            className="rounded-md p-1 text-white/30 transition-colors hover:text-white/60"
+                            title="Copy"
+                          >
+                            {copiedMessageId === message.id ? (
+                              <svg
+                                viewBox="0 0 24 24"
+                                className="h-3.5 w-3.5 text-emerald-400"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            ) : (
+                              <svg
+                                viewBox="0 0 24 24"
+                                className="h-3.5 w-3.5"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <rect
+                                  x="9"
+                                  y="9"
+                                  width="13"
+                                  height="13"
+                                  rx="2"
+                                  ry="2"
+                                />
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                              </svg>
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const text = stripThinkingTokens(message.content)
+                                .replace(/\[ADVICE_COMPLETE\]/g, "")
+                                .trim();
+                              if (navigator.share) {
+                                navigator
+                                  .share({ title: "Lawbite Response", text })
+                                  .catch(() => {});
+                              } else {
+                                copyToClipboard(text);
+                              }
+                            }}
+                            className="rounded-md p-1 text-white/30 transition-colors hover:text-white/60"
+                            title="Share"
+                          >
+                            <svg
+                              viewBox="0 0 24 24"
+                              className="h-3.5 w-3.5"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <circle cx="18" cy="5" r="3" />
+                              <circle cx="6" cy="12" r="3" />
+                              <circle cx="18" cy="19" r="3" />
+                              <line
+                                x1="8.59"
+                                y1="13.51"
+                                x2="15.42"
+                                y2="17.49"
+                              />
+                              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                            </svg>
+                          </button>
+                          {(message.type ?? active?.type) === "draft" && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  import("@/lib/export").then((mod) =>
+                                    mod.exportAsWord(
+                                      message.content,
+                                      active?.title || "Legal Document",
+                                    ),
+                                  )
+                                }
+                                className="rounded-md p-1 text-white/30 transition-colors hover:text-white/60"
+                                title="Download Word"
+                              >
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  className="h-3.5 w-3.5"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                  <polyline points="14 2 14 8 20 8" />
+                                </svg>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  import("@/lib/export").then((mod) =>
+                                    mod.exportAsPdf(
+                                      message.content,
+                                      active?.title || "Legal Document",
+                                    ),
+                                  )
+                                }
+                                className="rounded-md p-1 text-white/30 transition-colors hover:text-white/60"
+                                title="Download PDF"
+                              >
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  className="h-3.5 w-3.5"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                  <polyline points="14 2 14 8 20 8" />
+                                  <line x1="12" y1="18" x2="12" y2="12" />
+                                  <polyline points="9 15 12 18 15 15" />
+                                </svg>
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    {feedbackCommentOpen === message.id &&
+                      feedbackGiven[message.id] === "down" && (
+                        <div className="mt-1 flex w-full max-w-md gap-2">
+                          <input
+                            type="text"
+                            placeholder="What was wrong? (optional)"
+                            value={feedbackComment[message.id] || ""}
+                            onChange={(e) =>
+                              setFeedbackComment((prev) => ({
+                                ...prev,
+                                [message.id]: e.target.value,
+                              }))
+                            }
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                submitFeedback(message.id, "down");
+                                setFeedbackCommentOpen(null);
+                              }
+                            }}
+                            className="flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              submitFeedback(message.id, "down");
+                              setFeedbackCommentOpen(null);
+                            }}
+                            className="rounded-lg border border-white/10 bg-white/[0.05] px-3 py-1.5 text-xs text-white/60 hover:text-white"
+                          >
+                            Send
+                          </button>
+                        </div>
+                      )}
+                  </li>
                 );
               })}
               {isThinking ? (
@@ -2469,12 +3750,70 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                   <div className="max-w-[85%] rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm leading-relaxed text-white/85 sm:text-[15px]">
                     <p>
                       {(() => {
-                        const userMsgs = (active?.messages ?? []).filter((m) => m.role === "user");
-                        const raw = userMsgs[userMsgs.length - 1]?.content ?? "";
-                        const fillers = ["what","who","when","where","why","how","can","is","are","do","does","did","tell","explain","define","describe","the","a","an","me","about","it","its","this","that","these","those","by","in","on","of","to","for","with","under","between","from","please","i","want","to","know","like"];
-                        const words = raw.replace(/[?.,!]+$/, "").trim().split(/\s+/);
-                        const keywords = words.filter((w) => !fillers.includes(w.toLowerCase())).slice(0, 5).join(" ");
-                        return <>To know more about &quot;{keywords || raw.slice(0, 40)}&quot;</>;
+                        const userMsgs = (active?.messages ?? []).filter(
+                          (m) => m.role === "user",
+                        );
+                        const raw =
+                          userMsgs[userMsgs.length - 1]?.content ?? "";
+                        const fillers = [
+                          "what",
+                          "who",
+                          "when",
+                          "where",
+                          "why",
+                          "how",
+                          "can",
+                          "is",
+                          "are",
+                          "do",
+                          "does",
+                          "did",
+                          "tell",
+                          "explain",
+                          "define",
+                          "describe",
+                          "the",
+                          "a",
+                          "an",
+                          "me",
+                          "about",
+                          "it",
+                          "its",
+                          "this",
+                          "that",
+                          "these",
+                          "those",
+                          "by",
+                          "in",
+                          "on",
+                          "of",
+                          "to",
+                          "for",
+                          "with",
+                          "under",
+                          "between",
+                          "from",
+                          "please",
+                          "i",
+                          "want",
+                          "to",
+                          "know",
+                          "like",
+                        ];
+                        const words = raw
+                          .replace(/[?.,!]+$/, "")
+                          .trim()
+                          .split(/\s+/);
+                        const keywords = words
+                          .filter((w) => !fillers.includes(w.toLowerCase()))
+                          .slice(0, 5)
+                          .join(" ");
+                        return (
+                          <>
+                            To know more about &quot;
+                            {keywords || raw.slice(0, 40)}&quot;
+                          </>
+                        );
                       })()}
                       , try the{" "}
                       <button
@@ -2498,15 +3837,15 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               {mode === "analysis" ? (
                 <div className="animate-fade-up w-full flex flex-col items-center">
                   <div className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-1.5 text-xs uppercase tracking-[0.3em] text-white/40">
-                    In-depth Analysis
+                    Deep Analysis
                   </div>
                   <h2 className="mt-6 text-2xl font-semibold tracking-tight sm:text-3xl">
                     Deep dive into your case
                   </h2>
                   <p className="mt-3 max-w-md text-sm leading-relaxed text-white/55">
-                    Describe the case, legal issue, or document you want analyzed.
-                    I will provide a thorough analysis including relevant laws,
-                    precedents, risks, and recommendations.
+                    Describe the case, legal issue, or document you want
+                    analyzed. I will provide a thorough analysis including
+                    relevant laws, precedents, risks, and recommendations.
                   </p>
                   <div className="mt-8 flex flex-wrap justify-center gap-3">
                     <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-white/50">
@@ -2526,25 +3865,58 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                     {pendingAttachment && (
                       <div className="mx-auto mb-2 flex max-w-3xl items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] px-3 py-2">
                         {pendingAttachment.type === "image" ? (
-                          <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-4 w-4 shrink-0 text-blue-400"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <rect
+                              x="3"
+                              y="3"
+                              width="18"
+                              height="18"
+                              rx="2"
+                              ry="2"
+                            />
                             <circle cx="8.5" cy="8.5" r="1.5" />
                             <polyline points="21 15 16 10 5 21" />
                           </svg>
                         ) : (
-                          <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-red-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-4 w-4 shrink-0 text-red-400"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                             <polyline points="14 2 14 8 20 8" />
                           </svg>
                         )}
-                        <span className="truncate text-xs text-white/70">{pendingAttachment.fileName}</span>
+                        <span className="truncate text-xs text-white/70">
+                          {pendingAttachment.fileName}
+                        </span>
                         <button
                           type="button"
                           onClick={() => setPendingAttachment(null)}
                           className="ml-auto shrink-0 rounded-full p-0.5 text-white/40 hover:text-white/80 transition-colors"
                           aria-label="Remove attachment"
                         >
-                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-3.5 w-3.5"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
                             <line x1="18" y1="6" x2="6" y2="18" />
                             <line x1="6" y1="6" x2="18" y2="18" />
                           </svg>
@@ -2555,7 +3927,9 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                       onSubmit={onSubmit}
                       className="flex items-end gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-2 transition-colors duration-300 focus-within:border-white/30"
                     >
-                      <label htmlFor="chat-input" className="sr-only">Message</label>
+                      <label htmlFor="chat-input" className="sr-only">
+                        Message
+                      </label>
                       <div className="relative" ref={plusMenuRef}>
                         <button
                           type="button"
@@ -2563,41 +3937,81 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                           aria-label="More features"
                           className={`mb-0.5 shrink-0 rounded-full p-2 text-amber-400/70 transition-all duration-300 hover:bg-amber-400/10 hover:text-amber-400 ${plusMenuOpen ? "bg-amber-400/10 text-amber-400" : ""}`}
                         >
-                          <svg viewBox="0 0 24 24" className={`h-4 w-4 transition-transform duration-300 ${plusMenuOpen ? "rotate-45" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <svg
+                            viewBox="0 0 24 24"
+                            className={`h-4 w-4 transition-transform duration-300 ${plusMenuOpen ? "rotate-45" : ""}`}
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
                             <line x1="12" y1="5" x2="12" y2="19" />
                             <line x1="5" y1="12" x2="19" y2="12" />
                           </svg>
                         </button>
                         <div className="absolute right-full top-1/2 -translate-y-1/2 mr-4 z-50">
-                          <div className="w-56 flex flex-col gap-1.5" style={{
-                            transform: plusMenuOpen ? "translateX(0) scale(1)" : "translateX(12px) scale(0.96)",
-                            opacity: plusMenuOpen ? 1 : 0,
-                            transformOrigin: "right center",
-                            transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
-                            pointerEvents: plusMenuOpen ? "auto" : "none",
-                          }}>
+                          <div
+                            className="w-56 flex flex-col gap-1.5"
+                            style={{
+                              transform: plusMenuOpen
+                                ? "translateX(0) scale(1)"
+                                : "translateX(12px) scale(0.96)",
+                              opacity: plusMenuOpen ? 1 : 0,
+                              transformOrigin: "right center",
+                              transition:
+                                "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+                              pointerEvents: plusMenuOpen ? "auto" : "none",
+                            }}
+                          >
                             <button
                               type="button"
-                              onClick={() => { switchMode("talk-to-ai"); setPlusMenuOpen(false); }}
+                              onClick={() => {
+                                switchMode("talk-to-ai");
+                                setPlusMenuOpen(false);
+                              }}
                               className="group flex items-center gap-3 rounded-xl border border-white/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-white/30 hover:bg-white/[0.06]"
                             >
                               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.08] transition-all duration-300 group-hover:bg-white/[0.15]">
-                                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-white/70" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  className="h-3.5 w-3.5 text-white/70"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
                                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                                 </svg>
                               </div>
                               <div>
-                                <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-white">Talk to AI</div>
-                                <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">General legal chat</div>
+                                <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-white">
+                                  Talk to AI
+                                </div>
+                                <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">
+                                  General legal chat
+                                </div>
                               </div>
                             </button>
                             <button
                               type="button"
-                              onClick={() => { switchMode("draft"); setPlusMenuOpen(false); }}
+                              onClick={() => {
+                                switchMode("draft");
+                                setPlusMenuOpen(false);
+                              }}
                               className="group flex items-center gap-3 rounded-xl border border-blue-400/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-blue-400/30 hover:bg-blue-400/[0.06] hover:shadow-[0_0_16px_rgba(96,165,250,0.08)]"
                             >
                               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-400/[0.08] transition-all duration-300 group-hover:bg-blue-400/[0.15]">
-                                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-blue-400/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  className="h-3.5 w-3.5 text-blue-400/80"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
                                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                                   <polyline points="14 2 14 8 20 8" />
                                   <line x1="16" y1="13" x2="8" y2="13" />
@@ -2605,25 +4019,44 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                                 </svg>
                               </div>
                               <div>
-                                <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-blue-400/90">Document Drafter</div>
-                                <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">Generate legal documents</div>
+                                <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-blue-400/90">
+                                  Document Drafter
+                                </div>
+                                <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">
+                                  Generate legal documents
+                                </div>
                               </div>
                             </button>
                             <button
                               type="button"
-                              onClick={() => { switchMode("review"); setPlusMenuOpen(false); }}
+                              onClick={() => {
+                                switchMode("review");
+                                setPlusMenuOpen(false);
+                              }}
                               className="group flex items-center gap-3 rounded-xl border border-emerald-400/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-emerald-400/30 hover:bg-emerald-400/[0.06] hover:shadow-[0_0_16px_rgba(52,211,153,0.08)]"
                             >
                               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-400/[0.08] transition-all duration-300 group-hover:bg-emerald-400/[0.15]">
-                                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-emerald-400/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  className="h-3.5 w-3.5 text-emerald-400/80"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
                                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                                   <polyline points="14 2 14 8 20 8" />
                                   <path d="M9 15l2 2 4-4" />
                                 </svg>
                               </div>
                               <div>
-                                <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-emerald-400/90">Document Reviewer</div>
-                                <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">Review contracts &amp; clauses</div>
+                                <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-emerald-400/90">
+                                  Document Reviewer
+                                </div>
+                                <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">
+                                  Review contracts &amp; clauses
+                                </div>
                               </div>
                             </button>
                           </div>
@@ -2634,7 +4067,11 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                         type="file"
                         accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.webp,.gif"
                         className="hidden"
-                        onChange={(e) => handleFileUpload(e, () => setAnalysisAttachOpen(false))}
+                        onChange={(e) =>
+                          handleFileUpload(e, () =>
+                            setAnalysisAttachOpen(false),
+                          )
+                        }
                       />
                       <div className="relative" ref={analysisAttachMenuRef}>
                         <button
@@ -2647,7 +4084,15 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                           {fileUploading ? (
                             <div className="h-4 w-4 animate-spin rounded-full border-2 border-amber-400/30 border-t-amber-400" />
                           ) : (
-                            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg
+                              viewBox="0 0 24 24"
+                              className="h-4 w-4"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
                               <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
                             </svg>
                           )}
@@ -2665,7 +4110,15 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                               }}
                               className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:bg-amber-400/[0.06] transition-colors"
                             >
-                              <svg viewBox="0 0 24 24" className="h-4 w-4 text-red-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <svg
+                                viewBox="0 0 24 24"
+                                className="h-4 w-4 text-red-400"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
                                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                                 <polyline points="14 2 14 8 20 8" />
                                 <line x1="16" y1="13" x2="8" y2="13" />
@@ -2677,15 +4130,31 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                               type="button"
                               onClick={() => {
                                 if (analysisFileInputRef.current) {
-                                  analysisFileInputRef.current.accept = ".png,.jpg,.jpeg,.webp,.gif";
+                                  analysisFileInputRef.current.accept =
+                                    ".png,.jpg,.jpeg,.webp,.gif";
                                   analysisFileInputRef.current.click();
                                 }
                                 setAnalysisAttachOpen(false);
                               }}
                               className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:bg-amber-400/[0.06] transition-colors"
                             >
-                              <svg viewBox="0 0 24 24" className="h-4 w-4 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                              <svg
+                                viewBox="0 0 24 24"
+                                className="h-4 w-4 text-blue-400"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <rect
+                                  x="3"
+                                  y="3"
+                                  width="18"
+                                  height="18"
+                                  rx="2"
+                                  ry="2"
+                                />
                                 <circle cx="8.5" cy="8.5" r="1.5" />
                                 <polyline points="21 15 16 10 5 21" />
                               </svg>
@@ -2699,27 +4168,50 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                         value={draft}
                         onChange={(e) => setDraft(e.target.value)}
                         onKeyDown={onKeyDown}
-                        placeholder={pendingAttachment ? "Ask about this document, or send to review as-is…" : "Message Lawbite…"}
+                        placeholder={
+                          pendingAttachment
+                            ? "Ask about this document, or send to review as-is…"
+                            : "Message Lawbite…"
+                        }
                         rows={1}
                         className="min-h-[40px] max-h-40 w-full resize-none bg-transparent px-3 py-2 text-sm leading-relaxed text-white placeholder:text-white/35 focus:outline-none"
                       />
                       <button
                         type="submit"
-                        disabled={(!draft.trim() && !pendingAttachment) || isThinking}
+                        disabled={
+                          (!draft.trim() && !pendingAttachment) || isThinking
+                        }
                         aria-label="Send message"
                         className="btn-shine group relative inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-black transition-transform duration-300 hover:scale-[1.05] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
                       >
-                        <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg
+                          aria-hidden
+                          viewBox="0 0 24 24"
+                          className="h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
                           <path d="M5 12h14M13 5l7 7-7 7" />
                         </svg>
                       </button>
                     </form>
                     <p className="mx-auto mt-2 text-[11px] text-white/35">
-                      Press <kbd className="rounded border border-white/15 px-1">Enter</kbd>{" "}
+                      Press{" "}
+                      <kbd className="rounded border border-white/15 px-1">
+                        Enter
+                      </kbd>{" "}
                       to send,{" "}
-                      <kbd className="rounded border border-white/15 px-1">Shift</kbd>+
-                      <kbd className="rounded border border-white/15 px-1">Enter</kbd> for
-                      a new line.
+                      <kbd className="rounded border border-white/15 px-1">
+                        Shift
+                      </kbd>
+                      +
+                      <kbd className="rounded border border-white/15 px-1">
+                        Enter
+                      </kbd>{" "}
+                      for a new line.
                     </p>
                   </div>
                 </div>
@@ -2732,32 +4224,65 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                     Ask anything about the law
                   </h2>
                   <p className="mt-3 max-w-md text-sm leading-relaxed text-white/55">
-                    Have a conversation with the AI about legal questions,
-                    get explanations, or explore ideas freely.
+                    Have a conversation with the AI about legal questions, get
+                    explanations, or explore ideas freely.
                   </p>
                   <div className="mt-8 w-full">
                     {pendingAttachment && (
                       <div className="mx-auto mb-2 flex max-w-3xl items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] px-3 py-2">
                         {pendingAttachment.type === "image" ? (
-                          <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-4 w-4 shrink-0 text-blue-400"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <rect
+                              x="3"
+                              y="3"
+                              width="18"
+                              height="18"
+                              rx="2"
+                              ry="2"
+                            />
                             <circle cx="8.5" cy="8.5" r="1.5" />
                             <polyline points="21 15 16 10 5 21" />
                           </svg>
                         ) : (
-                          <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-red-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-4 w-4 shrink-0 text-red-400"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                             <polyline points="14 2 14 8 20 8" />
                           </svg>
                         )}
-                        <span className="truncate text-xs text-white/70">{pendingAttachment.fileName}</span>
+                        <span className="truncate text-xs text-white/70">
+                          {pendingAttachment.fileName}
+                        </span>
                         <button
                           type="button"
                           onClick={() => setPendingAttachment(null)}
                           className="ml-auto shrink-0 rounded-full p-0.5 text-white/40 hover:text-white/80 transition-colors"
                           aria-label="Remove attachment"
                         >
-                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-3.5 w-3.5"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
                             <line x1="18" y1="6" x2="6" y2="18" />
                             <line x1="6" y1="6" x2="18" y2="18" />
                           </svg>
@@ -2768,7 +4293,9 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                       onSubmit={onSubmit}
                       className="flex items-end gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-2 transition-colors duration-300 focus-within:border-white/30"
                     >
-                      <label htmlFor="chat-input" className="sr-only">Message</label>
+                      <label htmlFor="chat-input" className="sr-only">
+                        Message
+                      </label>
                       <div className="relative" ref={plusMenuRef}>
                         <button
                           type="button"
@@ -2776,70 +4303,129 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                           aria-label="More features"
                           className={`mb-0.5 shrink-0 rounded-full p-2 text-white/40 transition-all duration-300 hover:bg-white/[0.08] hover:text-white/80 ${plusMenuOpen ? "bg-white/[0.08] text-white/70" : ""}`}
                         >
-                          <svg viewBox="0 0 24 24" className={`h-4 w-4 transition-transform duration-300 ${plusMenuOpen ? "rotate-45" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <svg
+                            viewBox="0 0 24 24"
+                            className={`h-4 w-4 transition-transform duration-300 ${plusMenuOpen ? "rotate-45" : ""}`}
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
                             <line x1="12" y1="5" x2="12" y2="19" />
                             <line x1="5" y1="12" x2="19" y2="12" />
                           </svg>
                         </button>
                         <div className="absolute right-full top-1/2 -translate-y-1/2 mr-4 z-50">
-                          <div className="w-56 flex flex-col gap-1.5" style={{
-                            transform: plusMenuOpen ? "translateX(0) scale(1)" : "translateX(12px) scale(0.96)",
-                            opacity: plusMenuOpen ? 1 : 0,
-                            transformOrigin: "right center",
-                            transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
-                            pointerEvents: plusMenuOpen ? "auto" : "none",
-                          }}>
-                              <button
-                                type="button"
-                                onClick={() => { switchMode("analysis"); setPlusMenuOpen(false); }}
-                                className="group flex items-center gap-3 rounded-xl border border-amber-400/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-amber-400/30 hover:bg-amber-400/[0.06] hover:shadow-[0_0_16px_rgba(251,191,36,0.08)]"
-                              >
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-400/[0.08] transition-all duration-300 group-hover:bg-amber-400/[0.15]">
-                                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-amber-400/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <circle cx="12" cy="12" r="10" />
-                                    <path d="M12 6v6l4 2" />
-                                  </svg>
+                          <div
+                            className="w-56 flex flex-col gap-1.5"
+                            style={{
+                              transform: plusMenuOpen
+                                ? "translateX(0) scale(1)"
+                                : "translateX(12px) scale(0.96)",
+                              opacity: plusMenuOpen ? 1 : 0,
+                              transformOrigin: "right center",
+                              transition:
+                                "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+                              pointerEvents: plusMenuOpen ? "auto" : "none",
+                            }}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                switchMode("analysis");
+                                setPlusMenuOpen(false);
+                              }}
+                              className="group flex items-center gap-3 rounded-xl border border-amber-400/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-amber-400/30 hover:bg-amber-400/[0.06] hover:shadow-[0_0_16px_rgba(251,191,36,0.08)]"
+                            >
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-400/[0.08] transition-all duration-300 group-hover:bg-amber-400/[0.15]">
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  className="h-3.5 w-3.5 text-amber-400/80"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <circle cx="12" cy="12" r="10" />
+                                  <path d="M12 6v6l4 2" />
+                                </svg>
+                              </div>
+                              <div>
+                                <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-amber-400/90">
+                                  Deep Analysis
                                 </div>
-                                <div>
-                                  <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-amber-400/90">In-depth Analysis</div>
-                                  <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">Deep dive into legal cases</div>
+                                <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">
+                                  Deep dive into legal cases
                                 </div>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => { switchMode("draft"); setPlusMenuOpen(false); }}
-                                className="group flex items-center gap-3 rounded-xl border border-blue-400/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-blue-400/30 hover:bg-blue-400/[0.06] hover:shadow-[0_0_16px_rgba(96,165,250,0.08)]"
-                              >
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-400/[0.08] transition-all duration-300 group-hover:bg-blue-400/[0.15]">
-                                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-blue-400/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                    <polyline points="14 2 14 8 20 8" />
-                                    <line x1="16" y1="13" x2="8" y2="13" />
-                                    <line x1="16" y1="17" x2="8" y2="17" />
-                                  </svg>
+                              </div>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                switchMode("draft");
+                                setPlusMenuOpen(false);
+                              }}
+                              className="group flex items-center gap-3 rounded-xl border border-blue-400/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-blue-400/30 hover:bg-blue-400/[0.06] hover:shadow-[0_0_16px_rgba(96,165,250,0.08)]"
+                            >
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-400/[0.08] transition-all duration-300 group-hover:bg-blue-400/[0.15]">
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  className="h-3.5 w-3.5 text-blue-400/80"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                  <polyline points="14 2 14 8 20 8" />
+                                  <line x1="16" y1="13" x2="8" y2="13" />
+                                  <line x1="16" y1="17" x2="8" y2="17" />
+                                </svg>
+                              </div>
+                              <div>
+                                <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-blue-400/90">
+                                  Document Drafter
                                 </div>
-                                <div>
-                                  <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-blue-400/90">Document Drafter</div>
-                                  <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">Generate legal documents</div>
+                                <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">
+                                  Generate legal documents
                                 </div>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => { switchMode("review"); setPlusMenuOpen(false); }}
-                                className="group flex items-center gap-3 rounded-xl border border-emerald-400/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-emerald-400/30 hover:bg-emerald-400/[0.06] hover:shadow-[0_0_16px_rgba(52,211,153,0.08)]"
-                              >
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-400/[0.08] transition-all duration-300 group-hover:bg-emerald-400/[0.15]">
-                                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-emerald-400/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                    <polyline points="14 2 14 8 20 8" />
-                                    <path d="M9 15l2 2 4-4" />
-                                  </svg>
+                              </div>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                switchMode("review");
+                                setPlusMenuOpen(false);
+                              }}
+                              className="group flex items-center gap-3 rounded-xl border border-emerald-400/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-emerald-400/30 hover:bg-emerald-400/[0.06] hover:shadow-[0_0_16px_rgba(52,211,153,0.08)]"
+                            >
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-400/[0.08] transition-all duration-300 group-hover:bg-emerald-400/[0.15]">
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  className="h-3.5 w-3.5 text-emerald-400/80"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                  <polyline points="14 2 14 8 20 8" />
+                                  <path d="M9 15l2 2 4-4" />
+                                </svg>
+                              </div>
+                              <div>
+                                <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-emerald-400/90">
+                                  Document Reviewer
                                 </div>
-                                <div>
-                                  <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-emerald-400/90">Document Reviewer</div>
-                                  <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">Review contracts &amp; clauses</div>
+                                <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">
+                                  Review contracts &amp; clauses
                                 </div>
-                              </button>
+                              </div>
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -2848,7 +4434,9 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                         type="file"
                         accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.webp,.gif"
                         className="hidden"
-                        onChange={(e) => handleFileUpload(e, () => setChatAttachOpen(false))}
+                        onChange={(e) =>
+                          handleFileUpload(e, () => setChatAttachOpen(false))
+                        }
                       />
                       <div className="relative" ref={chatAttachMenuRef}>
                         <button
@@ -2861,12 +4449,20 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                           {fileUploading ? (
                             <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white/70" />
                           ) : (
-                            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg
+                              viewBox="0 0 24 24"
+                              className="h-4 w-4"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
                               <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
                             </svg>
                           )}
                         </button>
-{chatAttachOpen && !fileUploading && (
+                        {chatAttachOpen && !fileUploading && (
                           <div className="animate-dropdown-up absolute bottom-full -left-12 mb-6 w-44 overflow-hidden rounded-lg border border-white/10 bg-black/80 backdrop-blur-xl shadow-xl z-50">
                             <button
                               type="button"
@@ -2879,7 +4475,15 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                               }}
                               className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:bg-white/[0.06] transition-colors"
                             >
-                              <svg viewBox="0 0 24 24" className="h-4 w-4 text-red-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <svg
+                                viewBox="0 0 24 24"
+                                className="h-4 w-4 text-red-400"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
                                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                                 <polyline points="14 2 14 8 20 8" />
                                 <line x1="16" y1="13" x2="8" y2="13" />
@@ -2891,15 +4495,31 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                               type="button"
                               onClick={() => {
                                 if (chatFileInputRef.current) {
-                                  chatFileInputRef.current.accept = ".png,.jpg,.jpeg,.webp,.gif";
+                                  chatFileInputRef.current.accept =
+                                    ".png,.jpg,.jpeg,.webp,.gif";
                                   chatFileInputRef.current.click();
                                 }
                                 setChatAttachOpen(false);
                               }}
                               className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:bg-white/[0.06] transition-colors"
                             >
-                              <svg viewBox="0 0 24 24" className="h-4 w-4 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                              <svg
+                                viewBox="0 0 24 24"
+                                className="h-4 w-4 text-blue-400"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <rect
+                                  x="3"
+                                  y="3"
+                                  width="18"
+                                  height="18"
+                                  rx="2"
+                                  ry="2"
+                                />
                                 <circle cx="8.5" cy="8.5" r="1.5" />
                                 <polyline points="21 15 16 10 5 21" />
                               </svg>
@@ -2913,27 +4533,50 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                         value={draft}
                         onChange={(e) => setDraft(e.target.value)}
                         onKeyDown={onKeyDown}
-                        placeholder={pendingAttachment ? "Ask about this document, or send to review as-is…" : "Message Lawbite…"}
+                        placeholder={
+                          pendingAttachment
+                            ? "Ask about this document, or send to review as-is…"
+                            : "Message Lawbite…"
+                        }
                         rows={1}
                         className="min-h-[40px] max-h-40 w-full resize-none bg-transparent px-3 py-2 text-sm leading-relaxed text-white placeholder:text-white/35 focus:outline-none"
                       />
                       <button
                         type="submit"
-                        disabled={(!draft.trim() && !pendingAttachment) || isThinking}
+                        disabled={
+                          (!draft.trim() && !pendingAttachment) || isThinking
+                        }
                         aria-label="Send message"
                         className="btn-shine group relative inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-black transition-transform duration-300 hover:scale-[1.05] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
                       >
-                        <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg
+                          aria-hidden
+                          viewBox="0 0 24 24"
+                          className="h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
                           <path d="M5 12h14M13 5l7 7-7 7" />
                         </svg>
                       </button>
                     </form>
                     <p className="mx-auto mt-2 text-[11px] text-white/35">
-                      Press <kbd className="rounded border border-white/15 px-1">Enter</kbd>{" "}
+                      Press{" "}
+                      <kbd className="rounded border border-white/15 px-1">
+                        Enter
+                      </kbd>{" "}
                       to send,{" "}
-                      <kbd className="rounded border border-white/15 px-1">Shift</kbd>+
-                      <kbd className="rounded border border-white/15 px-1">Enter</kbd> for
-                      a new line.
+                      <kbd className="rounded border border-white/15 px-1">
+                        Shift
+                      </kbd>
+                      +
+                      <kbd className="rounded border border-white/15 px-1">
+                        Enter
+                      </kbd>{" "}
+                      for a new line.
                     </p>
                   </div>
                 </div>
@@ -2946,10 +4589,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                     Interrogate an idea with sharp follow-up questions
                   </h2>
                   <p className="mt-3 max-w-md text-sm leading-relaxed text-white/55">
-                    Describe your legal situation and I will ask one question at a time
-                    to build a complete picture. Based on your state, age, and specific
-                    circumstances, I will provide tailored Indian legal advice with
-                    relevant sections and next steps.
+                    Describe your legal situation and I will ask one question at
+                    a time to build a complete picture. Based on your state,
+                    age, and specific circumstances, I will provide tailored
+                    Indian legal advice with relevant sections and next steps.
                   </p>
                   <div className="mt-8 flex flex-wrap justify-center gap-3">
                     <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-white/50">
@@ -2970,33 +4613,58 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                       onSubmit={onSubmit}
                       className="flex items-end gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-2 transition-colors duration-300 focus-within:border-white/30"
                     >
-                      <label htmlFor="chat-input" className="sr-only">Message</label>
+                      <label htmlFor="chat-input" className="sr-only">
+                        Message
+                      </label>
                       <textarea
                         id="chat-input"
                         value={draft}
                         onChange={(e) => setDraft(e.target.value)}
                         onKeyDown={onKeyDown}
-                        placeholder={pendingAttachment ? "Ask about this document, or send to review as-is…" : "Message Lawbite…"}
+                        placeholder={
+                          pendingAttachment
+                            ? "Ask about this document, or send to review as-is…"
+                            : "Message Lawbite…"
+                        }
                         rows={1}
                         className="min-h-[40px] max-h-40 w-full resize-none bg-transparent px-3 py-2 text-sm leading-relaxed text-white placeholder:text-white/35 focus:outline-none"
                       />
                       <button
                         type="submit"
-                        disabled={(!draft.trim() && !pendingAttachment) || isThinking}
+                        disabled={
+                          (!draft.trim() && !pendingAttachment) || isThinking
+                        }
                         aria-label="Send message"
                         className="btn-shine group relative inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-black transition-transform duration-300 hover:scale-[1.05] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
                       >
-                        <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg
+                          aria-hidden
+                          viewBox="0 0 24 24"
+                          className="h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
                           <path d="M5 12h14M13 5l7 7-7 7" />
                         </svg>
                       </button>
                     </form>
                     <p className="mx-auto mt-2 text-[11px] text-white/35">
-                      Press <kbd className="rounded border border-white/15 px-1">Enter</kbd>{" "}
+                      Press{" "}
+                      <kbd className="rounded border border-white/15 px-1">
+                        Enter
+                      </kbd>{" "}
                       to send,{" "}
-                      <kbd className="rounded border border-white/15 px-1">Shift</kbd>+
-                      <kbd className="rounded border border-white/15 px-1">Enter</kbd> for
-                      a new line.
+                      <kbd className="rounded border border-white/15 px-1">
+                        Shift
+                      </kbd>
+                      +
+                      <kbd className="rounded border border-white/15 px-1">
+                        Enter
+                      </kbd>{" "}
+                      for a new line.
                     </p>
                   </div>
                 </>
@@ -3011,19 +4679,52 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                         Draft legal documents in minutes
                       </h2>
                       <p className="mt-3 max-w-md text-center text-sm leading-relaxed text-white/55">
-                        Select a document type to start drafting with a structured form,
-                        or switch to chat mode to describe your situation.
+                        Select a document type to start drafting with a
+                        structured form, or switch to chat mode to describe your
+                        situation.
                       </p>
                       <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
                         {[
-                          { id: "legal-notice", label: "Legal Notice", icon: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8" },
-                          { id: "fir-draft", label: "FIR Draft", icon: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" },
-                          { id: "consumer-complaint", label: "Consumer Complaint", icon: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" },
-                          { id: "rti-application", label: "RTI Application", icon: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M12 18v-6 M9 15h6" },
-                          { id: "will", label: "Will", icon: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z M9 12l2 2 4-4" },
-                          { id: "affidavit", label: "Affidavit", icon: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M12 18v-6 M9 12h6" },
-                          { id: "petition", label: "Petition", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 0 0 1 1h3m10-11l2 2m-2-2v10a1 1 0 0 1-1 1h-3m-4 0h4" },
-                          { id: "contract", label: "Contract", icon: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M8 13h8 M8 17h8 M8 9h2" },
+                          {
+                            id: "legal-notice",
+                            label: "Legal Notice",
+                            icon: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8",
+                          },
+                          {
+                            id: "fir-draft",
+                            label: "FIR Draft",
+                            icon: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
+                          },
+                          {
+                            id: "consumer-complaint",
+                            label: "Consumer Complaint",
+                            icon: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
+                          },
+                          {
+                            id: "rti-application",
+                            label: "RTI Application",
+                            icon: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M12 18v-6 M9 15h6",
+                          },
+                          {
+                            id: "will",
+                            label: "Will",
+                            icon: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z M9 12l2 2 4-4",
+                          },
+                          {
+                            id: "affidavit",
+                            label: "Affidavit",
+                            icon: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M12 18v-6 M9 12h6",
+                          },
+                          {
+                            id: "petition",
+                            label: "Petition",
+                            icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 0 0 1 1h3m10-11l2 2m-2-2v10a1 1 0 0 1-1 1h-3m-4 0h4",
+                          },
+                          {
+                            id: "contract",
+                            label: "Contract",
+                            icon: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M8 13h8 M8 17h8 M8 9h2",
+                          },
                         ].map((doc) => (
                           <button
                             key={doc.id}
@@ -3031,10 +4732,20 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                             onClick={() => setSelectedDocType(doc.id)}
                             className="flex flex-col items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-4 text-center transition-all hover:border-blue-400/30 hover:bg-blue-400/[0.06]"
                           >
-                            <svg viewBox="0 0 24 24" className="h-8 w-8 text-blue-400/70" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <svg
+                              viewBox="0 0 24 24"
+                              className="h-8 w-8 text-blue-400/70"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
                               <path d={doc.icon} />
                             </svg>
-                            <span className="text-xs text-white/70">{doc.label}</span>
+                            <span className="text-xs text-white/70">
+                              {doc.label}
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -3044,66 +4755,180 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                       <div className="mb-3 flex items-center gap-3">
                         <button
                           type="button"
-                          onClick={() => { setSelectedDocType(null); setFormData({}); }}
+                          onClick={() => {
+                            setSelectedDocType(null);
+                            setFormData({});
+                          }}
                           className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/[0.06] hover:text-white"
                         >
-                          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-5 w-5"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
                             <path d="M19 12H5M12 19l-7-7 7-7" />
                           </svg>
                         </button>
                         <h3 className="text-lg font-semibold text-white">
-                          {selectedDocType === "legal-notice" ? "Legal Notice" :
-                           selectedDocType === "fir-draft" ? "FIR Draft" :
-                           selectedDocType === "consumer-complaint" ? "Consumer Complaint" :
-                           selectedDocType === "rti-application" ? "RTI Application" :
-                           selectedDocType === "will" ? "Will" :
-                           selectedDocType === "affidavit" ? "Affidavit" :
-                           selectedDocType === "petition" ? "Petition" :
-                           "Contract/Agreement"}
+                          {selectedDocType === "legal-notice"
+                            ? "Legal Notice"
+                            : selectedDocType === "fir-draft"
+                              ? "FIR Draft"
+                              : selectedDocType === "consumer-complaint"
+                                ? "Consumer Complaint"
+                                : selectedDocType === "rti-application"
+                                  ? "RTI Application"
+                                  : selectedDocType === "will"
+                                    ? "Will"
+                                    : selectedDocType === "affidavit"
+                                      ? "Affidavit"
+                                      : selectedDocType === "petition"
+                                        ? "Petition"
+                                        : "Contract/Agreement"}
                         </h3>
                       </div>
-                      <form onSubmit={(e) => {
-                        e.preventDefault();
-                        const docType = selectedDocType === "legal-notice" ? "Legal Notice" :
-                                       selectedDocType === "fir-draft" ? "FIR Draft" :
-                                       selectedDocType === "consumer-complaint" ? "Consumer Complaint" :
-                                       selectedDocType === "rti-application" ? "RTI Application" :
-                                       selectedDocType === "will" ? "Will" :
-                                       selectedDocType === "affidavit" ? "Affidavit" :
-                                       selectedDocType === "petition" ? "Petition" :
-                                       "Contract/Agreement";
-                        const formEntries = Object.entries(formData).filter(([, v]) => v.trim());
-                        const formText = formEntries.map(([k, v]) => `${k.replace(/([A-Z])/g, " $1").replace(/^./, s => s.toUpperCase())}: ${v}`).join("\n");
-                        const message = `Please draft a ${docType} with the following details:\n\n${formText}`;
-                        sendMessage(message);
-                       }} className="space-y-3">
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          const docType =
+                            selectedDocType === "legal-notice"
+                              ? "Legal Notice"
+                              : selectedDocType === "fir-draft"
+                                ? "FIR Draft"
+                                : selectedDocType === "consumer-complaint"
+                                  ? "Consumer Complaint"
+                                  : selectedDocType === "rti-application"
+                                    ? "RTI Application"
+                                    : selectedDocType === "will"
+                                      ? "Will"
+                                      : selectedDocType === "affidavit"
+                                        ? "Affidavit"
+                                        : selectedDocType === "petition"
+                                          ? "Petition"
+                                          : "Contract/Agreement";
+                          const formEntries = Object.entries(formData).filter(
+                            ([, v]) => v.trim(),
+                          );
+                          const formText = formEntries
+                            .map(
+                              ([k, v]) =>
+                                `${k.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}: ${v}`,
+                            )
+                            .join("\n");
+                          const message = `Please draft a ${docType} with the following details:\n\n${formText}`;
+                          sendMessage(message);
+                        }}
+                        className="space-y-3"
+                      >
                         {selectedDocType === "legal-notice" && (
                           <>
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                               <div>
-                                <label className="mb-1 block text-xs text-white/50">From (Sender Name & Address)</label>
-                                <input type="text" value={formData.sender || ""} onChange={(e) => setFormData({ ...formData, sender: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Your name and address" />
+                                <label className="mb-1 block text-xs text-white/50">
+                                  From (Sender Name & Address)
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.sender || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      sender: e.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                  placeholder="Your name and address"
+                                />
                               </div>
                               <div>
-                                <label className="mb-1 block text-xs text-white/50">To (Recipient Name & Address)</label>
-                                <input type="text" value={formData.recipient || ""} onChange={(e) => setFormData({ ...formData, recipient: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Recipient name and address" />
+                                <label className="mb-1 block text-xs text-white/50">
+                                  To (Recipient Name & Address)
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.recipient || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      recipient: e.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                  placeholder="Recipient name and address"
+                                />
                               </div>
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs text-white/50">Subject</label>
-                              <input type="text" value={formData.subject || ""} onChange={(e) => setFormData({ ...formData, subject: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Subject of the notice" />
+                              <label className="mb-1 block text-xs text-white/50">
+                                Subject
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.subject || ""}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    subject: e.target.value,
+                                  })
+                                }
+                                className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                placeholder="Subject of the notice"
+                              />
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs text-white/50">Facts / Description</label>
-                              <textarea value={formData.facts || ""} onChange={(e) => setFormData({ ...formData, facts: e.target.value })} rows={2} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Describe the facts and what happened" />
+                              <label className="mb-1 block text-xs text-white/50">
+                                Facts / Description
+                              </label>
+                              <textarea
+                                value={formData.facts || ""}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    facts: e.target.value,
+                                  })
+                                }
+                                rows={2}
+                                className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                placeholder="Describe the facts and what happened"
+                              />
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs text-white/50">Relief / Demand</label>
-                              <input type="text" value={formData.relief || ""} onChange={(e) => setFormData({ ...formData, relief: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="What are you demanding?" />
+                              <label className="mb-1 block text-xs text-white/50">
+                                Relief / Demand
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.relief || ""}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    relief: e.target.value,
+                                  })
+                                }
+                                className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                placeholder="What are you demanding?"
+                              />
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs text-white/50">Deadline (days)</label>
-                              <input type="text" value={formData.deadline || ""} onChange={(e) => setFormData({ ...formData, deadline: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="e.g., 15 days" />
+                              <label className="mb-1 block text-xs text-white/50">
+                                Deadline (days)
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.deadline || ""}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    deadline: e.target.value,
+                                  })
+                                }
+                                className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                placeholder="e.g., 15 days"
+                              />
                             </div>
                           </>
                         )}
@@ -3111,30 +4936,108 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                           <>
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                               <div>
-                                <label className="mb-1 block text-xs text-white/50">Complainant Name</label>
-                                <input type="text" value={formData.complainant || ""} onChange={(e) => setFormData({ ...formData, complainant: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Your name" />
+                                <label className="mb-1 block text-xs text-white/50">
+                                  Complainant Name
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.complainant || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      complainant: e.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                  placeholder="Your name"
+                                />
                               </div>
                               <div>
-                                <label className="mb-1 block text-xs text-white/50">Accused Name (if known)</label>
-                                <input type="text" value={formData.accused || ""} onChange={(e) => setFormData({ ...formData, accused: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Name of accused" />
+                                <label className="mb-1 block text-xs text-white/50">
+                                  Accused Name (if known)
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.accused || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      accused: e.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                  placeholder="Name of accused"
+                                />
                               </div>
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs text-white/50">Offence / Incident</label>
-                              <input type="text" value={formData.offence || ""} onChange={(e) => setFormData({ ...formData, offence: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="What offence occurred?" />
+                              <label className="mb-1 block text-xs text-white/50">
+                                Offence / Incident
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.offence || ""}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    offence: e.target.value,
+                                  })
+                                }
+                                className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                placeholder="What offence occurred?"
+                              />
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs text-white/50">Details of Incident</label>
-                              <textarea value={formData.details || ""} onChange={(e) => setFormData({ ...formData, details: e.target.value })} rows={2} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Describe what happened in detail" />
+                              <label className="mb-1 block text-xs text-white/50">
+                                Details of Incident
+                              </label>
+                              <textarea
+                                value={formData.details || ""}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    details: e.target.value,
+                                  })
+                                }
+                                rows={2}
+                                className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                placeholder="Describe what happened in detail"
+                              />
                             </div>
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                               <div>
-                                <label className="mb-1 block text-xs text-white/50">Place of Incident</label>
-                                <input type="text" value={formData.place || ""} onChange={(e) => setFormData({ ...formData, place: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Where did it happen?" />
+                                <label className="mb-1 block text-xs text-white/50">
+                                  Place of Incident
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.place || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      place: e.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                  placeholder="Where did it happen?"
+                                />
                               </div>
                               <div>
-                                <label className="mb-1 block text-xs text-white/50">Date of Incident</label>
-                                <input type="text" value={formData.incidentDate || ""} onChange={(e) => setFormData({ ...formData, incidentDate: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="When did it happen?" />
+                                <label className="mb-1 block text-xs text-white/50">
+                                  Date of Incident
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.incidentDate || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      incidentDate: e.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                  placeholder="When did it happen?"
+                                />
                               </div>
                             </div>
                           </>
@@ -3143,25 +5046,90 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                           <>
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                               <div>
-                                <label className="mb-1 block text-xs text-white/50">Consumer Name</label>
-                                <input type="text" value={formData.consumerName || ""} onChange={(e) => setFormData({ ...formData, consumerName: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Your name" />
+                                <label className="mb-1 block text-xs text-white/50">
+                                  Consumer Name
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.consumerName || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      consumerName: e.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                  placeholder="Your name"
+                                />
                               </div>
                               <div>
-                                <label className="mb-1 block text-xs text-white/50">Opponent (Company/Seller)</label>
-                                <input type="text" value={formData.opponent || ""} onChange={(e) => setFormData({ ...formData, opponent: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Company or seller name" />
+                                <label className="mb-1 block text-xs text-white/50">
+                                  Opponent (Company/Seller)
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.opponent || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      opponent: e.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                  placeholder="Company or seller name"
+                                />
                               </div>
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs text-white/50">Product/Service</label>
-                              <input type="text" value={formData.product || ""} onChange={(e) => setFormData({ ...formData, product: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="What product or service?" />
+                              <label className="mb-1 block text-xs text-white/50">
+                                Product/Service
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.product || ""}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    product: e.target.value,
+                                  })
+                                }
+                                className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                placeholder="What product or service?"
+                              />
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs text-white/50">Deficiency / Problem</label>
-                              <textarea value={formData.deficiency || ""} onChange={(e) => setFormData({ ...formData, deficiency: e.target.value })} rows={2} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="What is the deficiency in service or product?" />
+                              <label className="mb-1 block text-xs text-white/50">
+                                Deficiency / Problem
+                              </label>
+                              <textarea
+                                value={formData.deficiency || ""}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    deficiency: e.target.value,
+                                  })
+                                }
+                                rows={2}
+                                className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                placeholder="What is the deficiency in service or product?"
+                              />
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs text-white/50">Relief Sought</label>
-                              <input type="text" value={formData.relief || ""} onChange={(e) => setFormData({ ...formData, relief: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="What compensation/relief do you want?" />
+                              <label className="mb-1 block text-xs text-white/50">
+                                Relief Sought
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.relief || ""}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    relief: e.target.value,
+                                  })
+                                }
+                                className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                placeholder="What compensation/relief do you want?"
+                              />
                             </div>
                           </>
                         )}
@@ -3169,35 +5137,126 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                           <>
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                               <div>
-                                <label className="mb-1 block text-xs text-white/50">Applicant Name</label>
-                                <input type="text" value={formData.applicant || ""} onChange={(e) => setFormData({ ...formData, applicant: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Your name" />
+                                <label className="mb-1 block text-xs text-white/50">
+                                  Applicant Name
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.applicant || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      applicant: e.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                  placeholder="Your name"
+                                />
                               </div>
                               <div>
-                                <label className="mb-1 block text-xs text-white/50">Applicant Address</label>
-                                <input type="text" value={formData.applicantAddress || ""} onChange={(e) => setFormData({ ...formData, applicantAddress: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Your address" />
+                                <label className="mb-1 block text-xs text-white/50">
+                                  Applicant Address
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.applicantAddress || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      applicantAddress: e.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                  placeholder="Your address"
+                                />
                               </div>
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs text-white/50">Public Authority / Department</label>
-                              <input type="text" value={formData.authority || ""} onChange={(e) => setFormData({ ...formData, authority: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Which government department?" />
+                              <label className="mb-1 block text-xs text-white/50">
+                                Public Authority / Department
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.authority || ""}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    authority: e.target.value,
+                                  })
+                                }
+                                className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                placeholder="Which government department?"
+                              />
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs text-white/50">Information Sought</label>
-                              <textarea value={formData.information || ""} onChange={(e) => setFormData({ ...formData, information: e.target.value })} rows={2} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Describe the information you want in detail" />
+                              <label className="mb-1 block text-xs text-white/50">
+                                Information Sought
+                              </label>
+                              <textarea
+                                value={formData.information || ""}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    information: e.target.value,
+                                  })
+                                }
+                                rows={2}
+                                className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                placeholder="Describe the information you want in detail"
+                              />
                             </div>
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                               <div>
-                                <label className="mb-1 block text-xs text-white/50">Period (From)</label>
-                                <input type="text" value={formData.periodFrom || ""} onChange={(e) => setFormData({ ...formData, periodFrom: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="e.g., January 2024" />
+                                <label className="mb-1 block text-xs text-white/50">
+                                  Period (From)
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.periodFrom || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      periodFrom: e.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                  placeholder="e.g., January 2024"
+                                />
                               </div>
                               <div>
-                                <label className="mb-1 block text-xs text-white/50">Period (To)</label>
-                                <input type="text" value={formData.periodTo || ""} onChange={(e) => setFormData({ ...formData, periodTo: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="e.g., June 2025" />
+                                <label className="mb-1 block text-xs text-white/50">
+                                  Period (To)
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.periodTo || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      periodTo: e.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                  placeholder="e.g., June 2025"
+                                />
                               </div>
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs text-white/50">Grounds for Request</label>
-                              <textarea value={formData.grounds || ""} onChange={(e) => setFormData({ ...formData, grounds: e.target.value })} rows={2} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Why is this information needed?" />
+                              <label className="mb-1 block text-xs text-white/50">
+                                Grounds for Request
+                              </label>
+                              <textarea
+                                value={formData.grounds || ""}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    grounds: e.target.value,
+                                  })
+                                }
+                                rows={2}
+                                className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                placeholder="Why is this information needed?"
+                              />
                             </div>
                           </>
                         )}
@@ -3205,31 +5264,109 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                           <>
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                               <div>
-                                <label className="mb-1 block text-xs text-white/50">Testator Name</label>
-                                <input type="text" value={formData.testator || ""} onChange={(e) => setFormData({ ...formData, testator: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Your full name" />
+                                <label className="mb-1 block text-xs text-white/50">
+                                  Testator Name
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.testator || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      testator: e.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                  placeholder="Your full name"
+                                />
                               </div>
                               <div>
-                                <label className="mb-1 block text-xs text-white/50">Beneficiary Name</label>
-                                <input type="text" value={formData.beneficiary || ""} onChange={(e) => setFormData({ ...formData, beneficiary: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Who will inherit?" />
+                                <label className="mb-1 block text-xs text-white/50">
+                                  Beneficiary Name
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.beneficiary || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      beneficiary: e.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                  placeholder="Who will inherit?"
+                                />
                               </div>
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs text-white/50">Property / Asset Details</label>
-                              <textarea value={formData.assets || ""} onChange={(e) => setFormData({ ...formData, assets: e.target.value })} rows={2} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="List properties, bank accounts, investments, etc." />
+                              <label className="mb-1 block text-xs text-white/50">
+                                Property / Asset Details
+                              </label>
+                              <textarea
+                                value={formData.assets || ""}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    assets: e.target.value,
+                                  })
+                                }
+                                rows={2}
+                                className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                placeholder="List properties, bank accounts, investments, etc."
+                              />
                             </div>
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                               <div>
-                                <label className="mb-1 block text-xs text-white/50">Executor Name</label>
-                                <input type="text" value={formData.executor || ""} onChange={(e) => setFormData({ ...formData, executor: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Who will execute the will?" />
+                                <label className="mb-1 block text-xs text-white/50">
+                                  Executor Name
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.executor || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      executor: e.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                  placeholder="Who will execute the will?"
+                                />
                               </div>
                               <div>
-                                <label className="mb-1 block text-xs text-white/50">Witness Name</label>
-                                <input type="text" value={formData.witness || ""} onChange={(e) => setFormData({ ...formData, witness: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Name of witness" />
+                                <label className="mb-1 block text-xs text-white/50">
+                                  Witness Name
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.witness || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      witness: e.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                  placeholder="Name of witness"
+                                />
                               </div>
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs text-white/50">Additional Instructions</label>
-                              <textarea value={formData.instructions || ""} onChange={(e) => setFormData({ ...formData, instructions: e.target.value })} rows={2} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Any special conditions or directions" />
+                              <label className="mb-1 block text-xs text-white/50">
+                                Additional Instructions
+                              </label>
+                              <textarea
+                                value={formData.instructions || ""}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    instructions: e.target.value,
+                                  })
+                                }
+                                rows={2}
+                                className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                placeholder="Any special conditions or directions"
+                              />
                             </div>
                           </>
                         )}
@@ -3237,30 +5374,108 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                           <>
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                               <div>
-                                <label className="mb-1 block text-xs text-white/50">Deponent Name</label>
-                                <input type="text" value={formData.deponent || ""} onChange={(e) => setFormData({ ...formData, deponent: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Your full name" />
+                                <label className="mb-1 block text-xs text-white/50">
+                                  Deponent Name
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.deponent || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      deponent: e.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                  placeholder="Your full name"
+                                />
                               </div>
                               <div>
-                                <label className="mb-1 block text-xs text-white/50">Occupation</label>
-                                <input type="text" value={formData.occupation || ""} onChange={(e) => setFormData({ ...formData, occupation: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Your occupation" />
+                                <label className="mb-1 block text-xs text-white/50">
+                                  Occupation
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.occupation || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      occupation: e.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                  placeholder="Your occupation"
+                                />
                               </div>
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs text-white/50">Address</label>
-                              <input type="text" value={formData.deponentAddress || ""} onChange={(e) => setFormData({ ...formData, deponentAddress: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Your full address" />
+                              <label className="mb-1 block text-xs text-white/50">
+                                Address
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.deponentAddress || ""}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    deponentAddress: e.target.value,
+                                  })
+                                }
+                                className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                placeholder="Your full address"
+                              />
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs text-white/50">Facts / Statement to be Sworn</label>
-                              <textarea value={formData.statement || ""} onChange={(e) => setFormData({ ...formData, statement: e.target.value })} rows={2} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Describe the facts you are swearing under oath" />
+                              <label className="mb-1 block text-xs text-white/50">
+                                Facts / Statement to be Sworn
+                              </label>
+                              <textarea
+                                value={formData.statement || ""}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    statement: e.target.value,
+                                  })
+                                }
+                                rows={2}
+                                className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                placeholder="Describe the facts you are swearing under oath"
+                              />
                             </div>
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                               <div>
-                                <label className="mb-1 block text-xs text-white/50">Place</label>
-                                <input type="text" value={formData.affidavitPlace || ""} onChange={(e) => setFormData({ ...formData, affidavitPlace: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="City / location" />
+                                <label className="mb-1 block text-xs text-white/50">
+                                  Place
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.affidavitPlace || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      affidavitPlace: e.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                  placeholder="City / location"
+                                />
                               </div>
                               <div>
-                                <label className="mb-1 block text-xs text-white/50">Date</label>
-                                <input type="text" value={formData.affidavitDate || ""} onChange={(e) => setFormData({ ...formData, affidavitDate: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Date of swearing" />
+                                <label className="mb-1 block text-xs text-white/50">
+                                  Date
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.affidavitDate || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      affidavitDate: e.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                  placeholder="Date of swearing"
+                                />
                               </div>
                             </div>
                           </>
@@ -3269,25 +5484,90 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                           <>
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                               <div>
-                                <label className="mb-1 block text-xs text-white/50">Petitioner Name</label>
-                                <input type="text" value={formData.petitioner || ""} onChange={(e) => setFormData({ ...formData, petitioner: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Your name" />
+                                <label className="mb-1 block text-xs text-white/50">
+                                  Petitioner Name
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.petitioner || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      petitioner: e.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                  placeholder="Your name"
+                                />
                               </div>
                               <div>
-                                <label className="mb-1 block text-xs text-white/50">Respondent Name</label>
-                                <input type="text" value={formData.respondent || ""} onChange={(e) => setFormData({ ...formData, respondent: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Opposite party name" />
+                                <label className="mb-1 block text-xs text-white/50">
+                                  Respondent Name
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.respondent || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      respondent: e.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                  placeholder="Opposite party name"
+                                />
                               </div>
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs text-white/50">Subject / Case Title</label>
-                              <input type="text" value={formData.caseSubject || ""} onChange={(e) => setFormData({ ...formData, caseSubject: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Brief subject of the petition" />
+                              <label className="mb-1 block text-xs text-white/50">
+                                Subject / Case Title
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.caseSubject || ""}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    caseSubject: e.target.value,
+                                  })
+                                }
+                                className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                placeholder="Brief subject of the petition"
+                              />
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs text-white/50">Facts / Grounds</label>
-                              <textarea value={formData.petitionFacts || ""} onChange={(e) => setFormData({ ...formData, petitionFacts: e.target.value })} rows={2} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Describe the facts and legal grounds" />
+                              <label className="mb-1 block text-xs text-white/50">
+                                Facts / Grounds
+                              </label>
+                              <textarea
+                                value={formData.petitionFacts || ""}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    petitionFacts: e.target.value,
+                                  })
+                                }
+                                rows={2}
+                                className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                placeholder="Describe the facts and legal grounds"
+                              />
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs text-white/50">Relief Sought</label>
-                              <textarea value={formData.petitionRelief || ""} onChange={(e) => setFormData({ ...formData, petitionRelief: e.target.value })} rows={2} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="What relief or order are you seeking from the court?" />
+                              <label className="mb-1 block text-xs text-white/50">
+                                Relief Sought
+                              </label>
+                              <textarea
+                                value={formData.petitionRelief || ""}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    petitionRelief: e.target.value,
+                                  })
+                                }
+                                rows={2}
+                                className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                placeholder="What relief or order are you seeking from the court?"
+                              />
                             </div>
                           </>
                         )}
@@ -3295,39 +5575,127 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                           <>
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                               <div>
-                                <label className="mb-1 block text-xs text-white/50">Party A</label>
-                                <input type="text" value={formData.partyA || ""} onChange={(e) => setFormData({ ...formData, partyA: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="First party name" />
+                                <label className="mb-1 block text-xs text-white/50">
+                                  Party A
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.partyA || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      partyA: e.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                  placeholder="First party name"
+                                />
                               </div>
                               <div>
-                                <label className="mb-1 block text-xs text-white/50">Party B</label>
-                                <input type="text" value={formData.partyB || ""} onChange={(e) => setFormData({ ...formData, partyB: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Second party name" />
+                                <label className="mb-1 block text-xs text-white/50">
+                                  Party B
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.partyB || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      partyB: e.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                  placeholder="Second party name"
+                                />
                               </div>
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs text-white/50">Contract Subject</label>
-                              <input type="text" value={formData.contractSubject || ""} onChange={(e) => setFormData({ ...formData, contractSubject: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Purpose of the agreement" />
+                              <label className="mb-1 block text-xs text-white/50">
+                                Contract Subject
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.contractSubject || ""}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    contractSubject: e.target.value,
+                                  })
+                                }
+                                className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                placeholder="Purpose of the agreement"
+                              />
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs text-white/50">Key Terms & Conditions</label>
-                              <textarea value={formData.keyTerms || ""} onChange={(e) => setFormData({ ...formData, keyTerms: e.target.value })} rows={2} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="Key clauses, payment terms, obligations, etc." />
+                              <label className="mb-1 block text-xs text-white/50">
+                                Key Terms & Conditions
+                              </label>
+                              <textarea
+                                value={formData.keyTerms || ""}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    keyTerms: e.target.value,
+                                  })
+                                }
+                                rows={2}
+                                className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                placeholder="Key clauses, payment terms, obligations, etc."
+                              />
                             </div>
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                               <div>
-                                <label className="mb-1 block text-xs text-white/50">Duration / Term</label>
-                                <input type="text" value={formData.term || ""} onChange={(e) => setFormData({ ...formData, term: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="e.g., 12 months, indefinite" />
+                                <label className="mb-1 block text-xs text-white/50">
+                                  Duration / Term
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.term || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      term: e.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                  placeholder="e.g., 12 months, indefinite"
+                                />
                               </div>
                               <div>
-                                <label className="mb-1 block text-xs text-white/50">Governing Law</label>
-                                <input type="text" value={formData.govLaw || ""} onChange={(e) => setFormData({ ...formData, govLaw: e.target.value })} className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none" placeholder="e.g., Indian Contract Act" />
+                                <label className="mb-1 block text-xs text-white/50">
+                                  Governing Law
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.govLaw || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      govLaw: e.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-400/50 focus:outline-none"
+                                  placeholder="e.g., Indian Contract Act"
+                                />
                               </div>
                             </div>
                           </>
                         )}
                         <div className="flex gap-3 pt-2">
-                          <button type="submit" className="flex-1 rounded-xl bg-blue-500 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-600">
+                          <button
+                            type="submit"
+                            className="flex-1 rounded-xl bg-blue-500 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-600"
+                          >
                             Generate Document
                           </button>
-                          <button type="button" onClick={() => { setSelectedDocType(null); setFormData({}); }} className="rounded-xl border border-white/10 px-4 py-2.5 text-sm text-white/60 transition-colors hover:bg-white/[0.04]">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedDocType(null);
+                              setFormData({});
+                            }}
+                            className="rounded-xl border border-white/10 px-4 py-2.5 text-sm text-white/60 transition-colors hover:bg-white/[0.04]"
+                          >
                             Cancel
                           </button>
                         </div>
@@ -3344,9 +5712,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                     Review legal documents for risky clauses
                   </h2>
                   <p className="mt-3 max-w-md text-center text-sm leading-relaxed text-white/55">
-                    Upload a PDF or image — rental agreement, employment contract, FIR, sale deed,
-                    or any legal document — and get a clause-by-clause risk analysis
-                    with plain-language explanations.
+                    Upload a PDF or image — rental agreement, employment
+                    contract, FIR, sale deed, or any legal document — and get a
+                    clause-by-clause risk analysis with plain-language
+                    explanations.
                   </p>
                   <div className="mt-8 flex flex-wrap justify-center gap-3">
                     <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-white/50">
@@ -3370,12 +5739,24 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                         className="hidden"
                         onChange={handleReviewFileUpload}
                       />
-                      <svg viewBox="0 0 24 24" className="h-8 w-8 text-emerald-400/50" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="h-8 w-8 text-emerald-400/50"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                         <polyline points="14 2 14 8 20 8" />
                       </svg>
-                      <span className="text-sm text-white/60">PDF Document</span>
-                      <span className="text-xs text-white/35">Contracts, agreements, FIRs</span>
+                      <span className="text-sm text-white/60">
+                        PDF Document
+                      </span>
+                      <span className="text-xs text-white/35">
+                        Contracts, agreements, FIRs
+                      </span>
                     </label>
                     <label className="flex cursor-pointer flex-col items-center gap-3 rounded-2xl border border-dashed border-blue-400/30 bg-blue-400/[0.04] px-8 py-6 transition-colors hover:border-blue-400/50 hover:bg-blue-400/[0.08]">
                       <input
@@ -3384,13 +5765,30 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                         className="hidden"
                         onChange={handleReviewFileUpload}
                       />
-                      <svg viewBox="0 0 24 24" className="h-8 w-8 text-blue-400/50" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="h-8 w-8 text-blue-400/50"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <rect
+                          x="3"
+                          y="3"
+                          width="18"
+                          height="18"
+                          rx="2"
+                          ry="2"
+                        />
                         <circle cx="8.5" cy="8.5" r="1.5" />
                         <polyline points="21 15 16 10 5 21" />
                       </svg>
                       <span className="text-sm text-white/60">Image</span>
-                      <span className="text-xs text-white/35">Photos of documents</span>
+                      <span className="text-xs text-white/35">
+                        Photos of documents
+                      </span>
                     </label>
                   </div>
                 </div>
@@ -3416,43 +5814,75 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           )}
         </div>
 
-        {((mode !== "talk-to-ai" && mode !== "chat" && mode !== "analysis" && mode !== "grill") || (active && active.messages.length > 0)) && (
-        <div className={`border-t border-white/10 px-5 py-4 backdrop-blur-md sm:px-8 ${(mode === "analysis" || mode === "talk-to-ai") ? "bg-black/60" : "bg-black/40"}`}>
-          {pendingAttachment && (
-            <div className="mx-auto mb-2 flex max-w-3xl items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] px-3 py-2">
-              {pendingAttachment.type === "image" ? (
-                <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                  <circle cx="8.5" cy="8.5" r="1.5" />
-                  <polyline points="21 15 16 10 5 21" />
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-red-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                </svg>
-              )}
-              <span className="truncate text-xs text-white/70">{pendingAttachment.fileName}</span>
-              <button
-                type="button"
-                onClick={() => setPendingAttachment(null)}
-                className="ml-auto shrink-0 rounded-full p-0.5 text-white/40 hover:text-white/80 transition-colors"
-                aria-label="Remove attachment"
-              >
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-          )}
-          <form
-            onSubmit={onSubmit}
-            className="mx-auto flex max-w-3xl items-end gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-2 transition-colors duration-300 focus-within:border-white/30"
+        {((mode !== "talk-to-ai" &&
+          mode !== "chat" &&
+          mode !== "analysis" &&
+          mode !== "grill") ||
+          (active && active.messages.length > 0)) && (
+          <div
+            className={`border-t border-white/10 px-5 py-4 backdrop-blur-md sm:px-8 ${mode === "analysis" || mode === "talk-to-ai" ? "bg-black/60" : "bg-black/40"}`}
           >
-            <label htmlFor="chat-input" className="sr-only">
-              Message
-            </label>
+            {pendingAttachment && (
+              <div className="mx-auto mb-2 flex max-w-3xl items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] px-3 py-2">
+                {pendingAttachment.type === "image" ? (
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-4 w-4 shrink-0 text-blue-400"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <polyline points="21 15 16 10 5 21" />
+                  </svg>
+                ) : (
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-4 w-4 shrink-0 text-red-400"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                  </svg>
+                )}
+                <span className="truncate text-xs text-white/70">
+                  {pendingAttachment.fileName}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPendingAttachment(null)}
+                  className="ml-auto shrink-0 rounded-full p-0.5 text-white/40 hover:text-white/80 transition-colors"
+                  aria-label="Remove attachment"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-3.5 w-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+            )}
+            <form
+              onSubmit={onSubmit}
+              className="mx-auto flex max-w-3xl items-end gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-2 transition-colors duration-300 focus-within:border-white/30"
+            >
+              <label htmlFor="chat-input" className="sr-only">
+                Message
+              </label>
               <div className="relative" ref={plusMenuRef}>
                 <button
                   type="button"
@@ -3460,62 +5890,116 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                   aria-label="More features"
                   className={`mb-0.5 shrink-0 rounded-full p-2 text-white/40 transition-all duration-300 hover:bg-white/[0.08] hover:text-white/80 ${plusMenuOpen ? "bg-white/[0.08] text-white/70" : ""}`}
                 >
-                  <svg viewBox="0 0 24 24" className={`h-4 w-4 transition-transform duration-300 ${plusMenuOpen ? "rotate-45" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className={`h-4 w-4 transition-transform duration-300 ${plusMenuOpen ? "rotate-45" : ""}`}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <line x1="12" y1="5" x2="12" y2="19" />
                     <line x1="5" y1="12" x2="19" y2="12" />
                   </svg>
                 </button>
                 <div className="absolute bottom-full right-full mb-9 -translate-x-2 z-50">
-                    <div className="w-56 flex flex-col gap-1.5" style={{
-                      transform: plusMenuOpen ? "translateX(0) scale(1)" : "translateX(12px) scale(0.96)",
+                  <div
+                    className="w-56 flex flex-col gap-1.5"
+                    style={{
+                      transform: plusMenuOpen
+                        ? "translateX(0) scale(1)"
+                        : "translateX(12px) scale(0.96)",
                       opacity: plusMenuOpen ? 1 : 0,
                       transformOrigin: "bottom right",
                       transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
                       pointerEvents: plusMenuOpen ? "auto" : "none",
-                    }}>
+                    }}
+                  >
                     {mode !== "talk-to-ai" && mode !== "chat" && (
                       <button
                         type="button"
-                        onClick={() => { switchMode("talk-to-ai"); setPlusMenuOpen(false); }}
+                        onClick={() => {
+                          switchMode("talk-to-ai");
+                          setPlusMenuOpen(false);
+                        }}
                         className="group flex items-center gap-3 rounded-xl border border-white/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-white/30 hover:bg-white/[0.06]"
                       >
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.08] transition-all duration-300 group-hover:bg-white/[0.15]">
-                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-white/70" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-3.5 w-3.5 text-white/70"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
                             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                           </svg>
                         </div>
                         <div>
-                          <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-white">Talk to AI</div>
-                          <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">General legal chat</div>
+                          <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-white">
+                            Talk to AI
+                          </div>
+                          <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">
+                            General legal chat
+                          </div>
                         </div>
                       </button>
                     )}
                     {mode !== "analysis" && (
                       <button
                         type="button"
-                        onClick={() => { switchMode("analysis"); setPlusMenuOpen(false); }}
+                        onClick={() => {
+                          switchMode("analysis");
+                          setPlusMenuOpen(false);
+                        }}
                         className="group flex items-center gap-3 rounded-xl border border-amber-400/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-amber-400/30 hover:bg-amber-400/[0.06] hover:shadow-[0_0_16px_rgba(251,191,36,0.08)]"
                       >
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-400/[0.08] transition-all duration-300 group-hover:bg-amber-400/[0.15]">
-                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-amber-400/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-3.5 w-3.5 text-amber-400/80"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
                             <circle cx="12" cy="12" r="10" />
                             <path d="M12 6v6l4 2" />
                           </svg>
                         </div>
                         <div>
-                          <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-amber-400/90">In-depth Analysis</div>
-                          <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">Deep dive into legal cases</div>
+                          <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-amber-400/90">
+                            Deep Analysis
+                          </div>
+                          <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">
+                            Deep dive into legal cases
+                          </div>
                         </div>
                       </button>
                     )}
                     {mode !== "draft" && (
                       <button
                         type="button"
-                        onClick={() => { switchMode("draft"); setPlusMenuOpen(false); }}
+                        onClick={() => {
+                          switchMode("draft");
+                          setPlusMenuOpen(false);
+                        }}
                         className="group flex items-center gap-3 rounded-xl border border-blue-400/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-blue-400/30 hover:bg-blue-400/[0.06] hover:shadow-[0_0_16px_rgba(96,165,250,0.08)]"
                       >
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-400/[0.08] transition-all duration-300 group-hover:bg-blue-400/[0.15]">
-                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-blue-400/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-3.5 w-3.5 text-blue-400/80"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                             <polyline points="14 2 14 8 20 8" />
                             <line x1="16" y1="13" x2="8" y2="13" />
@@ -3523,33 +6007,52 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                           </svg>
                         </div>
                         <div>
-                          <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-blue-400/90">Document Drafter</div>
-                          <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">Generate legal documents</div>
+                          <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-blue-400/90">
+                            Document Drafter
+                          </div>
+                          <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">
+                            Generate legal documents
+                          </div>
                         </div>
                       </button>
                     )}
                     {mode !== "review" && (
                       <button
                         type="button"
-                        onClick={() => { switchMode("review"); setPlusMenuOpen(false); }}
+                        onClick={() => {
+                          switchMode("review");
+                          setPlusMenuOpen(false);
+                        }}
                         className="group flex items-center gap-3 rounded-xl border border-emerald-400/10 bg-black/60 backdrop-blur-xl px-3 py-2.5 text-left transition-all duration-300 hover:border-emerald-400/30 hover:bg-emerald-400/[0.06] hover:shadow-[0_0_16px_rgba(52,211,153,0.08)]"
                       >
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-400/[0.08] transition-all duration-300 group-hover:bg-emerald-400/[0.15]">
-                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-emerald-400/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-3.5 w-3.5 text-emerald-400/80"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                             <polyline points="14 2 14 8 20 8" />
                             <path d="M9 15l2 2 4-4" />
                           </svg>
                         </div>
                         <div>
-                          <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-emerald-400/90">Document Reviewer</div>
-                          <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">Review contracts &amp; clauses</div>
+                          <div className="text-xs font-medium text-white/80 transition-colors group-hover:text-emerald-400/90">
+                            Document Reviewer
+                          </div>
+                          <div className="text-[10px] text-white/30 transition-colors group-hover:text-white/45">
+                            Review contracts &amp; clauses
+                          </div>
                         </div>
                       </button>
                     )}
-                    </div>
                   </div>
                 </div>
+              </div>
               {mode === "draft" && active.messages.length > 0 && (
                 <div className="relative" ref={draftDocTypeMenuRef}>
                   <button
@@ -3558,7 +6061,15 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                     aria-label="Document types"
                     className="mb-0.5 shrink-0 rounded-full p-2 text-blue-400/70 transition-colors hover:bg-blue-400/10 hover:text-blue-400"
                   >
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                       <polyline points="14 2 14 8 20 8" />
                       <line x1="16" y1="13" x2="8" y2="13" />
@@ -3570,7 +6081,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                       {[
                         { id: "legal-notice", label: "Legal Notice" },
                         { id: "fir-draft", label: "FIR Draft" },
-                        { id: "consumer-complaint", label: "Consumer Complaint" },
+                        {
+                          id: "consumer-complaint",
+                          label: "Consumer Complaint",
+                        },
                         { id: "rti-application", label: "RTI Application" },
                         { id: "will", label: "Will" },
                         { id: "affidavit", label: "Affidavit" },
@@ -3600,7 +6114,15 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                           }}
                           className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-white/70 hover:bg-blue-400/[0.06] transition-colors"
                         >
-                          <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-4 w-4 shrink-0 text-blue-400"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                             <polyline points="14 2 14 8 20 8" />
                             <line x1="16" y1="13" x2="8" y2="13" />
@@ -3613,191 +6135,256 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                   )}
                 </div>
               )}
-              {(mode === "talk-to-ai" || mode === "chat" || mode === "analysis") && (
-              <>
-                <input
-                  ref={chatFileInputRef}
-                  type="file"
-                  accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.webp,.gif"
-                  className="hidden"
-                  onChange={(e) => handleFileUpload(e, () => setChatAttachOpen(false))}
-                />
-                <div className="relative" ref={chatAttachMenuRef}>
-                  <button
-                    type="button"
-                    onClick={() => setChatAttachOpen((o) => !o)}
-                    disabled={fileUploading}
-                    aria-label="Attach file"
-                    className="mb-0.5 shrink-0 rounded-full p-2 text-white/40 transition-colors hover:bg-white/[0.08] hover:text-white/70 disabled:opacity-50"
-                  >
-                    {fileUploading ? (
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white/70" />
-                    ) : (
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-                      </svg>
+              {(mode === "talk-to-ai" ||
+                mode === "chat" ||
+                mode === "analysis") && (
+                <>
+                  <input
+                    ref={chatFileInputRef}
+                    type="file"
+                    accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.webp,.gif"
+                    className="hidden"
+                    onChange={(e) =>
+                      handleFileUpload(e, () => setChatAttachOpen(false))
+                    }
+                  />
+                  <div className="relative" ref={chatAttachMenuRef}>
+                    <button
+                      type="button"
+                      onClick={() => setChatAttachOpen((o) => !o)}
+                      disabled={fileUploading}
+                      aria-label="Attach file"
+                      className="mb-0.5 shrink-0 rounded-full p-2 text-white/40 transition-colors hover:bg-white/[0.08] hover:text-white/70 disabled:opacity-50"
+                    >
+                      {fileUploading ? (
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white/70" />
+                      ) : (
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                        </svg>
+                      )}
+                    </button>
+                    {chatAttachOpen && !fileUploading && (
+                      <div className="animate-dropdown-up absolute bottom-full -left-12 mb-6 w-44 overflow-hidden rounded-lg border border-white/10 bg-black/80 backdrop-blur-xl shadow-xl z-50">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (chatFileInputRef.current) {
+                              chatFileInputRef.current.accept = ".pdf";
+                              chatFileInputRef.current.click();
+                            }
+                            setChatAttachOpen(false);
+                          }}
+                          className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:bg-white/[0.06] transition-colors"
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-4 w-4 text-red-400"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                            <line x1="16" y1="13" x2="8" y2="13" />
+                            <line x1="16" y1="17" x2="8" y2="17" />
+                          </svg>
+                          PDF Document
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (chatFileInputRef.current) {
+                              chatFileInputRef.current.accept =
+                                ".png,.jpg,.jpeg,.webp,.gif";
+                              chatFileInputRef.current.click();
+                            }
+                            setChatAttachOpen(false);
+                          }}
+                          className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:bg-white/[0.06] transition-colors"
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-4 w-4 text-blue-400"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <rect
+                              x="3"
+                              y="3"
+                              width="18"
+                              height="18"
+                              rx="2"
+                              ry="2"
+                            />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <polyline points="21 15 16 10 5 21" />
+                          </svg>
+                          Image
+                        </button>
+                      </div>
                     )}
-                  </button>
-                  {chatAttachOpen && !fileUploading && (
-                    <div className="animate-dropdown-up absolute bottom-full -left-12 mb-6 w-44 overflow-hidden rounded-lg border border-white/10 bg-black/80 backdrop-blur-xl shadow-xl z-50">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (chatFileInputRef.current) {
-                            chatFileInputRef.current.accept = ".pdf";
-                            chatFileInputRef.current.click();
-                          }
-                          setChatAttachOpen(false);
-                        }}
-                        className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:bg-white/[0.06] transition-colors"
-                      >
-                        <svg viewBox="0 0 24 24" className="h-4 w-4 text-red-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                          <polyline points="14 2 14 8 20 8" />
-                          <line x1="16" y1="13" x2="8" y2="13" />
-                          <line x1="16" y1="17" x2="8" y2="17" />
+                  </div>
+                </>
+              )}
+              {mode === "review" && (
+                <>
+                  <input
+                    ref={reviewFileInputRef}
+                    type="file"
+                    accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.webp,.gif"
+                    className="hidden"
+                    onChange={handleReviewFileUpload}
+                  />
+                  <div className="relative" ref={reviewAttachMenuRef}>
+                    <button
+                      type="button"
+                      onClick={() => setReviewAttachOpen((o) => !o)}
+                      disabled={reviewFileUploading}
+                      aria-label="Attach file for review"
+                      className="mb-0.5 shrink-0 rounded-full p-2 text-emerald-400/70 transition-colors hover:bg-emerald-400/10 hover:text-emerald-400 disabled:opacity-50"
+                    >
+                      {reviewFileUploading ? (
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400/30 border-t-emerald-400" />
+                      ) : (
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
                         </svg>
-                        PDF Document
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (chatFileInputRef.current) {
-                            chatFileInputRef.current.accept = ".png,.jpg,.jpeg,.webp,.gif";
-                            chatFileInputRef.current.click();
-                          }
-                          setChatAttachOpen(false);
-                        }}
-                        className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:bg-white/[0.06] transition-colors"
-                      >
-                        <svg viewBox="0 0 24 24" className="h-4 w-4 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                          <circle cx="8.5" cy="8.5" r="1.5" />
-                          <polyline points="21 15 16 10 5 21" />
-                        </svg>
-                        Image
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-            {mode === "review" && (
-              <>
-                <input
-                  ref={reviewFileInputRef}
-                  type="file"
-                  accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.webp,.gif"
-                  className="hidden"
-                  onChange={handleReviewFileUpload}
-                />
-                <div className="relative" ref={reviewAttachMenuRef}>
-                  <button
-                    type="button"
-                    onClick={() => setReviewAttachOpen((o) => !o)}
-                    disabled={reviewFileUploading}
-                    aria-label="Attach file for review"
-                    className="mb-0.5 shrink-0 rounded-full p-2 text-emerald-400/70 transition-colors hover:bg-emerald-400/10 hover:text-emerald-400 disabled:opacity-50"
-                  >
-                    {reviewFileUploading ? (
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400/30 border-t-emerald-400" />
-                    ) : (
-                      <svg
-                        viewBox="0 0 24 24"
-                        className="h-4 w-4"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-                      </svg>
+                      )}
+                    </button>
+                    {reviewAttachOpen && !reviewFileUploading && (
+                      <div className="animate-dropdown-up absolute bottom-full -left-12 mb-6 w-44 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-800 shadow-xl z-50">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (reviewFileInputRef.current) {
+                              reviewFileInputRef.current.accept = ".pdf";
+                              reviewFileInputRef.current.click();
+                            }
+                            setReviewAttachOpen(false);
+                          }}
+                          className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-700 transition-colors"
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-4 w-4 text-red-400"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                            <line x1="16" y1="13" x2="8" y2="13" />
+                            <line x1="16" y1="17" x2="8" y2="17" />
+                            <polyline points="10 9 9 9 8 9" />
+                          </svg>
+                          PDF Document
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (reviewFileInputRef.current) {
+                              reviewFileInputRef.current.accept =
+                                ".png,.jpg,.jpeg,.webp,.gif";
+                              reviewFileInputRef.current.click();
+                            }
+                            setReviewAttachOpen(false);
+                          }}
+                          className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-700 transition-colors"
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-4 w-4 text-blue-400"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <rect
+                              x="3"
+                              y="3"
+                              width="18"
+                              height="18"
+                              rx="2"
+                              ry="2"
+                            />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <polyline points="21 15 16 10 5 21" />
+                          </svg>
+                          Image
+                        </button>
+                      </div>
                     )}
-                  </button>
-                  {reviewAttachOpen && !reviewFileUploading && (
-                    <div className="animate-dropdown-up absolute bottom-full -left-12 mb-6 w-44 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-800 shadow-xl z-50">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (reviewFileInputRef.current) {
-                            reviewFileInputRef.current.accept = ".pdf";
-                            reviewFileInputRef.current.click();
-                          }
-                          setReviewAttachOpen(false);
-                        }}
-                        className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-700 transition-colors"
-                      >
-                        <svg viewBox="0 0 24 24" className="h-4 w-4 text-red-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                          <polyline points="14 2 14 8 20 8" />
-                          <line x1="16" y1="13" x2="8" y2="13" />
-                          <line x1="16" y1="17" x2="8" y2="17" />
-                          <polyline points="10 9 9 9 8 9" />
-                        </svg>
-                        PDF Document
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (reviewFileInputRef.current) {
-                            reviewFileInputRef.current.accept = ".png,.jpg,.jpeg,.webp,.gif";
-                            reviewFileInputRef.current.click();
-                          }
-                          setReviewAttachOpen(false);
-                        }}
-                        className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-700 transition-colors"
-                      >
-                        <svg viewBox="0 0 24 24" className="h-4 w-4 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                          <circle cx="8.5" cy="8.5" r="1.5" />
-                          <polyline points="21 15 16 10 5 21" />
-                        </svg>
-                        Image
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-            <textarea
-              id="chat-input"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={onKeyDown}
-              placeholder={pendingAttachment ? "Ask about this document, or send to review as-is…" : "Message Lawbite…"}
-              rows={1}
-              className="min-h-[40px] max-h-40 w-full resize-none bg-transparent px-3 py-2 text-sm leading-relaxed text-white placeholder:text-white/35 focus:outline-none"
-            />
-            <button
-              type="submit"
-              disabled={(!draft.trim() && !pendingAttachment) || isThinking}
-              aria-label="Send message"
-              className="btn-shine group relative inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-black transition-transform duration-300 hover:scale-[1.05] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
-            >
-              <svg
-                aria-hidden
-                viewBox="0 0 24 24"
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+                  </div>
+                </>
+              )}
+              <textarea
+                id="chat-input"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={onKeyDown}
+                placeholder={
+                  pendingAttachment
+                    ? "Ask about this document, or send to review as-is…"
+                    : "Message Lawbite…"
+                }
+                rows={1}
+                className="min-h-[40px] max-h-40 w-full resize-none bg-transparent px-3 py-2 text-sm leading-relaxed text-white placeholder:text-white/35 focus:outline-none"
+              />
+              <button
+                type="submit"
+                disabled={(!draft.trim() && !pendingAttachment) || isThinking}
+                aria-label="Send message"
+                className="btn-shine group relative inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-black transition-transform duration-300 hover:scale-[1.05] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
               >
-                <path d="M5 12h14M13 5l7 7-7 7" />
-              </svg>
-            </button>
-          </form>
-          <p className="mx-auto mt-2 max-w-3xl text-[11px] text-white/35">
-            Press <kbd className="rounded border border-white/15 px-1">Enter</kbd>{" "}
-            to send,{" "}
-            <kbd className="rounded border border-white/15 px-1">Shift</kbd>+
-            <kbd className="rounded border border-white/15 px-1">Enter</kbd> for
-            a new line.
-          </p>
-        </div>
-          )}
+                <svg
+                  aria-hidden
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M5 12h14M13 5l7 7-7 7" />
+                </svg>
+              </button>
+            </form>
+            <p className="mx-auto mt-2 max-w-3xl text-[11px] text-white/35">
+              Press{" "}
+              <kbd className="rounded border border-white/15 px-1">Enter</kbd>{" "}
+              to send,{" "}
+              <kbd className="rounded border border-white/15 px-1">Shift</kbd>+
+              <kbd className="rounded border border-white/15 px-1">Enter</kbd>{" "}
+              for a new line.
+            </p>
+          </div>
+        )}
       </main>
 
       {confirmAction && (
@@ -3824,13 +6411,15 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             }}
           >
             <h3 className="text-base font-semibold text-white">
-              {confirmAction.type === "clearHistory" ? "Clear History" : "Delete Chat"}
+              {confirmAction.type === "clearHistory"
+                ? "Clear History"
+                : "Delete Chat"}
             </h3>
             <p className="mt-2 text-sm text-white/55">
-               {confirmAction.type === "clearHistory"
-                 ? confirmAction.section
-                   ? `This will permanently delete all ${{ "talk-to-ai": "Talk to AI", "chat": "Chat", "analysis": "In-depth Analysis", "grill": "My Cases", "draft": "Document Drafter", "review": "Document Reviewer" }[confirmAction.section]} history. This action cannot be undone.`
-                   : "This will permanently delete all history of this account. This action cannot be undone."
+              {confirmAction.type === "clearHistory"
+                ? confirmAction.section
+                  ? `This will permanently delete all ${{ "talk-to-ai": "Talk to AI", chat: "Chat", analysis: "Deep Analysis", grill: "My Cases", draft: "Document Drafter", review: "Document Reviewer" }[confirmAction.section]} history. This action cannot be undone.`
+                  : "This will permanently delete all history of this account. This action cannot be undone."
                 : "This will permanently delete this conversation. This action cannot be undone."}
             </p>
             <div className="mt-5 flex justify-end gap-2">
@@ -3862,14 +6451,21 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       )}
 
       {showClearNotifications && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowClearNotifications(false)}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setShowClearNotifications(false)}
+        >
           <div
             className="animate-overlay-in mx-4 w-full max-w-sm rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-sm font-semibold text-white">Clear Notifications</h3>
+            <h3 className="text-sm font-semibold text-white">
+              Clear Notifications
+            </h3>
             <p className="mt-2 text-sm text-white/50">
-              This will dismiss all {upcomingReminders.length} notification{upcomingReminders.length !== 1 ? "s" : ""}. They will reappear when the deadline enters the next threshold (3 days, 1 day).
+              This will dismiss all {upcomingReminders.length} notification
+              {upcomingReminders.length !== 1 ? "s" : ""}. They will reappear
+              when the deadline enters the next threshold (3 days, 1 day).
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <button
@@ -3893,7 +6489,10 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       )}
 
       {historyOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setHistoryOpen(false)}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setHistoryOpen(false)}
+        >
           <div
             className="animate-overlay-in flex w-full max-w-lg flex-col rounded-2xl border border-white/10 bg-[#0a0a0a] shadow-2xl max-h-[80vh]"
             onClick={(e) => e.stopPropagation()}
@@ -3906,35 +6505,67 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 className="rounded-full p-1.5 text-white/60 transition-colors hover:bg-white/5 hover:text-white"
                 aria-label="Close history"
               >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <path d="M18 6L6 18M6 6l12 12" />
                 </svg>
               </button>
             </div>
             <div className="flex gap-1 border-b border-white/10 px-4 pt-3">
-              {(["all", "talk-to-ai", "analysis", "draft", "review"] as const).map((tab) => (
+              {(
+                ["all", "talk-to-ai", "analysis", "draft", "review"] as const
+              ).map((tab) => (
                 <button
                   key={tab}
                   type="button"
                   onClick={() => setHistoryTab(tab)}
                   className={`rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors ${
-                    historyTab === tab ? "bg-white/10 text-white" : "text-white/40 hover:text-white/70"
+                    historyTab === tab
+                      ? "bg-white/10 text-white"
+                      : "text-white/40 hover:text-white/70"
                   }`}
                 >
-                  {tab === "all" ? "All" : tab === "talk-to-ai" ? "Talk to AI" : tab === "analysis" ? "Analysis" : tab === "draft" ? "Drafter" : "Review"}
+                  {tab === "all"
+                    ? "All"
+                    : tab === "talk-to-ai"
+                      ? "Talk to AI"
+                      : tab === "analysis"
+                        ? "Analysis"
+                        : tab === "draft"
+                          ? "Drafter"
+                          : "Review"}
                 </button>
               ))}
             </div>
-            <nav aria-label="History" className="flex-1 overflow-y-auto px-2 py-4">
+            <nav
+              aria-label="History"
+              className="flex-1 overflow-y-auto px-2 py-4"
+            >
               {(historyTab === "all" || historyTab === "talk-to-ai") && (
                 <div className="mb-4">
-                  <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-white/35">Talk to AI</p>
+                  <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-white/35">
+                    Talk to AI
+                  </p>
                   {groupConversations("talk-to-ai", now).map((group) => (
                     <div key={group.label} className="mb-2">
-                      <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
+                      <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">
+                        {group.label}
+                      </p>
                       <ul className="space-y-0.5 text-sm">
                         {group.items.map((conv) => (
-                          <li key={conv.id} className="relative" onMouseEnter={() => setHoveredId(conv.id)} onMouseLeave={() => setHoveredId(null)}>
+                          <li
+                            key={conv.id}
+                            className="relative"
+                            onMouseEnter={() => setHoveredId(conv.id)}
+                            onMouseLeave={() => setHoveredId(null)}
+                          >
                             {renderConvItem(conv)}
                           </li>
                         ))}
@@ -3943,10 +6574,23 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                   ))}
                   <button
                     type="button"
-                    onClick={() => setConfirmAction({ type: "clearHistory", section: "talk-to-ai" })}
+                    onClick={() =>
+                      setConfirmAction({
+                        type: "clearHistory",
+                        section: "talk-to-ai",
+                      })
+                    }
                     className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
                   >
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-3.5 w-3.5 shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
                       <polyline points="3 6 5 6 21 6" />
                       <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                     </svg>
@@ -3954,45 +6598,80 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                   </button>
                 </div>
               )}
-              {(historyTab === "all" || historyTab === "analysis") && groupConversations("analysis", now).length > 0 && (
-                <div className="mb-4">
-                  <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-white/35">In-depth Analysis</p>
-                  {groupConversations("analysis", now).map((group) => (
-                    <div key={group.label} className="mb-2">
-                      <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
-                      <ul className="space-y-0.5 text-sm">
-                        {group.items.map((conv) => (
-                          <li key={conv.id} className="relative" onMouseEnter={() => setHoveredId(conv.id)} onMouseLeave={() => setHoveredId(null)}>
-                            {renderConvItem(conv)}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setConfirmAction({ type: "clearHistory", section: "analysis" })}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
-                  >
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                    </svg>
-                    Clear history
-                  </button>
-                </div>
-              )}
+              {(historyTab === "all" || historyTab === "analysis") &&
+                groupConversations("analysis", now).length > 0 && (
+                  <div className="mb-4">
+                    <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-white/35">
+                      Deep Analysis
+                    </p>
+                    {groupConversations("analysis", now).map((group) => (
+                      <div key={group.label} className="mb-2">
+                        <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">
+                          {group.label}
+                        </p>
+                        <ul className="space-y-0.5 text-sm">
+                          {group.items.map((conv) => (
+                            <li
+                              key={conv.id}
+                              className="relative"
+                              onMouseEnter={() => setHoveredId(conv.id)}
+                              onMouseLeave={() => setHoveredId(null)}
+                            >
+                              {renderConvItem(conv)}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setConfirmAction({
+                          type: "clearHistory",
+                          section: "analysis",
+                        })
+                      }
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="h-3.5 w-3.5 shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      </svg>
+                      Clear history
+                    </button>
+                  </div>
+                )}
               {historyTab === "all" && (
                 <div className="mb-4">
                   <div className="flex items-center justify-between px-3 pb-1 pt-2">
-                    <p className="text-[11px] font-medium uppercase tracking-wider text-white/35">Case Folders</p>
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-white/35">
+                      Case Folders
+                    </p>
                     <button
                       type="button"
                       onClick={() => setCaseFoldersOpen(!caseFoldersOpen)}
                       className="rounded p-1 text-white/40 transition-colors hover:bg-white/[0.05] hover:text-white"
                       aria-label="Toggle case folders"
                     >
-                      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="h-3.5 w-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M12 5v14M5 12h14" />
+                      </svg>
                     </button>
                   </div>
                   {caseFoldersOpen && (
@@ -4002,7 +6681,9 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                           type="text"
                           value={newFolderName}
                           onChange={(e) => setNewFolderName(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === "Enter") createCaseFolder(); }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") createCaseFolder();
+                          }}
                           placeholder="New folder name"
                           className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-white placeholder:text-white/30 focus:border-white/30 focus:outline-none"
                         />
@@ -4016,146 +6697,263 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                       </div>
                     </div>
                   )}
-                  {caseFolders.length > 0 ? (
-                    caseFolders.map((f) => {
-                      const folderConvs = conversations.filter((c) => c.folderId === f.id);
-                      return (
-                        <div key={f.id} className="group">
-                          <div className="flex items-center gap-2 px-3 pb-1 pt-2">
-                            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-amber-400/70" fill="currentColor"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v2H3z" /><path d="M3 10h18l-1.5 9a2 2 0 0 1-2 1.7H6.5a2 2 0 0 1-2-1.7z" /></svg>
-                            <span className="flex-1 truncate text-xs font-medium text-white/80">{f.name}</span>
-                            <span className="text-[10px] text-white/30">{folderConvs.length}</span>
-                            <button
-                              type="button"
-                              onClick={() => deleteCaseFolder(f.id)}
-                              className="rounded p-0.5 text-white/25 opacity-0 transition-opacity hover:text-red-400 group-hover:opacity-100"
-                              aria-label={`Delete folder ${f.name}`}
-                            >
-                              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
-                            </button>
+                  {caseFolders.length > 0
+                    ? caseFolders.map((f) => {
+                        const folderConvs = conversations.filter(
+                          (c) => c.folderId === f.id,
+                        );
+                        return (
+                          <div key={f.id} className="group">
+                            <div className="flex items-center gap-2 px-3 pb-1 pt-2">
+                              <svg
+                                viewBox="0 0 24 24"
+                                className="h-3.5 w-3.5 shrink-0 text-amber-400/70"
+                                fill="currentColor"
+                              >
+                                <path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v2H3z" />
+                                <path d="M3 10h18l-1.5 9a2 2 0 0 1-2 1.7H6.5a2 2 0 0 1-2-1.7z" />
+                              </svg>
+                              <span className="flex-1 truncate text-xs font-medium text-white/80">
+                                {f.name}
+                              </span>
+                              <span className="text-[10px] text-white/30">
+                                {folderConvs.length}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => deleteCaseFolder(f.id)}
+                                className="rounded p-0.5 text-white/25 opacity-0 transition-opacity hover:text-red-400 group-hover:opacity-100"
+                                aria-label={`Delete folder ${f.name}`}
+                              >
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  className="h-3 w-3"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <polyline points="3 6 5 6 21 6" />
+                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                </svg>
+                              </button>
+                            </div>
+                            {folderConvs.length > 0 && (
+                              <ul className="space-y-0.5 text-sm">
+                                {folderConvs.map((conv) => (
+                                  <li
+                                    key={conv.id}
+                                    className="relative"
+                                    onMouseEnter={() => setHoveredId(conv.id)}
+                                    onMouseLeave={() => setHoveredId(null)}
+                                  >
+                                    {renderConvItem(conv)}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
                           </div>
-                          {folderConvs.length > 0 && (
-                            <ul className="space-y-0.5 text-sm">
-                              {folderConvs.map((conv) => (
-                                <li key={conv.id} className="relative" onMouseEnter={() => setHoveredId(conv.id)} onMouseLeave={() => setHoveredId(null)}>
-                                  {renderConvItem(conv)}
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      );
-                    })
-                  ) : (
-                    !caseFoldersOpen && <p className="px-3 text-[11px] text-white/25">Organize cases into folders</p>
-                  )}
+                        );
+                      })
+                    : !caseFoldersOpen && (
+                        <p className="px-3 text-[11px] text-white/25">
+                          Organize cases into folders
+                        </p>
+                      )}
                 </div>
               )}
-              {(historyTab === "all" || historyTab === "grill") && groupConversations("grill", now).length > 0 && (
-                <div className="mb-4">
-                  <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-amber-400/60">My Cases</p>
-                  {groupConversations("grill", now).map((group) => (
-                    <div key={group.label} className="mb-2">
-                      <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
-                      <ul className="space-y-0.5 text-sm">
-                        {group.items.map((conv) => (
-                          <li key={conv.id} className="relative" onMouseEnter={() => setHoveredId(conv.id)} onMouseLeave={() => setHoveredId(null)}>
-                            {renderConvItem(conv)}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setConfirmAction({ type: "clearHistory", section: "grill" })}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
-                  >
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                    </svg>
-                    Clear history
-                  </button>
-                </div>
-              )}
-              {(historyTab === "all" || historyTab === "draft") && groupConversations("draft", now).length > 0 && (
-                <div className="mb-4">
-                  <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-blue-400/60">Document Drafter</p>
-                  {groupConversations("draft", now).map((group) => (
-                    <div key={group.label} className="mb-2">
-                      <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
-                      <ul className="space-y-0.5 text-sm">
-                        {group.items.map((conv) => (
-                          <li key={conv.id} className="relative" onMouseEnter={() => setHoveredId(conv.id)} onMouseLeave={() => setHoveredId(null)}>
-                            {renderConvItem(conv)}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setConfirmAction({ type: "clearHistory", section: "draft" })}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
-                  >
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                    </svg>
-                    Clear history
-                  </button>
-                </div>
-              )}
-              {(historyTab === "all" || historyTab === "review") && groupConversations("review", now).length > 0 && (
-                <div className="mb-4">
-                  <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-emerald-400/60">Document Reviewer</p>
-                  {groupConversations("review", now).map((group) => (
-                    <div key={group.label} className="mb-2">
-                      <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">{group.label}</p>
-                      <ul className="space-y-0.5 text-sm">
-                        {group.items.map((conv) => (
-                          <li key={conv.id} className="relative" onMouseEnter={() => setHoveredId(conv.id)} onMouseLeave={() => setHoveredId(null)}>
-                            {renderConvItem(conv)}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setConfirmAction({ type: "clearHistory", section: "review" })}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
-                  >
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                    </svg>
-                    Clear history
-                  </button>
-                </div>
-              )}
-              {historyTab === "all" && groupConversations("talk-to-ai", now).length === 0 && groupConversations("analysis", now).length === 0 && groupConversations("grill", now).length === 0 && groupConversations("draft", now).length === 0 && groupConversations("review", now).length === 0 && (
-                <p className="px-3 py-8 text-center text-xs text-white/35">No conversations yet</p>
-              )}
-              {historyTab !== "all" && groupConversations(historyTab, now).length === 0 && (
-                <p className="px-3 py-8 text-center text-xs text-white/35">No conversations in this category</p>
-              )}
+              {(historyTab === "all" || historyTab === "grill") &&
+                groupConversations("grill", now).length > 0 && (
+                  <div className="mb-4">
+                    <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-amber-400/60">
+                      My Cases
+                    </p>
+                    {groupConversations("grill", now).map((group) => (
+                      <div key={group.label} className="mb-2">
+                        <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">
+                          {group.label}
+                        </p>
+                        <ul className="space-y-0.5 text-sm">
+                          {group.items.map((conv) => (
+                            <li
+                              key={conv.id}
+                              className="relative"
+                              onMouseEnter={() => setHoveredId(conv.id)}
+                              onMouseLeave={() => setHoveredId(null)}
+                            >
+                              {renderConvItem(conv)}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setConfirmAction({
+                          type: "clearHistory",
+                          section: "grill",
+                        })
+                      }
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="h-3.5 w-3.5 shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      </svg>
+                      Clear history
+                    </button>
+                  </div>
+                )}
+              {(historyTab === "all" || historyTab === "draft") &&
+                groupConversations("draft", now).length > 0 && (
+                  <div className="mb-4">
+                    <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-blue-400/60">
+                      Document Drafter
+                    </p>
+                    {groupConversations("draft", now).map((group) => (
+                      <div key={group.label} className="mb-2">
+                        <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">
+                          {group.label}
+                        </p>
+                        <ul className="space-y-0.5 text-sm">
+                          {group.items.map((conv) => (
+                            <li
+                              key={conv.id}
+                              className="relative"
+                              onMouseEnter={() => setHoveredId(conv.id)}
+                              onMouseLeave={() => setHoveredId(null)}
+                            >
+                              {renderConvItem(conv)}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setConfirmAction({
+                          type: "clearHistory",
+                          section: "draft",
+                        })
+                      }
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="h-3.5 w-3.5 shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      </svg>
+                      Clear history
+                    </button>
+                  </div>
+                )}
+              {(historyTab === "all" || historyTab === "review") &&
+                groupConversations("review", now).length > 0 && (
+                  <div className="mb-4">
+                    <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-emerald-400/60">
+                      Document Reviewer
+                    </p>
+                    {groupConversations("review", now).map((group) => (
+                      <div key={group.label} className="mb-2">
+                        <p className="px-3 pb-1 pt-1 text-[10px] font-medium text-white/25">
+                          {group.label}
+                        </p>
+                        <ul className="space-y-0.5 text-sm">
+                          {group.items.map((conv) => (
+                            <li
+                              key={conv.id}
+                              className="relative"
+                              onMouseEnter={() => setHoveredId(conv.id)}
+                              onMouseLeave={() => setHoveredId(null)}
+                            >
+                              {renderConvItem(conv)}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setConfirmAction({
+                          type: "clearHistory",
+                          section: "review",
+                        })
+                      }
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/30 transition-colors hover:bg-white/[0.04] hover:text-red-400/70"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="h-3.5 w-3.5 shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      </svg>
+                      Clear history
+                    </button>
+                  </div>
+                )}
+              {historyTab === "all" &&
+                groupConversations("talk-to-ai", now).length === 0 &&
+                groupConversations("analysis", now).length === 0 &&
+                groupConversations("grill", now).length === 0 &&
+                groupConversations("draft", now).length === 0 &&
+                groupConversations("review", now).length === 0 && (
+                  <p className="px-3 py-8 text-center text-xs text-white/35">
+                    No conversations yet
+                  </p>
+                )}
+              {historyTab !== "all" &&
+                groupConversations(historyTab, now).length === 0 && (
+                  <p className="px-3 py-8 text-center text-xs text-white/35">
+                    No conversations in this category
+                  </p>
+                )}
             </nav>
           </div>
         </div>
       )}
 
       {calculatorOpen && !activeCalculator && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setCalculatorOpen(false)}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setCalculatorOpen(false)}
+        >
           <div
             className="animate-overlay-in mx-4 w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-white">Calculators</h3>
-                <p className="mt-1 text-sm text-white/50">Choose a calculator to open.</p>
+                <h3 className="text-lg font-semibold text-white">
+                  Calculators
+                </h3>
+                <p className="mt-1 text-sm text-white/50">
+                  Choose a calculator to open.
+                </p>
               </div>
               <button
                 type="button"
@@ -4163,7 +6961,15 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 className="flex h-8 w-8 items-center justify-center rounded-lg border border-transparent text-white/40 transition-all duration-200 hover:border-white/10 hover:bg-white/5 hover:text-white/70"
                 aria-label="Close"
               >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <path d="M18 6L6 18M6 6l12 12" />
                 </svg>
               </button>
@@ -4175,14 +6981,26 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 className="flex w-full items-center gap-4 rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 text-left transition-all hover:border-white/20 hover:bg-white/[0.05]"
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-blue-400">
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-5 w-5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <circle cx="12" cy="12" r="10" />
                     <polyline points="12 6 12 12 16 14" />
                   </svg>
                 </div>
                 <div>
-                  <span className="block text-sm font-medium text-white">Statute of Limitations</span>
-                  <span className="mt-0.5 block text-xs text-white/40">Find the deadline to file your case</span>
+                  <span className="block text-sm font-medium text-white">
+                    Statute of Limitations
+                  </span>
+                  <span className="mt-0.5 block text-xs text-white/40">
+                    Find the deadline to file your case
+                  </span>
                 </div>
               </button>
               <button
@@ -4191,14 +7009,26 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 className="flex w-full items-center gap-4 rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 text-left transition-all hover:border-white/20 hover:bg-white/[0.05]"
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400">
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-5 w-5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <rect x="2" y="4" width="20" height="16" rx="2" />
                     <line x1="2" y1="10" x2="22" y2="10" />
                   </svg>
                 </div>
                 <div>
-                  <span className="block text-sm font-medium text-white">Interest Calculator</span>
-                  <span className="mt-0.5 block text-xs text-white/40">Simple or compound interest on any amount</span>
+                  <span className="block text-sm font-medium text-white">
+                    Interest Calculator
+                  </span>
+                  <span className="mt-0.5 block text-xs text-white/40">
+                    Simple or compound interest on any amount
+                  </span>
                 </div>
               </button>
             </div>
@@ -4207,23 +7037,42 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       )}
 
       {activeCalculator === "limits" && (
-        <CalculatorLimitsModal onClose={() => setActiveCalculator(null)} onBack={() => { setActiveCalculator(null); setCalculatorOpen(true); }} />
+        <CalculatorLimitsModal
+          onClose={() => setActiveCalculator(null)}
+          onBack={() => {
+            setActiveCalculator(null);
+            setCalculatorOpen(true);
+          }}
+        />
       )}
 
       {activeCalculator === "interest" && (
-        <CalculatorInterestModal onClose={() => setActiveCalculator(null)} onBack={() => { setActiveCalculator(null); setCalculatorOpen(true); }} />
+        <CalculatorInterestModal
+          onClose={() => setActiveCalculator(null)}
+          onBack={() => {
+            setActiveCalculator(null);
+            setCalculatorOpen(true);
+          }}
+        />
       )}
 
       {toolsOpen && !activeTool && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setToolsOpen(false)}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setToolsOpen(false)}
+        >
           <div
             className="animate-overlay-in mx-4 w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-white">Legal Tools</h3>
-                <p className="mt-1 text-sm text-white/50">Templates, filing guides, and more.</p>
+                <h3 className="text-lg font-semibold text-white">
+                  Legal Tools
+                </h3>
+                <p className="mt-1 text-sm text-white/50">
+                  Templates, filing guides, and more.
+                </p>
               </div>
               <button
                 type="button"
@@ -4231,7 +7080,15 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 className="flex h-8 w-8 items-center justify-center rounded-lg border border-transparent text-white/40 transition-all duration-200 hover:border-white/10 hover:bg-white/5 hover:text-white/70"
                 aria-label="Close"
               >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <path d="M18 6L6 18M6 6l12 12" />
                 </svg>
               </button>
@@ -4243,14 +7100,26 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 className="flex w-full items-center gap-4 rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 text-left transition-all hover:border-white/20 hover:bg-white/[0.05]"
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-500/10 text-violet-400">
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-5 w-5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                     <polyline points="14 2 14 8 20 8" />
                   </svg>
                 </div>
                 <div>
-                  <span className="block text-sm font-medium text-white">Contract Templates</span>
-                  <span className="mt-0.5 block text-xs text-white/40">6 ready-to-use Indian legal templates</span>
+                  <span className="block text-sm font-medium text-white">
+                    Contract Templates
+                  </span>
+                  <span className="mt-0.5 block text-xs text-white/40">
+                    6 ready-to-use Indian legal templates
+                  </span>
                 </div>
               </button>
               <button
@@ -4259,14 +7128,26 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 className="flex w-full items-center gap-4 rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 text-left transition-all hover:border-white/20 hover:bg-white/[0.05]"
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-amber-400">
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-5 w-5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
                     <rect x="9" y="3" width="6" height="4" rx="1" />
                   </svg>
                 </div>
                 <div>
-                  <span className="block text-sm font-medium text-white">Filing Assistance</span>
-                  <span className="mt-0.5 block text-xs text-white/40">Step-by-step guides for RTI, FIR, consumer complaints</span>
+                  <span className="block text-sm font-medium text-white">
+                    Filing Assistance
+                  </span>
+                  <span className="mt-0.5 block text-xs text-white/40">
+                    Step-by-step guides for RTI, FIR, consumer complaints
+                  </span>
                 </div>
               </button>
             </div>
@@ -4275,11 +7156,23 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
       )}
 
       {activeTool === "templates" && (
-        <TemplatesModal onClose={() => setActiveTool(null)} onBack={() => { setActiveTool(null); setToolsOpen(true); }} />
+        <TemplatesModal
+          onClose={() => setActiveTool(null)}
+          onBack={() => {
+            setActiveTool(null);
+            setToolsOpen(true);
+          }}
+        />
       )}
 
       {activeTool === "filing" && (
-        <FilingModal onClose={() => setActiveTool(null)} onBack={() => { setActiveTool(null); setToolsOpen(true); }} />
+        <FilingModal
+          onClose={() => setActiveTool(null)}
+          onBack={() => {
+            setActiveTool(null);
+            setToolsOpen(true);
+          }}
+        />
       )}
 
       {remindersOpen && (
@@ -4485,14 +7378,24 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-lg font-semibold tracking-tight">Upgrade to Plus</h2>
+              <h2 className="text-lg font-semibold tracking-tight">
+                Upgrade to Plus
+              </h2>
               <button
                 type="button"
                 onClick={() => setUpgradeOpen(false)}
                 className="rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white"
                 aria-label="Close"
               >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <path d="M18 6L6 18M6 6l12 12" />
                 </svg>
               </button>
@@ -4500,60 +7403,148 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5">
-                <p className="text-xs font-medium uppercase tracking-wider text-white/40">Free</p>
+                <p className="text-xs font-medium uppercase tracking-wider text-white/40">
+                  Free
+                </p>
                 <p className="mt-2 text-2xl font-semibold text-white">₹0</p>
                 <p className="mt-1 text-xs text-white/40">/month</p>
                 <div className="mt-4 space-y-2">
                   <p className="flex items-center gap-2 text-sm text-white/60">
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-3.5 w-3.5 shrink-0 text-emerald-400"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
                     Talk to AI
                   </p>
                   <p className="flex items-center gap-2 text-sm text-white/60">
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-3.5 w-3.5 shrink-0 text-emerald-400"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
                     20 messages / day
                   </p>
                   <p className="flex items-center gap-2 text-sm text-white/60">
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-3.5 w-3.5 shrink-0 text-emerald-400"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
                     Basic legal info
                   </p>
                 </div>
-                <p className="mt-5 rounded-lg border border-white/10 py-2 text-center text-sm text-white/40">Current plan</p>
+                <p className="mt-5 rounded-lg border border-white/10 py-2 text-center text-sm text-white/40">
+                  Current plan
+                </p>
               </div>
 
               <div className="relative rounded-xl border border-white/20 bg-white/[0.05] p-5">
-                <span className="absolute -top-2.5 right-4 rounded-full bg-white px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-black">Popular</span>
-                <p className="text-xs font-medium uppercase tracking-wider text-white/40">Plus</p>
+                <span className="absolute -top-2.5 right-4 rounded-full bg-white px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-black">
+                  Popular
+                </span>
+                <p className="text-xs font-medium uppercase tracking-wider text-white/40">
+                  Plus
+                </p>
                 <p className="mt-2 text-2xl font-semibold text-white">₹999</p>
                 <p className="mt-1 text-xs text-white/40">/month</p>
                 <div className="mt-4 space-y-2">
                   <p className="flex items-center gap-2 text-sm text-white/60">
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-3.5 w-3.5 shrink-0 text-emerald-400"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
                     Everything in Free
                   </p>
                   <p className="flex items-center gap-2 text-sm text-white/60">
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-3.5 w-3.5 shrink-0 text-emerald-400"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
                     Unlimited messages
                   </p>
                   <p className="flex items-center gap-2 text-sm text-white/60">
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                    In-depth Analysis
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-3.5 w-3.5 shrink-0 text-emerald-400"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    Deep Analysis
                   </p>
                   <p className="flex items-center gap-2 text-sm text-white/60">
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-3.5 w-3.5 shrink-0 text-emerald-400"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
                     Case Intake mode
                   </p>
                   <p className="flex items-center gap-2 text-sm text-white/60">
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-3.5 w-3.5 shrink-0 text-emerald-400"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
                     Priority support
                   </p>
                 </div>
-              <button
-                type="button"
-                onClick={() => setUpgradeOpen(false)}
-                className="mt-5 w-full rounded-lg bg-white py-2 text-sm font-medium text-black transition-colors hover:bg-white/90"
-              >
-                Upgrade now
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setUpgradeOpen(false)}
+                  className="mt-5 w-full rounded-lg bg-white py-2 text-sm font-medium text-black transition-colors hover:bg-white/90"
+                >
+                  Upgrade now
+                </button>
               </div>
             </div>
 
@@ -4569,7 +7560,8 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           className="animate-overlay-in fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm"
           onClick={() => {
             try {
-              if (localStorage.getItem(DISCLAIMER_KEY) === "true") setDisclaimerOpen(false);
+              if (localStorage.getItem(DISCLAIMER_KEY) === "true")
+                setDisclaimerOpen(false);
             } catch {
               setDisclaimerOpen(false);
             }
@@ -4580,12 +7572,15 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-lg font-semibold tracking-tight">About Lawbite</h2>
+              <h2 className="text-lg font-semibold tracking-tight">
+                About Lawbite
+              </h2>
               <button
                 type="button"
                 onClick={() => {
                   try {
-                    if (localStorage.getItem(DISCLAIMER_KEY) === "true") setDisclaimerOpen(false);
+                    if (localStorage.getItem(DISCLAIMER_KEY) === "true")
+                      setDisclaimerOpen(false);
                   } catch {
                     setDisclaimerOpen(false);
                   }
@@ -4593,7 +7588,15 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 className="rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white"
                 aria-label="Close"
               >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <path d="M18 6L6 18M6 6l12 12" />
                 </svg>
               </button>
@@ -4601,21 +7604,26 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
 
             <div className="space-y-4 text-sm leading-relaxed text-white/60">
               <p>
-                Lawbite is an AI assistant that provides information about Indian
-                laws and the constitution based on web searches. It is designed to
-                help you understand legal concepts and find relevant information.
+                Lawbite is an AI assistant that provides information about
+                Indian laws and the constitution based on web searches. It is
+                designed to help you understand legal concepts and find relevant
+                information.
               </p>
               <p>
-                <span className="font-medium text-white/80">Not legal advice.</span>{" "}
+                <span className="font-medium text-white/80">
+                  Not legal advice.
+                </span>{" "}
                 The information provided by Lawbite is for general informational
                 purposes only and does not constitute legal advice. Lawbite does
                 not create a lawyer&ndash;client relationship.
               </p>
               <p>
-                <span className="font-medium text-white/80">Consult a professional.</span>{" "}
-                For advice specific to your situation, always consult a qualified
-                legal professional. Lawbite is a web-search-based AI assistant and
-                does not provide legal services.
+                <span className="font-medium text-white/80">
+                  Consult a professional.
+                </span>{" "}
+                For advice specific to your situation, always consult a
+                qualified legal professional. Lawbite is a web-search-based AI
+                assistant and does not provide legal services.
               </p>
             </div>
 
@@ -4631,7 +7639,9 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 onClick={() => {
                   try {
                     localStorage.setItem(DISCLAIMER_KEY, "true");
-                  } catch { /* ignore */ }
+                  } catch {
+                    /* ignore */
+                  }
                   setDisclaimerOpen(false);
                 }}
                 className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-white/90"
@@ -4654,7 +7664,15 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
           >
             <div className="mb-4 flex items-start justify-between gap-3">
               <div className="flex items-center gap-2">
-                <svg viewBox="0 0 24 24" className="h-4 w-4 text-blue-400/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4 text-blue-400/80"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   {citationOpen.type === "web" ? (
                     <>
                       <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
@@ -4677,22 +7695,35 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 className="rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white"
                 aria-label="Close"
               >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <path d="M18 6L6 18M6 6l12 12" />
                 </svg>
               </button>
             </div>
 
             <div className="mb-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
-              <p className="text-sm font-medium text-white/90">{citationOpen.label}</p>
+              <p className="text-sm font-medium text-white/90">
+                {citationOpen.label}
+              </p>
               {citationOpen.url && (
-                <p className="mt-1 break-all text-xs text-blue-400/80">{citationOpen.url}</p>
+                <p className="mt-1 break-all text-xs text-blue-400/80">
+                  {citationOpen.url}
+                </p>
               )}
             </div>
 
             <div className="max-h-[40vh] overflow-y-auto rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
               <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/70">
-                {citationOpen.snippet || "No preview available for this source."}
+                {citationOpen.snippet ||
+                  "No preview available for this source."}
               </p>
             </div>
 
@@ -4710,7 +7741,9 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
               <button
                 type="button"
                 onClick={async () => {
-                  const ok = await copyToClipboard(formatCitation(citationOpen));
+                  const ok = await copyToClipboard(
+                    formatCitation(citationOpen),
+                  );
                   setCopiedCitation(ok ? "modal" : null);
                   if (ok) setTimeout(() => setCopiedCitation(null), 1800);
                 }}
@@ -4731,9 +7764,7 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
         </div>
       )}
 
-      {bugOpen && (
-        <ReportBugModal onClose={() => setBugOpen(false)} />
-      )}
+      {bugOpen && <ReportBugModal onClose={() => setBugOpen(false)} />}
 
       {editProfileOpen && (
         <EditProfileModal
@@ -4763,7 +7794,15 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 className="rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white"
                 aria-label="Close"
               >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <path d="M18 6L6 18M6 6l12 12" />
                 </svg>
               </button>
@@ -4775,8 +7814,19 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 onClick={startGrill}
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-amber-400/90 px-4 py-3 text-sm font-semibold text-black transition-all hover:bg-amber-400"
               >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /><path d="M11 8v6M8 11h6" /><path d="M9 2L7 5l2 3M15 2l2 3-2 3" />
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="M21 21l-4.35-4.35" />
+                  <path d="M11 8v6M8 11h6" />
+                  <path d="M9 2L7 5l2 3M15 2l2 3-2 3" />
                 </svg>
                 Start New Case
               </button>
@@ -4784,7 +7834,15 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                 href="/cases"
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/15 px-4 py-3 text-sm font-medium text-white/70 transition-all hover:border-white/30 hover:text-white"
               >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                   <polyline points="14 2 14 8 20 8" />
                 </svg>
@@ -4795,11 +7853,21 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
             <div className="min-h-0 flex-1 overflow-y-auto">
               {savedCases.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <svg viewBox="0 0 24 24" className="mb-3 h-10 w-10 text-white/20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="mb-3 h-10 w-10 text-white/20"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
                   </svg>
                   <p className="text-sm text-white/40">No saved cases yet</p>
-                  <p className="mt-1 text-xs text-white/25">Complete a case to save it here</p>
+                  <p className="mt-1 text-xs text-white/25">
+                    Complete a case to save it here
+                  </p>
                 </div>
               ) : (
                 <ul className="space-y-2">
@@ -4813,7 +7881,9 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                         className="w-full text-left"
                         onClick={() => {
                           // Look for existing conversation or create a view from saved data
-                          const existing = conversations.find((c) => c.id === sc.conversationId);
+                          const existing = conversations.find(
+                            (c) => c.id === sc.conversationId,
+                          );
                           if (existing) {
                             selectConversation(existing.id);
                           } else {
@@ -4824,8 +7894,17 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                               type: "grill",
                               createdAt: sc.date,
                               messages: [
-                                { id: newId("u"), role: "user", content: sc.problem },
-                                { id: newId("a"), role: "assistant", content: sc.summary, type: "grill" },
+                                {
+                                  id: newId("u"),
+                                  role: "user",
+                                  content: sc.problem,
+                                },
+                                {
+                                  id: newId("a"),
+                                  role: "assistant",
+                                  content: sc.summary,
+                                  type: "grill",
+                                },
                               ],
                             };
                             setConversations((prev) => [restored, ...prev]);
@@ -4837,8 +7916,12 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium text-white">{sc.title}</p>
-                            <p className="mt-0.5 line-clamp-2 text-xs text-white/45">{sc.problem}</p>
+                            <p className="truncate text-sm font-medium text-white">
+                              {sc.title}
+                            </p>
+                            <p className="mt-0.5 line-clamp-2 text-xs text-white/45">
+                              {sc.problem}
+                            </p>
                           </div>
                           <span className="shrink-0 rounded-md border border-amber-400/20 bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-400/80">
                             {sc.state.slice(0, 10)}
@@ -4846,14 +7929,20 @@ export default function ChatApp({ user: initialUser }: ChatAppProps) {
                         </div>
                         <div className="mt-2 flex items-center justify-between">
                           <span className="text-[10px] text-white/25">
-                            {new Date(sc.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                            {new Date(sc.date).toLocaleDateString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}
                           </span>
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               setSavedCases((prev) => {
-                                const updated = prev.filter((c) => c.id !== sc.id);
+                                const updated = prev.filter(
+                                  (c) => c.id !== sc.id,
+                                );
                                 saveSavedCases(updated);
                                 return updated;
                               });
@@ -4956,7 +8045,15 @@ function EditProfileModal({
             className="rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white"
             aria-label="Close"
           >
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </button>
@@ -4983,7 +8080,15 @@ function EditProfileModal({
               </div>
             )}
             <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
-              <svg viewBox="0 0 24 24" className="h-5 w-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                viewBox="0 0 24 24"
+                className="h-5 w-5 text-white"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
                 <circle cx="12" cy="13" r="4" />
               </svg>
@@ -4996,22 +8101,31 @@ function EditProfileModal({
             className="hidden"
             onChange={handleFileChange}
           />
-          <p className="text-xs text-white/35">Click avatar to change (max 2 MB)</p>
+          <p className="text-xs text-white/35">
+            Click avatar to change (max 2 MB)
+          </p>
         </div>
 
         <div className="mt-6 space-y-4">
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-white/50">Name</label>
+            <label className="mb-1.5 block text-xs font-medium text-white/50">
+              Name
+            </label>
             <input
               type="text"
               value={name}
-              onChange={(e) => { setName(e.target.value); setError(null); }}
+              onChange={(e) => {
+                setName(e.target.value);
+                setError(null);
+              }}
               className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-white outline-none transition-colors placeholder:text-white/25 focus:border-white/25"
               placeholder="Your name"
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-white/50">Email</label>
+            <label className="mb-1.5 block text-xs font-medium text-white/50">
+              Email
+            </label>
             <input
               type="email"
               value={user.email}
@@ -5078,7 +8192,15 @@ function ReportBugModal({ onClose }: { onClose: () => void }) {
             className="rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white"
             aria-label="Close"
           >
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </button>
@@ -5087,12 +8209,24 @@ function ReportBugModal({ onClose }: { onClose: () => void }) {
         {submitted ? (
           <div className="flex flex-col items-center py-6 text-center">
             <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/20">
-              <svg viewBox="0 0 24 24" className="h-6 w-6 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                viewBox="0 0 24 24"
+                className="h-6 w-6 text-emerald-400"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
-            <p className="text-sm font-medium text-white">Thank you for your report</p>
-            <p className="mt-1 text-xs text-white/40">We will look into it and get back to you if needed.</p>
+            <p className="text-sm font-medium text-white">
+              Thank you for your report
+            </p>
+            <p className="mt-1 text-xs text-white/40">
+              We will look into it and get back to you if needed.
+            </p>
             <button
               type="button"
               onClick={onClose}
@@ -5104,7 +8238,8 @@ function ReportBugModal({ onClose }: { onClose: () => void }) {
         ) : (
           <>
             <p className="mb-4 text-sm text-white/50">
-              Describe the issue you encountered. Include steps to reproduce if possible.
+              Describe the issue you encountered. Include steps to reproduce if
+              possible.
             </p>
             <div className="space-y-3">
               <textarea

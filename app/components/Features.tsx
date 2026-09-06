@@ -16,7 +16,7 @@ const features: Feature[] = [
   },
   {
     tag: "02",
-    title: "In-depth Analysis",
+    title: "Deep Analysis",
     description:
       "Receive a detailed 10–12 point legal analysis with numbered findings, relevant sections, and a clear conclusion.",
   },
@@ -52,9 +52,9 @@ const features: Feature[] = [
   },
   {
     tag: "08",
-    title: "40+ Bare Acts",
+    title: "157+ Bare Acts",
     description:
-      "AI-powered retrieval from India's key legislation — IPC, BNS, CrPC, BNSS, the Constitution, and 40+ other acts at the section level.",
+      "AI-powered retrieval from India's key legislation — IPC, BNS, CrPC, BNSS, the Constitution, and 157+ other acts at the section level.",
   },
   {
     tag: "09",

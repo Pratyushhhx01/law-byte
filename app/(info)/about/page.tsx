@@ -27,35 +27,30 @@ export default function AboutPage() {
             <section>
               <h2 className="text-xl font-semibold text-white">Our Mission</h2>
               <p className="mt-3">
-                Lawbite was built to bridge the gap between India&apos;s complex legal
-                system and the people who need to navigate it. We believe that
-                understanding the law should not require a law degree. Our
+                Lawbite was built to bridge the gap between India&apos;s complex
+                legal system and the people who need to navigate it. We believe
+                that understanding the law should not require a law degree. Our
                 platform uses artificial intelligence to deliver clear, accurate
                 legal information drawn from India&apos;s key legislation —
-                including the Constitution, IPC, BNS, CrPC, BNSS, and 40+ other
+                including the Constitution, IPC, BNS, CrPC, BNSS, and 157+ other
                 bare acts.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-white">
-                What We Do
-              </h2>
+              <h2 className="text-xl font-semibold text-white">What We Do</h2>
               <p className="mt-3">
                 Lawbite is an AI-powered legal assistant that provides instant
                 answers to Indian legal questions. Users can ask quick
-                questions, request in-depth analysis, draft legal documents,
-                review agreements, or go through a structured case intake
-                session. Every response is grounded in Indian law, sourced from
-                our comprehensive knowledge base of bare acts and legal
-                references.
+                questions, request deep analysis, draft legal documents, review
+                agreements, or go through a structured case intake session.
+                Every response is grounded in Indian law, sourced from our
+                comprehensive knowledge base of bare acts and legal references.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-white">
-                Why Lawbite
-              </h2>
+              <h2 className="text-xl font-semibold text-white">Why Lawbite</h2>
               <ul className="mt-4 list-disc space-y-2 pl-6">
                 <li>
                   <strong className="text-white/90">
@@ -66,8 +61,8 @@ export default function AboutPage() {
                 </li>
                 <li>
                   <strong className="text-white/90">Multiple modes:</strong>{" "}
-                  From quick Q&A to document drafting, choose the right tool
-                  for your situation.
+                  From quick Q&A to document drafting, choose the right tool for
+                  your situation.
                 </li>
                 <li>
                   <strong className="text-white/90">Always up to date:</strong>{" "}
@@ -75,9 +70,7 @@ export default function AboutPage() {
                   information when it matters.
                 </li>
                 <li>
-                  <strong className="text-white/90">
-                    Built for India:
-                  </strong>{" "}
+                  <strong className="text-white/90">Built for India:</strong>{" "}
                   Covers central and state-specific laws, with support for all
                   major Indian legal frameworks.
                 </li>
@@ -85,13 +78,11 @@ export default function AboutPage() {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-white">
-                Disclaimer
-              </h2>
+              <h2 className="text-xl font-semibold text-white">Disclaimer</h2>
               <p className="mt-3">
                 Lawbite is an informational tool and does not constitute legal
-                advice. Always consult a qualified legal professional for
-                advice specific to your situation.
+                advice. Always consult a qualified legal professional for advice
+                specific to your situation.
               </p>
             </section>
           </div>

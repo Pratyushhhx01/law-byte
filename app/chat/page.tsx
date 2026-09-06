@@ -10,7 +10,11 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function ChatPage() {
+export default async function ChatPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ shareId?: string }>;
+}) {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -18,6 +22,8 @@ export default async function ChatPage() {
   if (!session) {
     redirect("/signin");
   }
+
+  const { shareId } = await searchParams;
 
   return (
     <ChatApp
@@ -27,6 +33,7 @@ export default async function ChatPage() {
         email: session.user.email,
         image: session.user.image ?? null,
       }}
+      shareId={shareId ?? null}
     />
   );
 }

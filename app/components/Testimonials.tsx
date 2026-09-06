@@ -24,7 +24,7 @@ const testimonials: Testimonial[] = [
   },
   {
     quote:
-      "The in-depth analysis mode gave me a 12-point breakdown of a contract dispute. It cited relevant IPC sections and recent judgments I had missed.",
+      "The deep analysis mode gave me a 12-point breakdown of a contract dispute. It cited relevant IPC sections and recent judgments I had missed.",
     name: "Rohan Desai",
     role: "Corporate Lawyer, Mumbai",
   },

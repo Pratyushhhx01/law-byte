@@ -25,20 +25,18 @@ export default function GuidesPage() {
 
           <div className="mt-10 space-y-10 text-[15px] leading-[1.75] text-white/75">
             <section>
-              <h2 className="text-xl font-semibold text-white">
-                Talk to AI
-              </h2>
+              <h2 className="text-xl font-semibold text-white">Talk to AI</h2>
               <p className="mt-3">
                 The fastest way to get answers. Simply type your legal question
-                in plain language and receive a concise two-line response.
-                Ideal for quick lookups, definitions, and straightforward
-                questions about Indian law.
+                in plain language and receive a concise two-line response. Ideal
+                for quick lookups, definitions, and straightforward questions
+                about Indian law.
               </p>
             </section>
 
             <section>
               <h2 className="text-xl font-semibold text-white">
-                In-depth Analysis
+                Deep Analysis
               </h2>
               <p className="mt-3">
                 Switch to Analysis mode for complex legal questions. You will
@@ -50,9 +48,7 @@ export default function GuidesPage() {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-white">
-                My Cases
-              </h2>
+              <h2 className="text-xl font-semibold text-white">My Cases</h2>
               <p className="mt-3">
                 A structured case intake session that asks one question at a
                 time across 8 legal lenses — problem, location, role, details,
@@ -68,10 +64,10 @@ export default function GuidesPage() {
               </h2>
               <p className="mt-3">
                 Select a document type from the popup, fill in the required
-                fields through the structured form, and receive a
-                professionally formatted legal document. Available types
-                include legal notices, FIR drafts, consumer complaints, RTI
-                applications, wills, affidavits, petitions, and contracts.
+                fields through the structured form, and receive a professionally
+                formatted legal document. Available types include legal notices,
+                FIR drafts, consumer complaints, RTI applications, wills,
+                affidavits, petitions, and contracts.
               </p>
             </section>
 
@@ -92,10 +88,21 @@ export default function GuidesPage() {
                 Tips for Best Results
               </h2>
               <ul className="mt-4 list-disc space-y-2 pl-6">
-                <li>Be specific about the area of law your question relates to.</li>
-                <li>Mention relevant states or cities when asking about location-specific laws.</li>
-                <li>Use the attachment feature to upload documents for review or context.</li>
-                <li>Pin important conversations to keep them organised in your sidebar.</li>
+                <li>
+                  Be specific about the area of law your question relates to.
+                </li>
+                <li>
+                  Mention relevant states or cities when asking about
+                  location-specific laws.
+                </li>
+                <li>
+                  Use the attachment feature to upload documents for review or
+                  context.
+                </li>
+                <li>
+                  Pin important conversations to keep them organised in your
+                  sidebar.
+                </li>
               </ul>
             </section>
           </div>
