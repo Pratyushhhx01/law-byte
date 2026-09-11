@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     if (file.size > MAX_SIZE) {
       return NextResponse.json(
         { error: "File too large. Maximum size is 10MB." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -36,8 +36,10 @@ export async function POST(request: NextRequest) {
       lower.endsWith(".doc");
     if (!isValidType) {
       return NextResponse.json(
-        { error: "Unsupported file type. Please upload a PDF or Word document." },
-        { status: 400 }
+        {
+          error: "Unsupported file type. Please upload a PDF or Word document.",
+        },
+        { status: 400 },
       );
     }
 
@@ -48,13 +50,15 @@ export async function POST(request: NextRequest) {
     if (!text.trim()) {
       return NextResponse.json(
         { error: "Could not extract text from the document." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const MAX_CHARS = 15000;
     const truncated =
-      text.length > MAX_CHARS ? text.slice(0, MAX_CHARS) + "\n\n[Truncated...]" : text;
+      text.length > MAX_CHARS
+        ? text.slice(0, MAX_CHARS) + "\n\n[Truncated...]"
+        : text;
 
     return NextResponse.json({
       text: truncated,
@@ -65,7 +69,7 @@ export async function POST(request: NextRequest) {
     console.error("Upload error:", error);
     return NextResponse.json(
       { error: "Failed to process document." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

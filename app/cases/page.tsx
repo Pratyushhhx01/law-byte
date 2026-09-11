@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import CasesApp from "./_components/CasesApp";
 
 export const metadata: Metadata = {
-  title: "My Cases — Lawbite",
+  title: "AI Lawyer — Lawbite",
   description: "Track and manage your legal cases, deadlines, and documents.",
   robots: { index: false, follow: false },
 };

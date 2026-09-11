@@ -1,6 +1,9 @@
 import type { MetadataRoute } from "next";
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL || "https://lawbite.ai";
+const BASE_URL =
+  process.env.NEXT_PUBLIC_APP_URL ||
+  process.env.BETTER_AUTH_URL ||
+  "https://lawbite.ai";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();

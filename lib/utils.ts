@@ -18,7 +18,7 @@ const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 export function checkRateLimit(
   key: string,
   maxRequests: number,
-  windowMs: number
+  windowMs: number,
 ): { allowed: boolean; retryAfterMs: number } {
   const now = Date.now();
   const entry = rateLimitMap.get(key);

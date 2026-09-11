@@ -3,16 +3,26 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Legal Calculators — Lawbite",
-  description: "Free Indian legal calculators — statute of limitations, interest calculations, and more.",
+  description:
+    "Free Indian legal calculators — statute of limitations, interest calculations, and more.",
 };
 
 const calculators = [
   {
     title: "Statute of Limitations",
-    description: "Find the deadline to file your case. Select your case type and incident date to see exactly how many days you have left.",
+    description:
+      "Find the deadline to file your case. Select your case type and incident date to see exactly how many days you have left.",
     href: "/calculators/limitations",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="h-6 w-6"
+      >
         <circle cx="12" cy="12" r="10" />
         <polyline points="12 6 12 12 16 14" />
       </svg>
@@ -20,10 +30,19 @@ const calculators = [
   },
   {
     title: "Interest Calculator",
-    description: "Calculate simple or compound interest on any principal amount. Useful for debt recovery, damages, and award calculations.",
+    description:
+      "Calculate simple or compound interest on any principal amount. Useful for debt recovery, damages, and award calculations.",
     href: "/calculators/interest",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="h-6 w-6"
+      >
         <line x1="12" y1="1" x2="12" y2="23" />
         <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
       </svg>
@@ -67,7 +86,9 @@ export default function CalculatorsPage() {
                 </p>
                 <span className="mt-4 inline-flex items-center gap-1.5 text-xs font-medium text-white/40 transition-colors duration-300 group-hover:text-white/70">
                   Open calculator
-                  <span className="transition-transform duration-300 group-hover:translate-x-0.5">→</span>
+                  <span className="transition-transform duration-300 group-hover:translate-x-0.5">
+                    →
+                  </span>
                 </span>
               </Link>
             ))}

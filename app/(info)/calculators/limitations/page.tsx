@@ -4,18 +4,78 @@ import { useState } from "react";
 import { buildIcsEvent, downloadIcs } from "@/lib/ics";
 
 const CASE_TYPES = [
-  { id: "contract", label: "Breach of Contract", years: 3, description: "Indian Contract Act, 1872 — S. 73" },
-  { id: "money", label: "Money Recovery", years: 3, description: "Suit for recovery of money" },
-  { id: "property", label: "Property Dispossession", years: 12, description: "Suit for possession of immovable property" },
-  { id: "cheque", label: "Cheque Bounce (S.138 NI Act)", days: 30, description: "Negotiable Instruments Act — 30 days from cause of action" },
-  { id: "consumer", label: "Consumer Complaint", years: 2, description: "Consumer Protection Act, 2019" },
-  { id: "motor", label: "Motor Accident Claim", years: 3, description: "Motor Vehicles Act, 1988 — S. 166" },
-  { id: "termination", label: "Wrongful Termination", years: 1, description: "Industrial Disputes Act, 1947" },
-  { id: "defamation", label: "Defamation", years: 1, description: "Indian Penal Code / BNS — S. 499/356" },
-  { id: "government", label: "Suit Against Government", years: 1, description: "Section 80 CPC — 2 months notice required" },
-  { id: "promissory", label: "Promissory Note / Written Instrument", years: 3, description: "Article 17, Limitation Act, 1963" },
-  { id: "rent", label: "Arrears of Rent", years: 3, description: "Suit for recovery of rent arrears" },
-  { id: "tort", label: "Tort / Negligence", years: 2, description: "General tortious liability" },
+  {
+    id: "contract",
+    label: "Breach of Contract",
+    years: 3,
+    description: "Indian Contract Act, 1872 — S. 73",
+  },
+  {
+    id: "money",
+    label: "Money Recovery",
+    years: 3,
+    description: "Suit for recovery of money",
+  },
+  {
+    id: "property",
+    label: "Property Dispossession",
+    years: 12,
+    description: "Suit for possession of immovable property",
+  },
+  {
+    id: "cheque",
+    label: "Cheque Bounce (S.138 NI Act)",
+    days: 30,
+    description: "Negotiable Instruments Act — 30 days from cause of action",
+  },
+  {
+    id: "consumer",
+    label: "Consumer Complaint",
+    years: 2,
+    description: "Consumer Protection Act, 2019",
+  },
+  {
+    id: "motor",
+    label: "Motor Accident Claim",
+    years: 3,
+    description: "Motor Vehicles Act, 1988 — S. 166",
+  },
+  {
+    id: "termination",
+    label: "Wrongful Termination",
+    years: 1,
+    description: "Industrial Disputes Act, 1947",
+  },
+  {
+    id: "defamation",
+    label: "Defamation",
+    years: 1,
+    description: "Indian Penal Code / BNS — S. 499/356",
+  },
+  {
+    id: "government",
+    label: "Suit Against Government",
+    years: 1,
+    description: "Section 80 CPC — 2 months notice required",
+  },
+  {
+    id: "promissory",
+    label: "Promissory Note / Written Instrument",
+    years: 3,
+    description: "Article 17, Limitation Act, 1963",
+  },
+  {
+    id: "rent",
+    label: "Arrears of Rent",
+    years: 3,
+    description: "Suit for recovery of rent arrears",
+  },
+  {
+    id: "tort",
+    label: "Tort / Negligence",
+    years: 2,
+    description: "General tortious liability",
+  },
 ];
 
 function addDays(date: Date, days: number): Date {
@@ -117,7 +177,8 @@ export default function LimitationsCalculator() {
                       {ct.label}
                     </span>
                     <span className="mt-1 block text-xs text-white/40">
-                      {ct.days ? `${ct.days} days` : `${ct.years} years`} — {ct.description}
+                      {ct.days ? `${ct.days} days` : `${ct.years} years`} —{" "}
+                      {ct.description}
                     </span>
                   </button>
                 ))}
@@ -125,7 +186,10 @@ export default function LimitationsCalculator() {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="incident-date" className="block text-sm font-medium text-white/70">
+              <label
+                htmlFor="incident-date"
+                className="block text-sm font-medium text-white/70"
+              >
                 Date of Incident / Cause of Action
               </label>
               <input
@@ -151,21 +215,53 @@ export default function LimitationsCalculator() {
                     }`}
                   >
                     {status === "safe" ? (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
-                        <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        className="h-5 w-5"
+                      >
+                        <path
+                          d="M20 6L9 17l-5-5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     ) : status === "approaching" ? (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
-                        <path d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" />
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        className="h-5 w-5"
+                      >
+                        <path
+                          d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     ) : (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
-                        <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        className="h-5 w-5"
+                      >
+                        <path
+                          d="M18 6L6 18M6 6l12 12"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     )}
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-white/50">Filing Deadline</p>
+                    <p className="text-sm font-medium text-white/50">
+                      Filing Deadline
+                    </p>
                     <p className="mt-1 text-2xl font-semibold text-white">
                       {formatDate(deadline)}
                     </p>
@@ -190,17 +286,23 @@ export default function LimitationsCalculator() {
                 <div className="mt-6 grid gap-4 text-sm sm:grid-cols-3">
                   <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-3">
                     <p className="text-xs text-white/40">Case Type</p>
-                    <p className="mt-1 font-medium text-white">{caseType?.label}</p>
+                    <p className="mt-1 font-medium text-white">
+                      {caseType?.label}
+                    </p>
                   </div>
                   <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-3">
                     <p className="text-xs text-white/40">Limitation Period</p>
                     <p className="mt-1 font-medium text-white">
-                      {caseType?.days ? `${caseType.days} days` : `${caseType?.years} years`}
+                      {caseType?.days
+                        ? `${caseType.days} days`
+                        : `${caseType?.years} years`}
                     </p>
                   </div>
                   <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-3">
                     <p className="text-xs text-white/40">Incident Date</p>
-                    <p className="mt-1 font-medium text-white">{formatDate(new Date(incidentDate))}</p>
+                    <p className="mt-1 font-medium text-white">
+                      {formatDate(new Date(incidentDate))}
+                    </p>
                   </div>
                 </div>
 
@@ -236,7 +338,9 @@ export default function LimitationsCalculator() {
                           }),
                         });
                         if (res.ok) setReminderSaved(true);
-                      } catch { /* ignore */ }
+                      } catch {
+                        /* ignore */
+                      }
                     }}
                     className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
                       reminderSaved
@@ -252,10 +356,10 @@ export default function LimitationsCalculator() {
 
             <p className="text-xs leading-relaxed text-white/35">
               Disclaimer: Limitation periods under the Limitation Act, 1963 may
-              vary based on specific facts, court interpretations, and legislative
-              amendments. Some states may have different limitation periods for
-              certain categories of suits. Always consult a qualified legal
-              professional for advice on your specific case.
+              vary based on specific facts, court interpretations, and
+              legislative amendments. Some states may have different limitation
+              periods for certain categories of suits. Always consult a
+              qualified legal professional for advice on your specific case.
             </p>
           </div>
         </article>

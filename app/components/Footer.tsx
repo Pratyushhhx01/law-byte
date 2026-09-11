@@ -40,20 +40,20 @@ const columns: { title: string; links: { label: string; href: string }[] }[] = [
 
 export default function Footer() {
   return (
-    <footer
-      id="contact"
-      className="relative border-t border-white/10 bg-black"
-    >
+    <footer id="contact" className="relative border-t border-white/10 bg-black">
       <div className="mx-auto max-w-6xl px-6 py-20">
         <div className="grid gap-12 lg:grid-cols-12">
           <div className="lg:col-span-4">
-            <Link href="/" className="inline-flex items-center gap-2.5 text-sm font-semibold">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2.5 text-sm font-semibold"
+            >
               <LogoIcon className="h-7 w-7" />
               <span>Lawbite</span>
             </Link>
             <p className="mt-5 max-w-sm text-sm leading-relaxed text-white/55">
-              AI-powered Indian legal assistant. Get instant answers from
-              40+ bare acts, structured analysis, and real-time web search.
+              AI-powered Indian legal assistant. Get instant answers from 157+
+              bare acts, structured analysis, and real-time web search.
             </p>
             <form
               className="mt-7 flex max-w-sm items-center gap-2 rounded-full border border-white/10 bg-white/[0.02] p-1.5 pl-4 transition-colors duration-300 focus-within:border-white/30"

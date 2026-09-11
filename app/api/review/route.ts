@@ -6,7 +6,13 @@ import mammoth from "mammoth";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_TEXT_LENGTH = 8000;
-const IMAGE_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"];
+const IMAGE_TYPES = [
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+  "image/gif",
+];
 const DOCX_TYPES = [
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/msword",
@@ -28,7 +34,10 @@ export async function POST(request: NextRequest) {
     if (!allowed) {
       return Response.json(
         { error: "Too many requests. Please try again later." },
-        { status: 429, headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)) } }
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)) },
+        },
       );
     }
 
@@ -40,13 +49,19 @@ export async function POST(request: NextRequest) {
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      return Response.json({ error: "File size must be under 10MB" }, { status: 400 });
+      return Response.json(
+        { error: "File size must be under 10MB" },
+        { status: 400 },
+      );
     }
 
     if (!ALLOWED_TYPES.includes(file.type)) {
       return Response.json(
-        { error: "Unsupported file type. Please upload a PDF, Word document, or image (PNG, JPEG, WebP, GIF)." },
-        { status: 400 }
+        {
+          error:
+            "Unsupported file type. Please upload a PDF, Word document, or image (PNG, JPEG, WebP, GIF).",
+        },
+        { status: 400 },
       );
     }
 
@@ -75,7 +90,11 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    if (DOCX_TYPES.includes(file.type) || file.name.endsWith(".docx") || file.name.endsWith(".doc")) {
+    if (
+      DOCX_TYPES.includes(file.type) ||
+      file.name.endsWith(".docx") ||
+      file.name.endsWith(".doc")
+    ) {
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
       const result = await mammoth.extractRawText({ buffer });

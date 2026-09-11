@@ -26,7 +26,10 @@ export default function MouseGlow() {
       currentY += (targetY - currentY) * 0.12;
       node.style.setProperty("--mx", `${currentX}px`);
       node.style.setProperty("--my", `${currentY}px`);
-      if (Math.abs(targetX - currentX) > 0.2 || Math.abs(targetY - currentY) > 0.2) {
+      if (
+        Math.abs(targetX - currentX) > 0.2 ||
+        Math.abs(targetY - currentY) > 0.2
+      ) {
         raf = requestAnimationFrame(loop);
       } else {
         raf = 0;

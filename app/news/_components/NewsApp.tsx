@@ -15,7 +15,10 @@ const CATEGORIES = [
   { label: "New Laws", query: "India new act amendment" },
   { label: "High Courts", query: "High Court India judgment" },
   { label: "Criminal Law", query: "India criminal law BNS BNSS" },
-  { label: "Constitutional", query: "India constitutional law fundamental rights" },
+  {
+    label: "Constitutional",
+    query: "India constitutional law fundamental rights",
+  },
 ];
 
 export default function NewsApp() {
@@ -36,13 +39,19 @@ export default function NewsApp() {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const formatDate = (d?: string) => {
     if (!d) return "";
     try {
-      return new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+      return new Date(d).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
     } catch {
       return d;
     }
@@ -51,8 +60,12 @@ export default function NewsApp() {
   const filteredNews = CATEGORIES[activeCategory].query
     ? news.filter(
         (n) =>
-          n.title.toLowerCase().includes(CATEGORIES[activeCategory].query.toLowerCase()) ||
-          n.snippet.toLowerCase().includes(CATEGORIES[activeCategory].query.toLowerCase())
+          n.title
+            .toLowerCase()
+            .includes(CATEGORIES[activeCategory].query.toLowerCase()) ||
+          n.snippet
+            .toLowerCase()
+            .includes(CATEGORIES[activeCategory].query.toLowerCase()),
       )
     : news;
 
@@ -61,7 +74,10 @@ export default function NewsApp() {
       <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="mb-10 text-center">
           <h1 className="text-3xl font-bold tracking-tight">Legal News</h1>
-          <p className="mt-3 text-sm text-white/50">Stay updated with the latest Indian legal developments, judgments, and law changes.</p>
+          <p className="mt-3 text-sm text-white/50">
+            Stay updated with the latest Indian legal developments, judgments,
+            and law changes.
+          </p>
         </div>
 
         <div className="mb-8 flex flex-wrap gap-2">
@@ -83,7 +99,10 @@ export default function NewsApp() {
         {loading ? (
           <div className="space-y-4">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="animate-pulse rounded-xl border border-white/5 bg-white/[0.02] p-5">
+              <div
+                key={i}
+                className="animate-pulse rounded-xl border border-white/5 bg-white/[0.02] p-5"
+              >
                 <div className="mb-2 h-4 w-3/4 rounded bg-white/5" />
                 <div className="h-3 w-full rounded bg-white/5" />
                 <div className="mt-2 h-3 w-2/3 rounded bg-white/5" />
@@ -92,8 +111,12 @@ export default function NewsApp() {
           </div>
         ) : filteredNews.length === 0 ? (
           <div className="rounded-xl border border-dashed border-white/10 p-12 text-center">
-            <p className="text-sm text-white/40">No news found for this category.</p>
-            <p className="mt-2 text-xs text-white/25">Check back later for updates.</p>
+            <p className="text-sm text-white/40">
+              No news found for this category.
+            </p>
+            <p className="mt-2 text-xs text-white/25">
+              Check back later for updates.
+            </p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -107,16 +130,32 @@ export default function NewsApp() {
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
-                    <h3 className="text-sm font-semibold text-white/80 group-hover:text-white">{item.title}</h3>
-                    <p className="mt-2 text-xs text-white/40 line-clamp-2">{item.snippet}</p>
+                    <h3 className="text-sm font-semibold text-white/80 group-hover:text-white">
+                      {item.title}
+                    </h3>
+                    <p className="mt-2 text-xs text-white/40 line-clamp-2">
+                      {item.snippet}
+                    </p>
                   </div>
                   <div className="shrink-0">
-                    <span className="text-[10px] text-white/25">{formatDate(item.date)}</span>
+                    <span className="text-[10px] text-white/25">
+                      {formatDate(item.date)}
+                    </span>
                   </div>
                 </div>
                 <div className="mt-3 flex items-center gap-1 text-[11px] text-white/20 group-hover:text-white/30">
-                  <svg className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  <svg
+                    className="h-3 w-3"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                    />
                   </svg>
                   {new URL(item.url).hostname.replace(/^www\./, "")}
                 </div>

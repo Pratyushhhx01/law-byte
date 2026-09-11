@@ -29,7 +29,7 @@ const steps: Step[] = [
     number: "04",
     title: "Get Grounded Answers",
     description:
-      "AI retrieves from 40+ Indian bare acts and searches the web for current legal developments to support its response.",
+      "AI retrieves from 157+ Indian bare acts and searches the web for current legal developments to support its response.",
   },
   {
     number: "05",
@@ -57,8 +57,8 @@ export default function HowItWorks() {
               </h2>
             </div>
             <p className="max-w-sm text-sm leading-relaxed text-white/60">
-              No legal training required. Just ask, and Lawbite does the
-              heavy lifting.
+              No legal training required. Just ask, and Lawbite does the heavy
+              lifting.
             </p>
           </div>
         </Reveal>
@@ -70,7 +70,10 @@ export default function HowItWorks() {
           />
           <ol className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
             {steps.map((step, i) => (
-              <Reveal key={step.number} delay={((i % 5) + 1) as 1 | 2 | 3 | 4 | 5}>
+              <Reveal
+                key={step.number}
+                delay={((i % 5) + 1) as 1 | 2 | 3 | 4 | 5}
+              >
                 <li className="group relative">
                   <div className="relative flex items-center gap-4">
                     <div className="relative">

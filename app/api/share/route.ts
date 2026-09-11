@@ -12,7 +12,10 @@ export async function POST(request: NextRequest) {
 
     const { conversationId } = await request.json();
     if (!conversationId) {
-      return NextResponse.json({ error: "conversationId required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "conversationId required" },
+        { status: 400 },
+      );
     }
 
     const conversation = await db
@@ -27,7 +30,10 @@ export async function POST(request: NextRequest) {
     }
 
     const shareId = crypto.randomUUID();
-    const messages = conversation.messages as { role: string; content: string }[];
+    const messages = conversation.messages as {
+      role: string;
+      content: string;
+    }[];
     const exportData = JSON.stringify({
       title: conversation.title,
       type: conversation.type,
@@ -64,13 +70,19 @@ export async function GET(request: NextRequest) {
     const result = results.rows[0];
 
     if (!result) {
-      return NextResponse.json({ error: "Share link expired or invalid" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Share link expired or invalid" },
+        { status: 404 },
+      );
     }
 
     const data = JSON.parse(result.messages);
     return NextResponse.json(data);
   } catch (error) {
     console.error("Get share error:", error);
-    return NextResponse.json({ error: "Failed to load shared conversation" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to load shared conversation" },
+      { status: 500 },
+    );
   }
 }

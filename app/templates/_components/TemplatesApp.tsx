@@ -24,16 +24,38 @@ const templates: Template[] = [
     id: "rental-agreement",
     name: "Rental / Lease Agreement",
     category: "Property",
-    description: "Standard residential rental agreement under the Transfer of Property Act, 1882.",
+    description:
+      "Standard residential rental agreement under the Transfer of Property Act, 1882.",
     fields: [
-      { label: "Landlord Name", placeholder: "Full legal name", required: true },
-      { label: "Landlord Address", placeholder: "Complete address", required: true },
+      {
+        label: "Landlord Name",
+        placeholder: "Full legal name",
+        required: true,
+      },
+      {
+        label: "Landlord Address",
+        placeholder: "Complete address",
+        required: true,
+      },
       { label: "Tenant Name", placeholder: "Full legal name", required: true },
-      { label: "Tenant Address", placeholder: "Complete address", required: true },
-      { label: "Property Address", placeholder: "Full address of rented property", required: true },
+      {
+        label: "Tenant Address",
+        placeholder: "Complete address",
+        required: true,
+      },
+      {
+        label: "Property Address",
+        placeholder: "Full address of rented property",
+        required: true,
+      },
       { label: "Monthly Rent", placeholder: "e.g. 25000", required: true },
       { label: "Security Deposit", placeholder: "e.g. 50000", required: true },
-      { label: "Lease Start Date", placeholder: "DD/MM/YYYY", type: "date", required: true },
+      {
+        label: "Lease Start Date",
+        placeholder: "DD/MM/YYYY",
+        type: "date",
+        required: true,
+      },
       { label: "Lease Duration", placeholder: "e.g. 11 months" },
       { label: "Notice Period", placeholder: "e.g. 2 months" },
     ],
@@ -92,14 +114,36 @@ Witness 2: ___________________
     id: "employment-contract",
     name: "Employment Contract",
     category: "Employment",
-    description: "Standard employment agreement under the Indian Contract Act, 1872 and Labour Codes.",
+    description:
+      "Standard employment agreement under the Indian Contract Act, 1872 and Labour Codes.",
     fields: [
-      { label: "Company Name", placeholder: "Company / employer name", required: true },
-      { label: "Company Address", placeholder: "Registered office address", required: true },
-      { label: "Employee Name", placeholder: "Full legal name", required: true },
-      { label: "Designation", placeholder: "Job title / designation", required: true },
+      {
+        label: "Company Name",
+        placeholder: "Company / employer name",
+        required: true,
+      },
+      {
+        label: "Company Address",
+        placeholder: "Registered office address",
+        required: true,
+      },
+      {
+        label: "Employee Name",
+        placeholder: "Full legal name",
+        required: true,
+      },
+      {
+        label: "Designation",
+        placeholder: "Job title / designation",
+        required: true,
+      },
       { label: "Monthly Salary", placeholder: "e.g. 50000", required: true },
-      { label: "Joining Date", placeholder: "DD/MM/YYYY", type: "date", required: true },
+      {
+        label: "Joining Date",
+        placeholder: "DD/MM/YYYY",
+        type: "date",
+        required: true,
+      },
       { label: "Work Location", placeholder: "City / office address" },
       { label: "Notice Period", placeholder: "e.g. 30 days" },
     ],
@@ -155,13 +199,34 @@ Signature: ___________________
     id: "nda",
     name: "Non-Disclosure Agreement (NDA)",
     category: "Business",
-    description: "Confidentiality agreement for protecting sensitive business information.",
+    description:
+      "Confidentiality agreement for protecting sensitive business information.",
     fields: [
-      { label: "Party A Name", placeholder: "First party name", required: true },
-      { label: "Party A Address", placeholder: "First party address", required: true },
-      { label: "Party B Name", placeholder: "Second party name", required: true },
-      { label: "Party B Address", placeholder: "Second party address", required: true },
-      { label: "Purpose", placeholder: "Purpose of sharing confidential information", required: true },
+      {
+        label: "Party A Name",
+        placeholder: "First party name",
+        required: true,
+      },
+      {
+        label: "Party A Address",
+        placeholder: "First party address",
+        required: true,
+      },
+      {
+        label: "Party B Name",
+        placeholder: "Second party name",
+        required: true,
+      },
+      {
+        label: "Party B Address",
+        placeholder: "Second party address",
+        required: true,
+      },
+      {
+        label: "Purpose",
+        placeholder: "Purpose of sharing confidential information",
+        required: true,
+      },
       { label: "Duration", placeholder: "e.g. 2 years" },
     ],
     generate: (d) => `NON-DISCLOSURE AGREEMENT
@@ -220,16 +285,50 @@ Signature: ___________________
     id: "partnership-deed",
     name: "Partnership Deed",
     category: "Business",
-    description: "Partnership deed for forming a firm under the Indian Partnership Act, 1932.",
+    description:
+      "Partnership deed for forming a firm under the Indian Partnership Act, 1932.",
     fields: [
-      { label: "Firm Name", placeholder: "Name of the partnership firm", required: true },
-      { label: "Firm Address", placeholder: "Principal place of business", required: true },
-      { label: "Partner 1 Name", placeholder: "Full legal name", required: true },
-      { label: "Partner 2 Name", placeholder: "Full legal name", required: true },
-      { label: "Profit Share Ratio", placeholder: "e.g. 50:50 or 60:40", required: true },
-      { label: "Capital Partner 1", placeholder: "e.g. 500000", required: true },
-      { label: "Capital Partner 2", placeholder: "e.g. 500000", required: true },
-      { label: "Commencement Date", placeholder: "DD/MM/YYYY", type: "date", required: true },
+      {
+        label: "Firm Name",
+        placeholder: "Name of the partnership firm",
+        required: true,
+      },
+      {
+        label: "Firm Address",
+        placeholder: "Principal place of business",
+        required: true,
+      },
+      {
+        label: "Partner 1 Name",
+        placeholder: "Full legal name",
+        required: true,
+      },
+      {
+        label: "Partner 2 Name",
+        placeholder: "Full legal name",
+        required: true,
+      },
+      {
+        label: "Profit Share Ratio",
+        placeholder: "e.g. 50:50 or 60:40",
+        required: true,
+      },
+      {
+        label: "Capital Partner 1",
+        placeholder: "e.g. 500000",
+        required: true,
+      },
+      {
+        label: "Capital Partner 2",
+        placeholder: "e.g. 500000",
+        required: true,
+      },
+      {
+        label: "Commencement Date",
+        placeholder: "DD/MM/YYYY",
+        type: "date",
+        required: true,
+      },
     ],
     generate: (d) => `PARTNERSHIP DEED
 
@@ -290,14 +389,40 @@ Witness 2: ___________________
     id: "power-of-attorney",
     name: "Power of Attorney (General)",
     category: "General",
-    description: "General power of attorney under the Power of Attorney Act, 1882.",
+    description:
+      "General power of attorney under the Power of Attorney Act, 1882.",
     fields: [
-      { label: "Principal Name", placeholder: "Full legal name", required: true },
-      { label: "Principal Address", placeholder: "Complete address", required: true },
-      { label: "Agent Name", placeholder: "Full legal name of attorney", required: true },
-      { label: "Agent Address", placeholder: "Complete address", required: true },
-      { label: "Purpose", placeholder: "Purpose / scope of authority", required: true },
-      { label: "Execution Date", placeholder: "DD/MM/YYYY", type: "date", required: true },
+      {
+        label: "Principal Name",
+        placeholder: "Full legal name",
+        required: true,
+      },
+      {
+        label: "Principal Address",
+        placeholder: "Complete address",
+        required: true,
+      },
+      {
+        label: "Agent Name",
+        placeholder: "Full legal name of attorney",
+        required: true,
+      },
+      {
+        label: "Agent Address",
+        placeholder: "Complete address",
+        required: true,
+      },
+      {
+        label: "Purpose",
+        placeholder: "Purpose / scope of authority",
+        required: true,
+      },
+      {
+        label: "Execution Date",
+        placeholder: "DD/MM/YYYY",
+        type: "date",
+        required: true,
+      },
     ],
     generate: (d) => `POWER OF ATTORNEY
 
@@ -339,15 +464,37 @@ Signature: ___________________
     id: "sale-deed",
     name: "Sale Deed (Immovable Property)",
     category: "Property",
-    description: "Property sale deed under the Transfer of Property Act, 1882 and Registration Act, 1908.",
+    description:
+      "Property sale deed under the Transfer of Property Act, 1882 and Registration Act, 1908.",
     fields: [
       { label: "Seller Name", placeholder: "Full legal name", required: true },
-      { label: "Seller Address", placeholder: "Complete address", required: true },
+      {
+        label: "Seller Address",
+        placeholder: "Complete address",
+        required: true,
+      },
       { label: "Buyer Name", placeholder: "Full legal name", required: true },
-      { label: "Buyer Address", placeholder: "Complete address", required: true },
-      { label: "Property Description", placeholder: "Full description with survey number, area, boundaries", required: true },
-      { label: "Sale Consideration", placeholder: "Total sale price in rupees", required: true },
-      { label: "Sale Date", placeholder: "DD/MM/YYYY", type: "date", required: true },
+      {
+        label: "Buyer Address",
+        placeholder: "Complete address",
+        required: true,
+      },
+      {
+        label: "Property Description",
+        placeholder: "Full description with survey number, area, boundaries",
+        required: true,
+      },
+      {
+        label: "Sale Consideration",
+        placeholder: "Total sale price in rupees",
+        required: true,
+      },
+      {
+        label: "Sale Date",
+        placeholder: "DD/MM/YYYY",
+        type: "date",
+        required: true,
+      },
     ],
     generate: (d) => `SALE DEED
 
@@ -399,16 +546,575 @@ Signature: ___________________
 
 [DISCLAIMER: This document is an AI-generated draft for reference purposes only. It does not constitute legal advice or a substitute for a professionally drafted document. Consult a practicing lawyer before signing, filing, or acting upon this document.]`,
   },
+  {
+    id: "will",
+    name: "Will",
+    category: "Document",
+    description:
+      "Last Will and Testament under the Indian Succession Act, 1925.",
+    fields: [
+      {
+        label: "Testator Name",
+        placeholder: "Full legal name",
+        required: true,
+      },
+      {
+        label: "Testator Address",
+        placeholder: "Complete address",
+        required: true,
+      },
+      {
+        label: "Executor Name",
+        placeholder: "Name of person to execute the will",
+        required: true,
+      },
+      {
+        label: "Executor Address",
+        placeholder: "Complete address of executor",
+        required: true,
+      },
+      {
+        label: "Beneficiaries",
+        placeholder: "Names and shares of beneficiaries",
+        type: "textarea",
+        required: true,
+      },
+      {
+        label: "Assets Description",
+        placeholder: "Details of property, investments, and other assets",
+        type: "textarea",
+        required: true,
+      },
+      {
+        label: "Date",
+        placeholder: "DD/MM/YYYY",
+        type: "date",
+        required: true,
+      },
+    ],
+    generate: (d) => `LAST WILL AND TESTAMENT
+
+Date: ${d["Date"] || "[Date]"}
+
+I, ${d["Testator Name"] || "[Testator Name]"}, son/daughter of [Father's Name], aged [Age] years, residing at ${d["Testator Address"] || "[Address]"}, being of sound mind and disposing memory, do hereby make this my Last Will and Testament as follows:
+
+1. REVOCATION: I revoke all prior wills and codicils made by me.
+
+2. EXECUTOR: I appoint ${d["Executor Name"] || "[Executor Name]"}, residing at ${d["Executor Address"] || "[Executor Address]"}, as the Executor of this Will.
+
+3. ASSETS: I own the following assets:
+${d["Assets Description"] || "[Describe your assets including property, bank accounts, investments, and other valuables]"}
+
+4. BEQUESTS: I bequeath my assets as follows:
+${d["Beneficiaries"] || "[List beneficiaries and their respective shares]"}
+
+5. DEBTS AND EXPENSES: I direct that all my just debts, funeral expenses, and costs of probate be paid from my estate.
+
+6. GUARDIANSHIP: [If applicable, specify guardianship arrangements for minor children]
+
+IN WITNESS WHEREOF, I have executed this Will on the date first above written.
+
+TESTATOR:
+${d["Testator Name"] || "___________________"}
+Signature: ___________________
+
+In the presence of:
+
+Witness 1:
+Name: ___________________
+Address: ___________________
+Signature: ___________________
+
+Witness 2:
+Name: ___________________
+Address: ___________________
+Signature: ___________________
+
+[DISCLAIMER: This document is an AI-generated draft for reference purposes only. It does not constitute legal advice or a substitute for a professionally drafted document. Consult a practicing lawyer before signing, filing, or acting upon this document.]`,
+  },
+  {
+    id: "affidavit",
+    name: "Affidavit",
+    category: "Document",
+    description: "Sworn affidavit for use in courts and official proceedings.",
+    fields: [
+      {
+        label: "Deponent Name",
+        placeholder: "Full legal name of deponent",
+        required: true,
+      },
+      {
+        label: "Deponent Address",
+        placeholder: "Complete address",
+        required: true,
+      },
+      {
+        label: "Subject",
+        placeholder: "Subject/purpose of the affidavit",
+        required: true,
+      },
+      {
+        label: "Affirmation Statement",
+        placeholder: "The facts being affirmed",
+        type: "textarea",
+        required: true,
+      },
+      {
+        label: "Date",
+        placeholder: "DD/MM/YYYY",
+        type: "date",
+        required: true,
+      },
+    ],
+    generate: (d) =>
+      `AFFIDAVIT
+
+Date: ${d["Date"] || "[Date]"}
+
+BEFORE THE [COURT/AUTHORITY]
+
+IN THE MATTER OF: ${d["Subject"] || "[Subject]"}
+
+AFFIDAVIT OF ${d["Deponent Name"] || "[Deponent Name]"}
+
+I, ${d["Deponent Name"] || "[Deponent Name]"}, son/daughter of [Father's Name], aged [Age] years, residing at ${d["Deponent Address"] || "[Address]"}, do hereby solemnly affirm and state as follows:
+
+1. ${d["Affirmation Statement"] || "[State the facts you are affirming]"}
+
+2. I say that the contents of this affidavit are true and correct to the best of my knowledge and belief.
+
+3. I make this affidavit in support of [purpose/application].
+
+VERIFICATION
+
+I, ${d["Deponent Name"] || "[Deponent Name]"}, the deponent above-named, do hereby verify that the contents of paragraphs 1 and 2 are true and correct to the best of my knowledge and belief. No part of it is false, and nothing material has been concealed.
+
+Verified at [Place] on this ${d["Date"] || "[Date]"}.
+
+DEPONENT:
+${d["Deponent Name"] || "___________________"}
+Signature: ___________________
+
+Before me:
+
+Oath Commissioner / Notary Public
+Name: ___________________
+Registration No.: ___________________
+Signature: ___________________
+
+[DISCLAIMER: This document is an AI-generated draft for reference purposes only. It does not constitute legal advice or a substitute for a professionally drafted document. Consult a practicing lawyer before signing, filing, or acting upon this document.]`,
+  },
+  {
+    id: "petition",
+    name: "Petition / Plaint",
+    category: "Document",
+    description: "Civil suit plaint for filing in appropriate courts.",
+    fields: [
+      {
+        label: "Petitioner Name",
+        placeholder: "Full legal name",
+        required: true,
+      },
+      {
+        label: "Respondent Name",
+        placeholder: "Full legal name",
+        required: true,
+      },
+      {
+        label: "Court Name",
+        placeholder: "Name of the court",
+        required: true,
+      },
+      {
+        label: "Cause of Action",
+        placeholder: "Facts giving rise to the claim",
+        type: "textarea",
+        required: true,
+      },
+      {
+        label: "Relief Sought",
+        placeholder: "Specific relief/prayer sought from the court",
+        type: "textarea",
+        required: true,
+      },
+      {
+        label: "Date",
+        placeholder: "DD/MM/YYYY",
+        type: "date",
+        required: true,
+      },
+    ],
+    generate: (d) => `PLAINT
+
+IN THE COURT OF ${d["Court Name"] || "[Court Name]"}
+
+ORIGINAL JURISDICTION
+
+Suit No.: ________/20__
+
+${d["Petitioner Name"] || "[Petitioner Name]"}                           - Plaintiff
+
+Vs.
+
+${d["Respondent Name"] || "[Respondent Name]"}                          - Defendant
+
+PLAINT UNDER ORDER VII RULE 1 CPC
+
+May it please the Hon'ble Court,
+
+1. The plaintiff ${d["Petitioner Name"] || "[Petitioner Name]"}, residing at [Address], files this suit against the defendant ${d["Respondent Name"] || "[Respondent Name]"}, residing at [Address], for the following cause of action:
+
+${d["Cause of Action"] || "[State the facts giving rise to the claim]"}
+
+2. JURISDICTION: This Hon'ble Court has jurisdiction to try this suit as the cause of action arose within its territorial limits and the value of the suit exceeds Rs. [Amount].
+
+3. CAUSE OF ACTION: The cause of action arose on [Date] when [state the facts that gave rise to the claim].
+
+4. LIMITATION: This suit is filed within the period of limitation as prescribed under the Limitation Act, 1963.
+
+5. VALUATION: The suit is valued at Rs. [Amount] for purposes of court fees and jurisdiction.
+
+6. RELIEF SOUGHT: The plaintiff prays for:
+${d["Relief Sought"] || "[State the specific relief/prayer sought from the court]"}
+
+7. LIST OF DOCUMENTS:
+   (i) [Document 1]
+   (ii) [Document 2]
+   (iii) [Document 3]
+
+8. LIST OF WITNESSES:
+   (i) [Witness 1]
+   (ii) [Witness 2]
+
+PLAINTIFF:
+${d["Petitioner Name"] || "___________________"}
+Signature: ___________________
+
+Through: [Advocate Name]
+Advocate for the Plaintiff
+
+Date: ${d["Date"] || "[Date]"}
+Place: [City]
+
+[DISCLAIMER: This document is an AI-generated draft for reference purposes only. It does not constitute legal advice or a substitute for a professionally drafted document. Consult a practicing lawyer before signing, filing, or acting upon this document.]`,
+  },
+  {
+    id: "legal-notice",
+    name: "Legal Notice",
+    category: "Document",
+    description: "Formal legal notice before initiating court proceedings.",
+    fields: [
+      {
+        label: "Sender Name",
+        placeholder: "Full legal name of sender",
+        required: true,
+      },
+      {
+        label: "Recipient Name",
+        placeholder: "Full legal name of recipient",
+        required: true,
+      },
+      {
+        label: "Subject",
+        placeholder: "Subject of the legal notice",
+        required: true,
+      },
+      {
+        label: "Facts of the Case",
+        placeholder: "Detailed facts of the case",
+        type: "textarea",
+        required: true,
+      },
+      {
+        label: "Demand/Relief",
+        placeholder: "What you are demanding or seeking",
+        type: "textarea",
+        required: true,
+      },
+    ],
+    generate: (d) => `LEGAL NOTICE
+
+Date: ${new Date().toLocaleDateString("en-IN")}
+
+From:
+${d["Sender Name"] || "[Sender Name]"}
+[Address]
+
+To:
+${d["Recipient Name"] || "[Recipient Name]"}
+[Address]
+
+Subject: ${d["Subject"] || "[Subject]"}
+
+Sir/Madam,
+
+1. I, ${d["Sender Name"] || "[Sender Name]"}, through my Advocate, hereby issue this legal notice under Section 80 of the Code of Civil Procedure, 1908 [or other applicable provision] in respect of the following matter:
+
+${d["Facts of the Case"] || "[State the facts of the case in detail]"}
+
+2. LEGAL GROUNDS: The above acts/omissions constitute violation of [specify applicable laws/provisions].
+
+3. DEMAND: Through this notice, I call upon you to ${d["Demand/Relief"] || "[State your demand/relief sought]"} within 30 days from the date of receipt of this notice.
+
+4. CONSEQUENCES: Please note that in case of your failure to comply with the above demand, I shall be constrained to initiate appropriate legal proceedings against you at your risk as to costs and consequences.
+
+This notice is issued without prejudice to my other rights and remedies available under law.
+
+Yours faithfully,
+
+${d["Sender Name"] || "___________________"}
+Through: [Advocate Name]
+Advocate
+
+[DISCLAIMER: This document is an AI-generated draft for reference purposes only. It does not constitute legal advice or a substitute for a professionally drafted document. Consult a practicing lawyer before signing, filing, or acting upon this document.]`,
+  },
+  {
+    id: "fir-draft",
+    name: "FIR Draft",
+    category: "Document",
+    description:
+      "First Information Report draft under Bharatiya Nagarik Suraksha Sanhita, 2023.",
+    fields: [
+      {
+        label: "Complainant Name",
+        placeholder: "Full legal name",
+        required: true,
+      },
+      {
+        label: "Police Station",
+        placeholder: "Name of police station",
+        required: true,
+      },
+      {
+        label: "Incident Date",
+        placeholder: "DD/MM/YYYY",
+        type: "date",
+        required: true,
+      },
+      {
+        label: "Incident Place",
+        placeholder: "Place where incident occurred",
+        required: true,
+      },
+      {
+        label: "Incident Details",
+        placeholder: "Detailed description of the incident",
+        type: "textarea",
+        required: true,
+      },
+    ],
+    generate: (d) => `FIRST INFORMATION REPORT (FIR)
+
+Date: ${d["Incident Date"] || "[Date]"}
+
+To,
+The Station House Officer (SHO),
+${d["Police Station"] || "[Police Station]"}
+[District, State]
+
+Subject: Information regarding cognizable offence under the Bharatiya Nyaya Sanhita, 2023
+
+Sir/Madam,
+
+1. I, ${d["Complainant Name"] || "[Complainant Name]"}, son/daughter of [Father's Name], aged [Age] years, residing at [Address], hereby inform you about the following cognizable offence:
+
+2. DATE AND TIME OF INCIDENT: ${d["Incident Date"] || "[Date]"} at [Time]
+
+3. PLACE OF INCIDENT: ${d["Incident Place"] || "[Place]"}
+
+4. DETAILS OF INCIDENT:
+${d["Incident Details"] || "[Describe the incident in detail - what happened, who was involved, what offences were committed]"}
+
+5. ACCUSED PERSONS: [Name(s) and description(s) of accused persons, if known]
+
+6. WITNESSES: [Name(s) and address(es) of witnesses, if any]
+
+7. EVIDENCE: [Details of any physical evidence, documents, or electronic evidence]
+
+8. I request you to register an FIR under the relevant provisions of the Bharatiya Nyaya Sanhita, 2023 and the Bharatiya Nagarik Suraksha Sanhita, 2023 and investigate the matter.
+
+Yours faithfully,
+
+${d["Complainant Name"] || "___________________"}
+Signature: ___________________
+Date: ${d["Incident Date"] || "[Date]"}
+
+[DISCLAIMER: This document is an AI-generated draft for reference purposes only. It does not constitute legal advice or a substitute for a professionally drafted document. Consult a practicing lawyer before filing.]`,
+  },
+  {
+    id: "consumer-complaint",
+    name: "Consumer Complaint",
+    category: "Document",
+    description:
+      "Consumer complaint before the Consumer Disputes Redressal Commission.",
+    fields: [
+      {
+        label: "Complainant Name",
+        placeholder: "Full legal name",
+        required: true,
+      },
+      {
+        label: "Opposite Party Name",
+        placeholder: "Name of company/seller/service provider",
+        required: true,
+      },
+      {
+        label: "Product/Service",
+        placeholder: "Product or service availed",
+        required: true,
+      },
+      {
+        label: "Amount Paid",
+        placeholder: "Total amount paid in rupees",
+        required: true,
+      },
+      {
+        label: "Deficiency Details",
+        placeholder: "Details of deficiency in service/product",
+        type: "textarea",
+        required: true,
+      },
+    ],
+    generate: (d) => `CONSUMER COMPLAINT
+
+Date: ${new Date().toLocaleDateString("en-IN")}
+
+Before the District Consumer Disputes Redressal Commission
+
+COMPLAINT UNDER THE CONSUMER PROTECTION ACT, 2019
+
+Complainant: ${d["Complainant Name"] || "[Complainant Name]"}
+Address: [Address]
+
+Opposite Party: ${d["Opposite Party Name"] || "[Opposite Party Name]"}
+Address: [Address]
+
+SUBJECT: Complaint regarding deficiency in ${d["Product/Service"] || "[Product/Service]"} under the Consumer Protection Act, 2019
+
+MOST RESPECTFULLY SHOWETH:
+
+1. That the complainant purchased/availed ${d["Product/Service"] || "[Product/Service]"} from the opposite party for a total consideration of Rs. ${d["Amount Paid"] || "[Amount]"} (Rupees [Amount in words] only) on [Date of purchase/availing].
+
+2. That the opposite party represented that [state representations made by the opposite party].
+
+3. That the complainant paid Rs. ${d["Amount Paid"] || "[Amount]"} via [mode of payment].
+
+4. That there is a deficiency in service/product in the following manner:
+${d["Deficiency Details"] || "[Describe the deficiency in detail]"}
+
+5. That the complainant raised a grievance on [Date] and despite repeated follow-ups, the opposite party has failed to resolve the issue.
+
+6. That the complainant sent a legal notice dated [Date] to the opposite party but received no satisfactory response.
+
+PRAYER
+
+In view of the above facts, it is most respectfully prayed that this Hon'ble Commission may kindly:
+
+(a) Direct the opposite party to [specific relief sought];
+(b) Direct the opposite party to pay compensation of Rs. [Amount] for deficiency in service and mental agony;
+(c) Direct the opposite party to pay cost of litigation;
+(d) Pass such other or further orders as this Hon'ble Commission may deem fit in the interest of justice.
+
+COMPLAINANT:
+${d["Complainant Name"] || "___________________"}
+Signature: ___________________
+
+Date: ${new Date().toLocaleDateString("en-IN")}
+
+VERIFICATION
+
+I, ${d["Complainant Name"] || "[Complainant Name]"}, the complainant above-named, do hereby verify that the contents of paragraphs 1 to 6 are true and correct to the best of my knowledge and belief. No part of it is false, and nothing material has been concealed.
+
+Verified at [Place] on this ${new Date().toLocaleDateString("en-IN")}.
+
+COMPLAINANT:
+${d["Complainant Name"] || "___________________"}
+Signature: ___________________
+
+[DISCLAIMER: This document is an AI-generated draft for reference purposes only. It does not constitute legal advice or a substitute for a professionally drafted document. Consult a practicing lawyer before filing.]`,
+  },
+  {
+    id: "rti-application",
+    name: "RTI Application",
+    category: "Document",
+    description: "Right to Information application under the RTI Act, 2005.",
+    fields: [
+      {
+        label: "Applicant Name",
+        placeholder: "Full legal name",
+        required: true,
+      },
+      {
+        label: "Applicant Address",
+        placeholder: "Complete address",
+        required: true,
+      },
+      {
+        label: "Public Authority Name",
+        placeholder: "Name of government department/authority",
+        required: true,
+      },
+      {
+        label: "Information Sought",
+        placeholder: "Specific information being sought",
+        type: "textarea",
+        required: true,
+      },
+    ],
+    generate: (d) => `RIGHT TO INFORMATION APPLICATION
+
+Date: ${new Date().toLocaleDateString("en-IN")}
+
+To,
+The Central Public Information Officer (CPIO)
+${d["Public Authority Name"] || "[Public Authority Name]"}
+[Address]
+
+From:
+${d["Applicant Name"] || "[Applicant Name]"}
+${d["Applicant Address"] || "[Address]"}
+
+Subject: Request for information under Section 6 of the Right to Information Act, 2005
+
+Sir/Madam,
+
+1. I, ${d["Applicant Name"] || "[Applicant Name]"}, hereby request the following information under the Right to Information Act, 2005:
+
+${d["Information Sought"] || "[Describe the specific information you are seeking in detail]"}
+
+2. The information sought pertains to [specify the period/timeframe, if applicable].
+
+3. I am a citizen of India and am entitled to the information under Section 6(1) of the RTI Act, 2005.
+
+4. I am willing to pay the prescribed fee of Rs. 10 (Rupees Ten only) for obtaining the information. [If applicable: I am below the poverty line and request exemption from fee as per Section 6(1) of the RTI Act.]
+
+5. I request that the information be provided in the following format: [Specify format - physical copy, electronic form, etc.]
+
+6. If the information sought pertains to life or liberty of a person, I request that it be provided within 48 hours as per Section 7(1) of the RTI Act.
+
+Thanking you,
+
+${d["Applicant Name"] || "___________________"}
+Signature: ___________________
+Date: ${new Date().toLocaleDateString("en-IN")}
+
+[DISCLAIMER: This document is an AI-generated draft for reference purposes only. It does not constitute legal advice or a substitute for a professionally drafted document. Consult a practicing lawyer before filing.]`,
+  },
 ];
 
 const CATEGORIES = ["All", ...new Set(templates.map((t) => t.category))];
 
 export default function TemplatesApp() {
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(
+    null,
+  );
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [activeCategory, setActiveCategory] = useState("All");
 
-  const filtered = activeCategory === "All" ? templates : templates.filter((t) => t.category === activeCategory);
+  const filtered =
+    activeCategory === "All"
+      ? templates
+      : templates.filter((t) => t.category === activeCategory);
 
   const handleSelect = (t: Template) => {
     setSelectedTemplate(t);
@@ -419,16 +1125,22 @@ export default function TemplatesApp() {
     setFormData((prev) => ({ ...prev, [label]: value }));
   };
 
-  const allRequiredFilled = selectedTemplate?.fields
-    .filter((f) => f.required)
-    .every((f) => formData[f.label]?.trim()) ?? false;
+  const allRequiredFilled =
+    selectedTemplate?.fields
+      .filter((f) => f.required)
+      .every((f) => formData[f.label]?.trim()) ?? false;
 
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="mb-10 text-center">
-          <h1 className="text-3xl font-bold tracking-tight">Contract Templates</h1>
-          <p className="mt-3 text-sm text-white/50">Ready-to-use Indian legal contract templates. Fill in the blanks and download.</p>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Contract Templates
+          </h1>
+          <p className="mt-3 text-sm text-white/50">
+            Ready-to-use Indian legal contract templates. Fill in the blanks and
+            download.
+          </p>
         </div>
 
         <div className="mb-8 flex flex-wrap gap-2">
@@ -455,31 +1167,45 @@ export default function TemplatesApp() {
                 onClick={() => handleSelect(t)}
                 className="group rounded-xl border border-white/10 bg-white/[0.03] p-6 text-left transition-all hover:border-white/20 hover:bg-white/[0.06]"
               >
-                <div className="mb-2 text-xs font-medium text-white/30">{t.category}</div>
+                <div className="mb-2 text-xs font-medium text-white/30">
+                  {t.category}
+                </div>
                 <h3 className="text-base font-semibold">{t.name}</h3>
                 <p className="mt-2 text-sm text-white/40">{t.description}</p>
-                <div className="mt-4 text-xs text-white/25 group-hover:text-white/40">{t.fields.length} fields</div>
+                <div className="mt-4 text-xs text-white/25 group-hover:text-white/40">
+                  {t.fields.length} fields
+                </div>
               </button>
             ))}
           </div>
         ) : (
           <div className="mx-auto max-w-2xl">
-            <button onClick={() => setSelectedTemplate(null)} className="mb-6 text-sm text-white/40 hover:text-white/60">
+            <button
+              onClick={() => setSelectedTemplate(null)}
+              className="mb-6 text-sm text-white/40 hover:text-white/60"
+            >
               &larr; Back to templates
             </button>
-            <h2 className="mb-1 text-xl font-semibold">{selectedTemplate.name}</h2>
-            <p className="mb-6 text-sm text-white/40">{selectedTemplate.description}</p>
+            <h2 className="mb-1 text-xl font-semibold">
+              {selectedTemplate.name}
+            </h2>
+            <p className="mb-6 text-sm text-white/40">
+              {selectedTemplate.description}
+            </p>
 
             <div className="space-y-4">
               {selectedTemplate.fields.map((field) => (
                 <div key={field.label}>
                   <label className="mb-1 block text-xs font-medium text-white/50">
-                    {field.label} {field.required && <span className="text-red-400">*</span>}
+                    {field.label}{" "}
+                    {field.required && <span className="text-red-400">*</span>}
                   </label>
                   {field.type === "textarea" ? (
                     <textarea
                       value={formData[field.label] || ""}
-                      onChange={(e) => handleFieldChange(field.label, e.target.value)}
+                      onChange={(e) =>
+                        handleFieldChange(field.label, e.target.value)
+                      }
                       placeholder={field.placeholder}
                       rows={3}
                       className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-white/25"
@@ -488,14 +1214,18 @@ export default function TemplatesApp() {
                     <input
                       type="date"
                       value={formData[field.label] || ""}
-                      onChange={(e) => handleFieldChange(field.label, e.target.value)}
+                      onChange={(e) =>
+                        handleFieldChange(field.label, e.target.value)
+                      }
                       className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-white/25"
                     />
                   ) : (
                     <input
                       type="text"
                       value={formData[field.label] || ""}
-                      onChange={(e) => handleFieldChange(field.label, e.target.value)}
+                      onChange={(e) =>
+                        handleFieldChange(field.label, e.target.value)
+                      }
                       placeholder={field.placeholder}
                       className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-white/25"
                     />

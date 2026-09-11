@@ -1,4 +1,5 @@
-const ACT_NAMES = "Bharatiya Nyaya Sanhita|Bharatiya Nagarik Suraksha Sanhita|Bharatiya Sakshya Adhiniyam|BNS|BNSS|BSA|CrPC|IPC|Indian Penal Code|Code of Criminal Procedure|Evidence Act|Indian Evidence Act";
+const ACT_NAMES =
+  "Bharatiya Nyaya Sanhita|Bharatiya Nagarik Suraksha Sanhita|Bharatiya Sakshya Adhiniyam|BNS|BNSS|BSA|CrPC|IPC|Indian Penal Code|Code of Criminal Procedure|Evidence Act|Indian Evidence Act";
 
 /**
  * Corrects LLM hallucinations that misuse "Article" for statutes that use
@@ -17,22 +18,34 @@ const ACT_NAMES = "Bharatiya Nyaya Sanhita|Bharatiya Nagarik Suraksha Sanhita|Bh
 export function fixArticleSectionTerminology(content: string): string {
   return content
     .replace(
-      new RegExp(`\\bArticle\\s+(\\d+[A-Za-z]?)\\s+(?:of|in)\\s+(the\\s+)?(${ACT_NAMES})\\b`, "gi"),
-      "Section $1 of $2$3"
+      new RegExp(
+        `\\bArticle\\s+(\\d+[A-Za-z]?)\\s+(?:of|in)\\s+(the\\s+)?(${ACT_NAMES})\\b`,
+        "gi",
+      ),
+      "Section $1 of $2$3",
     )
     .replace(
       new RegExp(`\\b(${ACT_NAMES})\\s+Article\\s+(\\d+[A-Za-z]?)\\b`, "gi"),
-      "$1 Section $2"
+      "$1 Section $2",
     );
 }
 
-export function extractRefNumbers(query: string): { sections: string[]; articles: string[] } {
+export function extractRefNumbers(query: string): {
+  sections: string[];
+  articles: string[];
+} {
   const sections: string[] = [];
   const articles: string[] = [];
   const num = "\\d+[A-Za-z]?";
   const sep = "(?:\\s*(?:,|&|and|or)\\s*|\\s+)";
-  const secRe = new RegExp(`(?:sections|section|sec\\.?|s\\.)\\s+(${num}(?:${sep}${num})*)`, "gi");
-  const artRe = new RegExp(`(?:articles|article|art\\.?)\\s+(${num}(?:${sep}${num})*)`, "gi");
+  const secRe = new RegExp(
+    `(?:sections|section|sec\\.?|s\\.)\\s+(${num}(?:${sep}${num})*)`,
+    "gi",
+  );
+  const artRe = new RegExp(
+    `(?:articles|article|art\\.?)\\s+(${num}(?:${sep}${num})*)`,
+    "gi",
+  );
   let m: RegExpExecArray | null;
   while ((m = secRe.exec(query))) {
     const nums = m[1].match(/\d+[A-Za-z]?/g);

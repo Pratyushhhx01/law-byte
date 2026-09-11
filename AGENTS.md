@@ -52,7 +52,7 @@ tests/
 - **Tests use `vitest` with `environment: "node"`**, not jsdom. The `@better-auth` package is inlined in vitest deps. Test timeout is 30s.
 - **Auth session check** is done server-side in `app/chat/page.tsx` using `auth.api.getSession()` with `headers()`. If no session, redirects to `/signin`.
 - **Chat API (`app/api/chat/route.ts`)** is the core business logic. It classifies queries for web search, fetches legal context from S3, and streams responses via SSE. Four conversation modes: default (2-line), analysis (10-12 lines), talk-to-ai (2-line), grill (structured interrogation).
-- **S3 knowledge base** stores Indian bare acts as structured JSON and full text files under `bare-acts/` prefix. The `actMap` in `app/api/chat/route.ts` maps ~40+ Indian acts to their S3 keys.
+- **S3 knowledge base** stores Indian bare acts as structured JSON and full text files under `bare-acts/` prefix. The `actMap` in `app/api/chat/route.ts` maps ~157+ Indian acts to their S3 keys.
 - **`.env.local` contains secrets** — never commit it. Required env vars: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `NVIDIA_API_KEY`, `TAVILY_API_KEY`. AWS env vars (`AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`) are also needed for S3 access.
 - **`BETTER_AUTH_URL` and `NEXT_PUBLIC_APP_URL`** are set to `http://localhost:3000` locally. The auth config also trusts an AWS ELB URL — update `trustedOrigins` in `lib/auth.ts` when deploying to new environments.
 - **Dockerfile** passes secrets as `ARG`s at build time — they bake into the `.next` output. The runner stage does not re-inject them.

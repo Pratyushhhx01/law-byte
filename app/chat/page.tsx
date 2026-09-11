@@ -15,9 +15,14 @@ export default async function ChatPage({
 }: {
   searchParams: Promise<{ shareId?: string }>;
 }) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  let session;
+  try {
+    session = await auth.api.getSession({
+      headers: await headers(),
+    });
+  } catch {
+    redirect("/signin");
+  }
 
   if (!session) {
     redirect("/signin");

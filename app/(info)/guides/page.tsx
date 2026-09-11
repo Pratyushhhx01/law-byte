@@ -48,7 +48,7 @@ export default function GuidesPage() {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-white">My Cases</h2>
+              <h2 className="text-xl font-semibold text-white">AI Lawyer</h2>
               <p className="mt-3">
                 A structured case intake session that asks one question at a
                 time across 8 legal lenses — problem, location, role, details,

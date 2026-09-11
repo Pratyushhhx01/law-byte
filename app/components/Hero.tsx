@@ -1,4 +1,5 @@
 import GridBackground from "./GridBackground";
+import LogoIcon from "./LogoIcon";
 import Reveal from "./Reveal";
 
 export default function Hero() {
@@ -21,17 +22,24 @@ export default function Hero() {
 
       <div className="relative mx-auto flex w-full max-w-6xl flex-col items-center px-6 text-center">
         <Reveal delay={1}>
-          <h1 className="mt-8 max-w-5xl text-balance text-5xl font-semibold leading-[1.05] tracking-tight sm:text-6xl md:text-7xl lg:text-[88px]">
-            <span className="block">Modern legal practice,</span>
-            <span className="mt-1 block text-shimmer">redefined for speed.</span>
-          </h1>
+          <div className="mt-8 inline-flex flex-col items-end text-left">
+            <div className="flex items-center gap-4">
+              <LogoIcon className="h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24" />
+              <h1 className="font-[family-name:var(--font-exo2)] text-5xl font-black tracking-[0.15em] uppercase sm:text-6xl md:text-7xl lg:text-[88px]">
+                <span className="block">LAWBITE</span>
+              </h1>
+            </div>
+            <p className="mt-1 pr-1 font-[family-name:var(--font-vt323)] text-xl tracking-widest text-white/70 sm:text-2xl md:text-3xl">
+              know your rights
+            </p>
+          </div>
         </Reveal>
 
         <Reveal delay={2}>
           <p className="mt-7 max-w-2xl text-balance text-base leading-relaxed text-white/65 sm:text-lg">
-            Ask any Indian legal question in plain language. Get instant
-            answers backed by 40+ bare acts, structured legal analysis, and
-            real-time web search &mdash; all in one place.
+            Ask any Indian legal question in plain language. Get instant answers
+            backed by 157+ bare acts, structured legal analysis, and real-time
+            web search &mdash; all in one place.
           </p>
         </Reveal>
 
@@ -68,15 +76,17 @@ export default function Hero() {
           <div className="relative mt-20 w-full">
             <div className="absolute inset-x-10 -top-2 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
             <div className="grid grid-cols-2 items-center gap-6 sm:grid-cols-4">
-              {["IPC / BNS", "CrPC / BNSS", "Constitution", "40+ Acts"].map((name, i) => (
-                <span
-                  key={name}
-                  className="text-center text-sm font-medium tracking-[0.2em] text-white/40 transition-colors duration-500 hover:text-white/80"
-                  style={{ animationDelay: `${i * 100}ms` }}
-                >
-                  {name.toUpperCase()}
-                </span>
-              ))}
+              {["IPC / BNS", "CrPC / BNSS", "Constitution", "157+ Acts"].map(
+                (name, i) => (
+                  <span
+                    key={name}
+                    className="text-center text-sm font-medium tracking-[0.2em] text-white/40 transition-colors duration-500 hover:text-white/80"
+                    style={{ animationDelay: `${i * 100}ms` }}
+                  >
+                    {name.toUpperCase()}
+                  </span>
+                ),
+              )}
             </div>
             <div className="absolute inset-x-10 -bottom-2 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
           </div>

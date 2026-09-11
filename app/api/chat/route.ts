@@ -729,7 +729,7 @@ The templates above show the standard structure. When filling them:
 - Always cite current Indian statutes using their full name and year.
 - If referencing a section from the Legal Knowledge Base, use the exact section number and title provided. LANGUAGE RULES: You must ALWAYS respond in English. No matter what language the user writes in (including Hindi, Devanagari script, or any other language), ALWAYS respond in English. Never respond in Hindi or any language other than English.`;
 
-const GRILL_SYSTEM_PROMPT = `You are Lawbite AI, a rigorous Indian legal advisor running a structured case intake session called "My Cases." STRICT RULE: You ONLY answer questions about Indian law, Indian legal system, Indian courts, Indian Constitution, Indian acts and statutes, Indian legal procedures, and Indian legal rights. NOTHING ELSE.
+const GRILL_SYSTEM_PROMPT = `You are Lawbite AI, a rigorous Indian legal advisor running a structured case intake session called "AI Lawyer." STRICT RULE: You ONLY answer questions about Indian law, Indian legal system, Indian courts, Indian Constitution, Indian acts and statutes, Indian legal procedures, and Indian legal rights. NOTHING ELSE.
 
 CRITICAL: The Constitution of India IS Indian law. Questions about the Constitution, its articles, fundamental rights, preamble, amendments, constitutional provisions, and constitutional governance ARE legal questions and MUST be answered.
 
@@ -803,12 +803,15 @@ You: "I understand. What evidence do you have? Also, what is the current status?
 - FIRST check the Legal Knowledge Base provided below for state-specific acts. If the specific state law is NOT found in the knowledge base, use the web search results provided.
 
 ## When to Conclude
-You need at least 5 answers before you can provide advice. Count how many questions the user has answered. Only once you have answered 5 or more, provide comprehensive advice covering:
-- Applicable Indian laws and specific sections
-- Immediate steps the person should take
-- Bail options (if applicable)
-- Whether a lawyer is required
-- Expected timeline and next steps
+You need at least 5 answers before you can provide advice. Count how many questions the user has answered. Only once you have 5 or more answers, provide comprehensive advice.
+
+CRITICAL — HOW TO WRITE YOUR ADVICE:
+Write your advice as natural flowing prose, like a real Indian lawyer explaining things to their client in person. Do NOT use section headers, bullet points, dashes, or any structured formatting. Write in short connected paragraphs. Sound human, warm, and direct — not robotic or template-like. Mix all the relevant points together naturally rather than separating them into categories.
+
+Your advice MUST cover (weave these into natural paragraphs):
+What laws apply and which specific sections are relevant, what immediate steps the person should take right now, bail options if relevant, whether they need a lawyer and why, and what timeline to expect.
+
+NEVER include your internal reasoning, planning text, or meta-commentary in the response. The user should only see the final advice, not your thought process. Do NOT start with phrases like "Now I have enough information" or "I need to structure this" or list your key points — just give the advice directly.
 
 IMPORTANT: End your advice with exactly: [ADVICE_COMPLETE]
 If you still need more information, do NOT include [ADVICE_COMPLETE]. Just ask the next question.
@@ -819,7 +822,7 @@ If you still need more information, do NOT include [ADVICE_COMPLETE]. Just ask t
 - If the user's answer is vague, ask ONE clarifying follow-up before moving to the next lens.
 - Stay strictly within Indian law. Never answer about laws of any other country.
 - When greeted, reply ONLY with: "I am ready to help. What legal problem are you facing?"
-- Never use markdown, asterisks, or bullet points. Use plain text only.
+- Never use markdown, asterisks, dashes, section headers, or bullet points. Use plain text only.
 - REMINDER: After your brief acknowledgement response, you MUST put "---" on its own line, then the NEXT SINGLE question. NEVER put more than one question after "---". NEVER skip the "---" delimiter. LANGUAGE RULES: You must ALWAYS respond in English. No matter what language the user writes in (including Hindi, Devanagari script, or any other language), ALWAYS respond in English. Never respond in Hindi or any language other than English.`;
 
 const DOCUMENT_REVIEW_SYSTEM_PROMPT = `You are Lawbite AI Document Reviewer, a specialized Indian legal document analysis assistant. STRICT RULE: You ONLY answer questions about Indian law, Indian legal system, Indian courts, Indian Constitution, Indian acts and statutes, Indian legal procedures, and Indian legal rights. NOTHING ELSE.
@@ -1979,18 +1982,27 @@ async function getLegalKnowledge(
         },
       ];
 
-    for (const ref of refChecks) {
-      if (ref.keywords.some((k) => lower.includes(k))) {
+    // Parallelize reference data checks
+    const matchedRefs = refChecks.filter((ref) =>
+      ref.keywords.some((k) => lower.includes(k)),
+    );
+    const refResults = await Promise.all(
+      matchedRefs.map(async (ref) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const data = await s3kb.getReference<any>(ref.key);
-        if (data) {
-          parts.push(`\n[${ref.label}]:\n${JSON.stringify(data, null, 2)}`);
-          citations.push({
-            type: "act",
-            label: ref.label,
-            snippet: JSON.stringify(data, null, 2),
-          });
-        }
+        return data ? { label: ref.label, data } : null;
+      }),
+    );
+    for (const result of refResults) {
+      if (result) {
+        parts.push(
+          `\n[${result.label}]:\n${JSON.stringify(result.data, null, 2)}`,
+        );
+        citations.push({
+          type: "act",
+          label: result.label,
+          snippet: JSON.stringify(result.data, null, 2),
+        });
       }
     }
 
@@ -2389,9 +2401,13 @@ Never transpose tables, never leave a table cell blank, never invent section num
         ];
       }
     } else {
+      // Cap conversation history to last 20 messages for all modes
+      const recentMessages = messages
+        .filter((m: { role: string }) => m.role !== "system")
+        .slice(-20);
       messagesWithSystem = [
         { role: "system", content: finalSystemPrompt },
-        ...messages.filter((m: { role: string }) => m.role !== "system"),
+        ...recentMessages,
       ];
     }
 
@@ -2560,6 +2576,8 @@ Never transpose tables, never leave a table cell blank, never invent section num
           let buffer = "";
           let analysisFullContent = "";
           let analysisReasoningContent = "";
+          let emittedAny = false;
+          let allReasoningContent = "";
           try {
             while (true) {
               const { done, value } = await reader.read();
@@ -2586,8 +2604,11 @@ Never transpose tables, never leave a table cell blank, never invent section num
                   const delta = parsed.choices?.[0]?.delta;
                   const content = delta?.content;
                   const reasoning = delta?.reasoning_content;
-                  if (reasoning && isAnalysis) {
-                    analysisReasoningContent += reasoning;
+                  if (reasoning) {
+                    allReasoningContent += reasoning;
+                    if (isAnalysis) {
+                      analysisReasoningContent += reasoning;
+                    }
                   }
                   if (content) {
                     if (isAnalysis) {
@@ -2595,6 +2616,7 @@ Never transpose tables, never leave a table cell blank, never invent section num
                     }
                     const cleaned = stripThinkingTokens(content);
                     if (cleaned) {
+                      emittedAny = true;
                       controller.enqueue(
                         encoder.encode(
                           `data: ${JSON.stringify({ content: fixArticleSectionTerminology(cleaned) })}\n\n`,
@@ -2673,6 +2695,7 @@ Never transpose tables, never leave a table cell blank, never invent section num
                   if (retried) {
                     const cleaned = stripThinkingTokens(retried).trim();
                     if (cleaned) {
+                      emittedAny = true;
                       controller.enqueue(
                         encoder.encode(
                           `data: ${JSON.stringify({ content: fixArticleSectionTerminology(cleaned) })}\n\n`,
@@ -2681,6 +2704,28 @@ Never transpose tables, never leave a table cell blank, never invent section num
                     }
                   }
                 }
+              }
+            }
+
+            if (!emittedAny && !isAnalysis) {
+              const fallback = stripThinkingTokens(allReasoningContent).trim();
+              if (fallback) {
+                const truncated = isTalkToAi
+                  ? truncateToTwoSentences(fallback)
+                  : fallback;
+                if (truncated) {
+                  controller.enqueue(
+                    encoder.encode(
+                      `data: ${JSON.stringify({ content: fixArticleSectionTerminology(truncated) })}\n\n`,
+                    ),
+                  );
+                }
+              } else {
+                controller.enqueue(
+                  encoder.encode(
+                    `data: ${JSON.stringify({ content: "I apologize, but I couldn't generate a response. Please try again or ask a specific question about Indian law." })}\n\n`,
+                  ),
+                );
               }
             }
           } catch (err) {
@@ -3185,7 +3230,7 @@ Never transpose tables, never leave a table cell blank, never invent section num
             let draftContent = stripThinkingTokens(effectiveContent).trim();
             const blankDraftRequest = isBlankDraftRequest(userQuery);
             let attempt = 0;
-            const MAX_DRAFT_RETRIES = 3;
+            const MAX_DRAFT_RETRIES = 2;
             while (
               attempt < MAX_DRAFT_RETRIES &&
               (isDraftRefusal(draftContent) ||

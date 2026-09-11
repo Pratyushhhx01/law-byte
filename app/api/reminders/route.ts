@@ -19,7 +19,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(reminders);
   } catch (err) {
     console.error("Reminders GET error:", err);
-    return NextResponse.json({ error: "Failed to fetch reminders" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch reminders" },
+      { status: 500 },
+    );
   }
 }
 
@@ -34,7 +37,10 @@ export async function POST(request: NextRequest) {
     const { title, deadlineAt, type } = body;
 
     if (!title || !deadlineAt) {
-      return NextResponse.json({ error: "Title and deadline are required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Title and deadline are required" },
+        { status: 400 },
+      );
     }
 
     const result = await db
@@ -45,13 +51,23 @@ export async function POST(request: NextRequest) {
         deadlineAt: new Date(deadlineAt),
         type: type || "other",
       })
-      .returning(["id", "title", "deadlineAt", "type", "completed", "createdAt"])
+      .returning([
+        "id",
+        "title",
+        "deadlineAt",
+        "type",
+        "completed",
+        "createdAt",
+      ])
       .executeTakeFirst();
 
     return NextResponse.json(result);
   } catch (err) {
     console.error("Reminders POST error:", err);
-    return NextResponse.json({ error: "Failed to create reminder" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to create reminder" },
+      { status: 500 },
+    );
   }
 }
 
@@ -78,7 +94,10 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("Reminders DELETE error:", err);
-    return NextResponse.json({ error: "Failed to delete reminder" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to delete reminder" },
+      { status: 500 },
+    );
   }
 }
 
@@ -106,6 +125,9 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("Reminders PATCH error:", err);
-    return NextResponse.json({ error: "Failed to update reminder" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to update reminder" },
+      { status: 500 },
+    );
   }
 }

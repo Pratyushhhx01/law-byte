@@ -1624,6 +1624,8 @@ export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
       { role: "user" as const, content: userApiContent },
     ];
 
+    let assistantContent = "";
+
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -1652,7 +1654,6 @@ export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
       if (!reader) throw new Error("No reader");
 
       const decoder = new TextDecoder();
-      let assistantContent = "";
       let sseBuffer = "";
 
       setConversations((prev) =>
@@ -1730,9 +1731,39 @@ export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
           }
         }
       }
+
+      if (!assistantContent.trim()) {
+        const fallbackMsg = "Sorry, I encountered an error. Please try again.";
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === activeId
+              ? {
+                  ...c,
+                  messages: c.messages.map((m) =>
+                    m.id === assistantId ? { ...m, content: fallbackMsg } : m,
+                  ),
+                }
+              : c,
+          ),
+        );
+      }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
-        // User pressed Esc 3 times — keep whatever was streamed so far
+        if (!assistantContent.trim()) {
+          const abortMsg = "Sorry, I encountered an error. Please try again.";
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id === activeId
+                ? {
+                    ...c,
+                    messages: c.messages.map((m) =>
+                      m.id === assistantId ? { ...m, content: abortMsg } : m,
+                    ),
+                  }
+                : c,
+            ),
+          );
+        }
       } else {
         console.error("Chat error:", error);
         setConversations((prev) =>
@@ -2784,7 +2815,7 @@ export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
             >
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
             </svg>
-            <span>My Cases</span>
+            <span>AI Lawyer</span>
           </button>
         </div>
 
@@ -2835,28 +2866,6 @@ export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
               <line x1="8" y1="18" x2="16" y2="18" />
             </svg>
             <span>Calculators</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setToolsOpen(true)}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium tracking-wide text-white/50 transition-all duration-200 hover:bg-white/[0.06] hover:text-white/80"
-          >
-            <svg
-              aria-hidden
-              viewBox="0 0 24 24"
-              className="h-4 w-4 shrink-0"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-            </svg>
-            <span>Tools</span>
           </button>
           <button
             type="button"
@@ -2982,7 +2991,7 @@ export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
                   : mode === "talk-to-ai" || mode === "chat"
                     ? "Talk to AI"
                     : mode === "grill"
-                      ? "My Cases"
+                      ? "AI Lawyer"
                       : mode === "draft"
                         ? "Document Drafter"
                         : mode === "review"
@@ -3649,6 +3658,25 @@ export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
                                   <polyline points="9 15 12 18 15 15" />
                                 </svg>
                               </button>
+                              <a
+                                href="/filing"
+                                className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-emerald-400/70 transition-colors hover:bg-emerald-500/10 hover:text-emerald-400"
+                                title="File & Send to Authority"
+                              >
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  className="h-3 w-3"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M22 2L11 13" />
+                                  <path d="M22 2L15 22L11 13L2 9L22 2Z" />
+                                </svg>
+                                File &amp; Send
+                              </a>
                             </>
                           )}
                         </div>
@@ -4645,71 +4673,65 @@ export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
                         structured form, or switch to chat mode to describe your
                         situation.
                       </p>
-                      <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                        {[
-                          {
-                            id: "legal-notice",
-                            label: "Legal Notice",
-                            icon: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8",
-                          },
-                          {
-                            id: "fir-draft",
-                            label: "FIR Draft",
-                            icon: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
-                          },
-                          {
-                            id: "consumer-complaint",
-                            label: "Consumer Complaint",
-                            icon: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
-                          },
-                          {
-                            id: "rti-application",
-                            label: "RTI Application",
-                            icon: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M12 18v-6 M9 15h6",
-                          },
-                          {
-                            id: "will",
-                            label: "Will",
-                            icon: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z M9 12l2 2 4-4",
-                          },
-                          {
-                            id: "affidavit",
-                            label: "Affidavit",
-                            icon: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M12 18v-6 M9 12h6",
-                          },
-                          {
-                            id: "petition",
-                            label: "Petition",
-                            icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 0 0 1 1h3m10-11l2 2m-2-2v10a1 1 0 0 1-1 1h-3m-4 0h4",
-                          },
-                          {
-                            id: "contract",
-                            label: "Contract",
-                            icon: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M8 13h8 M8 17h8 M8 9h2",
-                          },
-                        ].map((doc) => (
-                          <button
-                            key={doc.id}
-                            type="button"
-                            onClick={() => setSelectedDocType(doc.id)}
-                            className="flex flex-col items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-4 text-center transition-all hover:border-blue-400/30 hover:bg-blue-400/[0.06]"
-                          >
+                      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                        <button
+                          type="button"
+                          onClick={() => setActiveTool("templates")}
+                          className="flex items-center gap-4 rounded-xl border border-white/[0.08] bg-white/[0.02] p-5 text-left transition-all hover:border-violet-400/30 hover:bg-violet-400/[0.06]"
+                        >
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-violet-500/10 text-violet-400">
                             <svg
                               viewBox="0 0 24 24"
-                              className="h-8 w-8 text-blue-400/70"
+                              className="h-6 w-6"
                               fill="none"
                               stroke="currentColor"
                               strokeWidth="1.5"
                               strokeLinecap="round"
                               strokeLinejoin="round"
                             >
-                              <path d={doc.icon} />
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                              <polyline points="14 2 14 8 20 8" />
                             </svg>
-                            <span className="text-xs text-white/70">
-                              {doc.label}
+                          </div>
+                          <div>
+                            <span className="block text-sm font-medium text-white">
+                              Contract Templates
                             </span>
-                          </button>
-                        ))}
+                            <span className="mt-0.5 block text-xs text-white/40">
+                              13 ready-to-use Indian legal templates
+                            </span>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setActiveTool("filing")}
+                          className="flex items-center gap-4 rounded-xl border border-white/[0.08] bg-white/[0.02] p-5 text-left transition-all hover:border-amber-400/30 hover:bg-amber-400/[0.06]"
+                        >
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-amber-400">
+                            <svg
+                              viewBox="0 0 24 24"
+                              className="h-6 w-6"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
+                              <rect x="9" y="3" width="6" height="4" rx="1" />
+                            </svg>
+                          </div>
+                          <div>
+                            <span className="block text-sm font-medium text-white">
+                              Filing Assistance
+                            </span>
+                            <span className="mt-0.5 block text-xs text-white/40">
+                              Step-by-step guides for RTI, FIR, consumer
+                              complaints
+                            </span>
+                          </div>
+                        </button>
                       </div>
                     </>
                   ) : (
@@ -6380,7 +6402,7 @@ export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
             <p className="mt-2 text-sm text-white/55">
               {confirmAction.type === "clearHistory"
                 ? confirmAction.section
-                  ? `This will permanently delete all ${{ "talk-to-ai": "Talk to AI", chat: "Chat", analysis: "Deep Analysis", grill: "My Cases", draft: "Document Drafter", review: "Document Reviewer" }[confirmAction.section]} history. This action cannot be undone.`
+                  ? `This will permanently delete all ${{ "talk-to-ai": "Talk to AI", chat: "Chat", analysis: "Deep Analysis", grill: "AI Lawyer", draft: "Document Drafter", review: "Document Reviewer" }[confirmAction.section]} history. This action cannot be undone.`
                   : "This will permanently delete all history of this account. This action cannot be undone."
                 : "This will permanently delete this conversation. This action cannot be undone."}
             </p>
@@ -6729,7 +6751,7 @@ export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
                 groupConversations("grill", now).length > 0 && (
                   <div className="mb-4">
                     <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-amber-400/60">
-                      My Cases
+                      AI Lawyer
                     </p>
                     {groupConversations("grill", now).map((group) => (
                       <div key={group.label} className="mb-2">
@@ -7749,7 +7771,9 @@ export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-lg font-semibold tracking-tight">My Cases</h2>
+              <h2 className="text-lg font-semibold tracking-tight">
+                AI Lawyer
+              </h2>
               <button
                 type="button"
                 onClick={() => setMyCasesOpen(false)}

@@ -43,7 +43,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ error: "format must be 'txt' or 'json'" }, { status: 400 });
+    return NextResponse.json(
+      { error: "format must be 'txt' or 'json'" },
+      { status: 400 },
+    );
   } catch (error) {
     console.error("Export error:", error);
     return NextResponse.json({ error: "Export failed" }, { status: 500 });

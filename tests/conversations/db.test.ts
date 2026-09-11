@@ -34,7 +34,9 @@ describe("Conversations — Schema", () => {
        WHERE table_name = 'conversation'
        ORDER BY ordinal_position`,
     );
-    const columns = result.rows.map((r: { column_name: string }) => r.column_name);
+    const columns = result.rows.map(
+      (r: { column_name: string }) => r.column_name,
+    );
     expect(columns).toContain("id");
     expect(columns).toContain("userId");
     expect(columns).toContain("title");
@@ -68,11 +70,7 @@ describe("Conversations — Kysely round-trip", () => {
   });
 
   it("should insert, read back, and delete a conversation", async () => {
-    const users = await db
-      .selectFrom("user")
-      .select("id")
-      .limit(1)
-      .execute();
+    const users = await db.selectFrom("user").select("id").limit(1).execute();
 
     if (users.length === 0) {
       // No user rows to attach to — nothing to exercise
@@ -109,7 +107,11 @@ describe("Conversations — Kysely round-trip", () => {
     expect(row).toBeDefined();
     expect(row!.title).toBe("Test conversation");
     expect(row!.pinned).toBe(true);
-    const stored = row!.messages as { id: string; role: string; content: string }[];
+    const stored = row!.messages as {
+      id: string;
+      role: string;
+      content: string;
+    }[];
     expect(stored).toHaveLength(2);
     expect(stored[0].role).toBe("user");
     expect(stored[1].content).toContain("BNS");

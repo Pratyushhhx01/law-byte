@@ -2,14 +2,14 @@
 
 ## Current State
 
-| Metric | Value |
-|--------|-------|
-| Acts referenced in `actMap` | 144 unique S3 keys |
-| Acts with data in S3 | 60 (42%) |
-| Acts missing from S3 (LLM alone) | 84 (58%) |
-| Acts with parsed sections | ~55 |
-| Acts with placeholder full.txt | 6 |
-| Reference data files | 4 — all MISSING |
+| Metric                           | Value              |
+| -------------------------------- | ------------------ |
+| Acts referenced in `actMap`      | 144 unique S3 keys |
+| Acts with data in S3             | 60 (42%)           |
+| Acts missing from S3 (LLM alone) | 84 (58%)           |
+| Acts with parsed sections        | ~55                |
+| Acts with placeholder full.txt   | 6                  |
+| Reference data files             | 4 — all MISSING    |
 
 ## Problem Classification (3 tiers)
 
@@ -17,15 +17,15 @@
 
 These acts exist in the S3 index but have **0 sections and near-empty `full.txt`**. The code hits S3, finds `index.json`, then returns nothing useful — worse than missing because it wastes an API call and produces empty context.
 
-| Act | full.txt size | Sections | What's wrong |
-|-----|--------------|----------|-------------|
-| `revision-of-courts` | **6 bytes** | 0 | Effectively empty |
-| `public-administration` | 100 bytes | 0 | Effectively empty |
-| `prisoner-rights` | 88 bytes | 0 | Effectively empty |
-| `fundamental-rules` | 592 bytes | 0 | Placeholder stub |
-| `code-of-civil-procedure` | 530 bytes | 0 | Placeholder stub |
-| `cyber-law-forensics` | 480 bytes | 0 | Placeholder stub |
-| `jurisdiction-structure-of-courts` | 14,496 bytes | 0 | Has content but no sections |
+| Act                                | full.txt size | Sections | What's wrong                |
+| ---------------------------------- | ------------- | -------- | --------------------------- |
+| `revision-of-courts`               | **6 bytes**   | 0        | Effectively empty           |
+| `public-administration`            | 100 bytes     | 0        | Effectively empty           |
+| `prisoner-rights`                  | 88 bytes      | 0        | Effectively empty           |
+| `fundamental-rules`                | 592 bytes     | 0        | Placeholder stub            |
+| `code-of-civil-procedure`          | 530 bytes     | 0        | Placeholder stub            |
+| `cyber-law-forensics`              | 480 bytes     | 0        | Placeholder stub            |
+| `jurisdiction-structure-of-courts` | 14,496 bytes  | 0        | Has content but no sections |
 
 **Fix:** Replace each `full.txt` with the actual bare act text, generate `_sections.json`, and optionally create `sections/{N}.json` files. Or remove from `_index.json` if the act won't be ingested.
 
@@ -35,18 +35,19 @@ These acts exist in the S3 index but have **0 sections and near-empty `full.txt`
 
 The `getLegalKnowledge` function checks for reference data at `route.ts:653-666` but all 4 reference paths return null:
 
-| S3 Key | `reference/` file | Status |
-|--------|------------------|--------|
-| `bailable-offenses` | `reference/bailable-offenses.json` | MISSING |
+| S3 Key               | `reference/` file                   | Status  |
+| -------------------- | ----------------------------------- | ------- |
+| `bailable-offenses`  | `reference/bailable-offenses.json`  | MISSING |
 | `limitation-periods` | `reference/limitation-periods.json` | MISSING |
-| `writ-types` | `reference/writ-types.json` | MISSING |
-| `court-hierarchy` | `reference/court-hierarchy.json` | MISSING |
+| `writ-types`         | `reference/writ-types.json`         | MISSING |
+| `court-hierarchy`    | `reference/court-hierarchy.json`    | MISSING |
 
 These are small structured JSON files. The code already handles absence gracefully (empty string appended), but providing this data gives the LLM structured reference tables (e.g., which offenses are bailable, limitation periods for different case types).
 
 **Fix:** Create and upload 4 small JSON files to `reference/{key}.json`.
 
 **Example structure for `reference/bailable-offenses.json`:**
+
 ```json
 [
   { "offense": "Dowry death (IPC 304B)", "bailable": false },
@@ -94,21 +95,21 @@ These acts are in `actMap` / `fullTextActs` but have zero S3 objects. When a use
 
 ### Phase 1 — Fix the quick wins (est. 1-2 hours)
 
-| Step | Action | Details |
-|------|--------|---------|
-| 1.1 | Upload 4 reference JSONs | `reference/bailable-offenses.json`, `limitation-periods.json`, `writ-types.json`, `court-hierarchy.json` |
-| 1.2 | Fix placeholder acts | Replace `full.txt` for `revision-of-courts`, `public-administration`, `prisoner-rights` with real bare act text |
-| 1.3 | Prune dead code | Remove entries from `actMap` and `fullTextActs` in `route.ts` for acts you don't plan to ingest in the next sprint. This prevents wasted S3 calls and makes the gap explicit |
+| Step | Action                   | Details                                                                                                                                                                      |
+| ---- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.1  | Upload 4 reference JSONs | `reference/bailable-offenses.json`, `limitation-periods.json`, `writ-types.json`, `court-hierarchy.json`                                                                     |
+| 1.2  | Fix placeholder acts     | Replace `full.txt` for `revision-of-courts`, `public-administration`, `prisoner-rights` with real bare act text                                                              |
+| 1.3  | Prune dead code          | Remove entries from `actMap` and `fullTextActs` in `route.ts` for acts you don't plan to ingest in the next sprint. This prevents wasted S3 calls and makes the gap explicit |
 
 ### Phase 2 — High-priority ingestion (est. 1-2 days)
 
 Priority order based on user query frequency:
 
-| Priority | Acts | Why |
-|----------|------|-----|
-| P0 | `ipc`, `crpc`, `evidence-act` | Foundation of all criminal law queries; IPC/BNS overlap is confusing without both |
-| P1 | `constitution`, `fundamental-rights`, `dpsp-fundamental-duties` | Constitutional law is the most common legal query category |
-| P2 | `companies-act`, `arbitration-act`, `negotiable-instruments-act` | "Pre-existing" acts that the code already assumes are in S3 |
+| Priority | Acts                                                             | Why                                                                               |
+| -------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| P0       | `ipc`, `crpc`, `evidence-act`                                    | Foundation of all criminal law queries; IPC/BNS overlap is confusing without both |
+| P1       | `constitution`, `fundamental-rights`, `dpsp-fundamental-duties`  | Constitutional law is the most common legal query category                        |
+| P2       | `companies-act`, `arbitration-act`, `negotiable-instruments-act` | "Pre-existing" acts that the code already assumes are in S3                       |
 
 ### Phase 3 — Bulk ingestion (est. 1 week)
 
@@ -145,6 +146,7 @@ aws s3 cp ./bns/index.json s3://lawbite-app-storage/bare-acts/bharatiya-nyaya-sa
 ```
 
 The `index.json` format:
+
 ```json
 {
   "id": "bharatiya-nyaya-sanhita",
@@ -155,6 +157,7 @@ The `index.json` format:
 ```
 
 The `_sections.json` format (array of `{section, title}`):
+
 ```json
 [
   { "section": "1", "title": "Short title, commencement and application" },

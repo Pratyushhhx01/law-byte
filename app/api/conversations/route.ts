@@ -3,7 +3,14 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sql } from "kysely";
 
-const ALLOWED_TYPES = ["talk-to-ai", "chat", "analysis", "grill", "draft", "review"];
+const ALLOWED_TYPES = [
+  "talk-to-ai",
+  "chat",
+  "analysis",
+  "grill",
+  "draft",
+  "review",
+];
 
 type ConversationMessage = {
   id: string;
@@ -47,7 +54,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ conversations });
   } catch (err) {
     console.error("Conversations GET error:", err);
-    return NextResponse.json({ error: "Failed to load conversations" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to load conversations" },
+      { status: 500 },
+    );
   }
 }
 
@@ -59,12 +69,17 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json().catch(() => null);
-    const items = Array.isArray(body?.conversations) ? body.conversations : null;
+    const items = Array.isArray(body?.conversations)
+      ? body.conversations
+      : null;
     if (!items) {
       return NextResponse.json({ error: "Invalid body" }, { status: 400 });
     }
     if (items.length > 500) {
-      return NextResponse.json({ error: "Too many conversations" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Too many conversations" },
+        { status: 400 },
+      );
     }
 
     for (const item of items) {
@@ -78,7 +93,10 @@ export async function POST(request: NextRequest) {
       const preview =
         typeof item.preview === "string" ? item.preview.slice(0, 500) : "";
       const pinned = item.pinned === true;
-      const folderId = typeof item.folderId === "string" && item.folderId ? item.folderId : null;
+      const folderId =
+        typeof item.folderId === "string" && item.folderId
+          ? item.folderId
+          : null;
       const messages = Array.isArray(item.messages) ? item.messages : [];
       const createdAt = item.createdAt ? new Date(item.createdAt) : new Date();
 
@@ -113,7 +131,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("Conversations POST error:", err);
-    return NextResponse.json({ error: "Failed to save conversations" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to save conversations" },
+      { status: 500 },
+    );
   }
 }
 
@@ -141,6 +162,9 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("Conversations DELETE error:", err);
-    return NextResponse.json({ error: "Failed to delete conversations" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to delete conversations" },
+      { status: 500 },
+    );
   }
 }

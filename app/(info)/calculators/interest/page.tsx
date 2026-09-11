@@ -27,7 +27,9 @@ export default function InterestCalculator() {
   const [timeMonths, setTimeMonths] = useState("");
   const [startDate, setStartDate] = useState("");
   const [compound, setCompound] = useState(false);
-  const [frequency, setFrequency] = useState<"yearly" | "half-yearly" | "quarterly" | "monthly">("yearly");
+  const [frequency, setFrequency] = useState<
+    "yearly" | "half-yearly" | "quarterly" | "monthly"
+  >("yearly");
 
   const P = parseFloat(principal) || 0;
   const R = parseFloat(rate) || 0;
@@ -43,7 +45,14 @@ export default function InterestCalculator() {
     simpleInterest = (P * R * T) / 100;
     totalSimple = P + simpleInterest;
 
-    const n = frequency === "yearly" ? 1 : frequency === "half-yearly" ? 2 : frequency === "quarterly" ? 4 : 12;
+    const n =
+      frequency === "yearly"
+        ? 1
+        : frequency === "half-yearly"
+          ? 2
+          : frequency === "quarterly"
+            ? 4
+            : 12;
     compoundInterest = P * Math.pow(1 + R / (100 * n), n * T) - P;
     totalCompound = P + compoundInterest;
   }
@@ -88,7 +97,10 @@ export default function InterestCalculator() {
           <div className="mt-10 space-y-8">
             <div className="grid gap-6 sm:grid-cols-2">
               <div className="space-y-2">
-                <label htmlFor="principal" className="block text-sm font-medium text-white/70">
+                <label
+                  htmlFor="principal"
+                  className="block text-sm font-medium text-white/70"
+                >
                   Principal Amount (₹)
                 </label>
                 <input
@@ -102,7 +114,10 @@ export default function InterestCalculator() {
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="rate" className="block text-sm font-medium text-white/70">
+                <label
+                  htmlFor="rate"
+                  className="block text-sm font-medium text-white/70"
+                >
                   Annual Interest Rate (%)
                 </label>
                 <input
@@ -117,7 +132,10 @@ export default function InterestCalculator() {
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="time-months" className="block text-sm font-medium text-white/70">
+                <label
+                  htmlFor="time-months"
+                  className="block text-sm font-medium text-white/70"
+                >
                   Time Period (Months)
                 </label>
                 <input
@@ -131,7 +149,10 @@ export default function InterestCalculator() {
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="start-date" className="block text-sm font-medium text-white/70">
+                <label
+                  htmlFor="start-date"
+                  className="block text-sm font-medium text-white/70"
+                >
                   Start Date
                 </label>
                 <input
@@ -176,7 +197,9 @@ export default function InterestCalculator() {
                     Compounding Frequency
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    {(["yearly", "half-yearly", "quarterly", "monthly"] as const).map((f) => (
+                    {(
+                      ["yearly", "half-yearly", "quarterly", "monthly"] as const
+                    ).map((f) => (
                       <button
                         key={f}
                         type="button"
@@ -208,8 +231,23 @@ export default function InterestCalculator() {
                             : "bg-emerald-500/10 text-emerald-400"
                       }`}
                     >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-5 w-5"
+                      >
+                        <rect
+                          x="3"
+                          y="4"
+                          width="18"
+                          height="18"
+                          rx="2"
+                          ry="2"
+                        />
                         <line x1="16" y1="2" x2="16" y2="6" />
                         <line x1="8" y1="2" x2="8" y2="6" />
                         <line x1="3" y1="10" x2="21" y2="10" />
@@ -244,7 +282,9 @@ export default function InterestCalculator() {
                         )}
                       </>
                     ) : (
-                      <p className="mt-2 text-sm text-white/40">Enter a start date and time period</p>
+                      <p className="mt-2 text-sm text-white/40">
+                        Enter a start date and time period
+                      </p>
                     )}
                   </div>
                 </div>
@@ -269,23 +309,37 @@ export default function InterestCalculator() {
                     {compound ? "Compound Interest" : "Simple Interest"}
                   </p>
                   <p className="mt-2 text-3xl font-semibold text-white">
-                    ₹{formatCurrency(compound ? compoundInterest : simpleInterest)}
+                    ₹
+                    {formatCurrency(
+                      compound ? compoundInterest : simpleInterest,
+                    )}
                   </p>
                   <p className="mt-1 text-sm text-white/50">
-                    Total payable: ₹{formatCurrency(compound ? totalCompound : totalSimple)}
+                    Total payable: ₹
+                    {formatCurrency(compound ? totalCompound : totalSimple)}
                   </p>
                   <div className="mt-4 space-y-2 text-sm">
                     <div className="flex justify-between text-white/50">
                       <span>Principal</span>
-                      <span className="font-medium text-white/70">₹{formatCurrency(P)}</span>
+                      <span className="font-medium text-white/70">
+                        ₹{formatCurrency(P)}
+                      </span>
                     </div>
                     <div className="flex justify-between text-white/50">
                       <span>Interest</span>
-                      <span className="font-medium text-white/70">₹{formatCurrency(compound ? compoundInterest : simpleInterest)}</span>
+                      <span className="font-medium text-white/70">
+                        ₹
+                        {formatCurrency(
+                          compound ? compoundInterest : simpleInterest,
+                        )}
+                      </span>
                     </div>
                     <div className="border-t border-white/[0.06] pt-2 flex justify-between text-white/70">
                       <span className="font-medium">Total Payable</span>
-                      <span className="font-semibold text-white">₹{formatCurrency(compound ? totalCompound : totalSimple)}</span>
+                      <span className="font-semibold text-white">
+                        ₹
+                        {formatCurrency(compound ? totalCompound : totalSimple)}
+                      </span>
                     </div>
                   </div>
                 </div>

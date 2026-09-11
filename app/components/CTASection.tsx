@@ -30,7 +30,8 @@ export default function CTASection() {
                 background:
                   "conic-gradient(from var(--angle, 0deg), transparent 0deg, rgba(255,255,255,0.18) 40deg, transparent 80deg)",
                 animation: "border-spin 8s linear infinite",
-                maskImage: "radial-gradient(circle at center, black 60%, transparent 75%)",
+                maskImage:
+                  "radial-gradient(circle at center, black 60%, transparent 75%)",
                 WebkitMaskImage:
                   "radial-gradient(circle at center, black 60%, transparent 75%)",
               }}
@@ -43,8 +44,8 @@ export default function CTASection() {
               Your first legal answer is one question away.
             </h2>
             <p className="mx-auto mt-6 max-w-xl text-balance text-base leading-relaxed text-white/65">
-              No sign-up walls. No credit card. Just type your question and
-              get an answer grounded in Indian law.
+              No sign-up walls. No credit card. Just type your question and get
+              an answer grounded in Indian law.
             </p>
 
             <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -75,7 +76,7 @@ export default function CTASection() {
               </span>
               <span className="flex items-center gap-2">
                 <span className="inline-block h-1 w-1 rounded-full bg-white/50" />
-                40+ bare acts covered
+                157+ bare acts covered
               </span>
               <span className="flex items-center gap-2">
                 <span className="inline-block h-1 w-1 rounded-full bg-white/50" />

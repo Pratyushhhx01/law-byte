@@ -20,12 +20,18 @@ const optionalEnvVars = [
 export function validateEnv() {
   const missing = requiredEnvVars.filter((key) => !process.env[key]);
   if (missing.length > 0) {
-    console.error(`[ENV VALIDATION] Missing required environment variables: ${missing.join(", ")}`);
-    console.error("[ENV VALIDATION] The application may not work correctly without these variables.");
+    console.error(
+      `[ENV VALIDATION] Missing required environment variables: ${missing.join(", ")}`,
+    );
+    console.error(
+      "[ENV VALIDATION] The application may not work correctly without these variables.",
+    );
   }
 
   const missingOptional = optionalEnvVars.filter((key) => !process.env[key]);
   if (missingOptional.length > 0) {
-    console.warn(`[ENV VALIDATION] Missing optional environment variables: ${missingOptional.join(", ")}`);
+    console.warn(
+      `[ENV VALIDATION] Missing optional environment variables: ${missingOptional.join(", ")}`,
+    );
   }
 }

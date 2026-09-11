@@ -1,4 +1,12 @@
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle } from "docx";
+import {
+  Document,
+  Packer,
+  Paragraph,
+  TextRun,
+  HeadingLevel,
+  AlignmentType,
+  BorderStyle,
+} from "docx";
 import { saveAs } from "file-saver";
 
 function formatDate(): string {
@@ -28,7 +36,7 @@ function parseContentToDocx(content: string): Paragraph[] {
           heading: HeadingLevel.HEADING_1,
           children: [new TextRun({ text, bold: true, size: 28 })],
           spacing: { before: 240, after: 120 },
-        })
+        }),
       );
       continue;
     }
@@ -39,7 +47,7 @@ function parseContentToDocx(content: string): Paragraph[] {
         new Paragraph({
           children: [new TextRun({ text, bold: true, size: 24 })],
           spacing: { before: 120, after: 60 },
-        })
+        }),
       );
       continue;
     }
@@ -48,14 +56,17 @@ function parseContentToDocx(content: string): Paragraph[] {
       new Paragraph({
         children: [new TextRun({ text: trimmed, size: 24 })],
         spacing: { after: 80 },
-      })
+      }),
     );
   }
 
   return paragraphs;
 }
 
-export async function exportAsWord(content: string, title: string): Promise<void> {
+export async function exportAsWord(
+  content: string,
+  title: string,
+): Promise<void> {
   const doc = new Document({
     sections: [
       {
@@ -67,7 +78,12 @@ export async function exportAsWord(content: string, title: string): Promise<void
         children: [
           new Paragraph({
             children: [
-              new TextRun({ text: "LAWBITE", bold: true, size: 20, color: "888888" }),
+              new TextRun({
+                text: "LAWBITE",
+                bold: true,
+                size: 20,
+                color: "888888",
+              }),
             ],
             alignment: AlignmentType.RIGHT,
             spacing: { after: 60 },
@@ -80,20 +96,22 @@ export async function exportAsWord(content: string, title: string): Promise<void
             spacing: { after: 200 },
           }),
           new Paragraph({
-            children: [
-              new TextRun({ text: title, bold: true, size: 32 }),
-            ],
+            children: [new TextRun({ text: title, bold: true, size: 32 })],
             heading: HeadingLevel.TITLE,
             spacing: { after: 200 },
           }),
           new Paragraph({
-            border: { bottom: { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" } },
+            border: {
+              bottom: { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" },
+            },
             spacing: { after: 200 },
           }),
           ...parseContentToDocx(content),
           new Paragraph({ spacing: { after: 400 } }),
           new Paragraph({
-            border: { top: { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" } },
+            border: {
+              top: { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" },
+            },
             spacing: { before: 200, after: 100 },
           }),
           new Paragraph({

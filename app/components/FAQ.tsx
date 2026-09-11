@@ -8,15 +8,15 @@ type Item = { q: string; a: string };
 const items: Item[] = [
   {
     q: "What Indian laws does Lawbite cover?",
-    a: "Lawbite has knowledge of 40+ Indian bare acts including the IPC, BNS, CrPC, BNSS, Constitution, Indian Contract Act, Evidence Act, and many more. It retrieves information at the section and article level for precise legal references.",
+    a: "Lawbite has knowledge of 157+ Indian bare acts including the IPC, BNS, CrPC, BNSS, Constitution, Indian Contract Act, Evidence Act, and many more. It retrieves information at the section and article level for precise legal references.",
   },
   {
     q: "Is Lawbite a replacement for a lawyer?",
     a: "No. Lawbite is a research and analysis tool — it helps you understand legal provisions, explore your options, and prepare better questions for your lawyer. It does not provide legal advice or represent you in any proceeding.",
   },
   {
-    q: "How does the My Cases mode work?",
-    a: "My Cases asks one question at a time across 8 legal lenses — problem, state, role, details, sections, evidence, status, and outcome. It builds a complete picture of your situation before delivering tailored legal analysis.",
+    q: "How does the AI Lawyer mode work?",
+    a: "AI Lawyer asks one question at a time across 8 legal lenses — problem, state, role, details, sections, evidence, status, and outcome. It builds a complete picture of your situation before delivering tailored legal analysis.",
   },
   {
     q: "Is my data secure?",
@@ -36,7 +36,10 @@ export default function FAQ() {
   const [open, setOpen] = useState<number | null>(0);
 
   return (
-    <section id="faq" className="relative border-t border-white/10 py-28 sm:py-36">
+    <section
+      id="faq"
+      className="relative border-t border-white/10 py-28 sm:py-36"
+    >
       <div className="mx-auto max-w-4xl px-6">
         <Reveal>
           <p className="text-xs font-medium uppercase tracking-[0.3em] text-white/50">

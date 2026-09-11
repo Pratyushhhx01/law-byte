@@ -164,7 +164,15 @@ export default function Navbar() {
                       onClick={() => setProfileOpen(false)}
                       className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/5 hover:text-white"
                     >
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
                         <path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2" />
                       </svg>
                       Legal News
@@ -204,8 +212,8 @@ export default function Navbar() {
                 className="inline-block transition-transform duration-300 group-hover:translate-x-0.5"
               >
                 →
-                </span>
-              </Link>
+              </span>
+            </Link>
           )}
         </div>
 

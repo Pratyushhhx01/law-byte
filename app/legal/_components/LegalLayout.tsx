@@ -54,9 +54,7 @@ export default function LegalLayout({
                         {page.label}
                         <span
                           className={`absolute -bottom-0.5 left-0 h-px bg-white transition-all duration-500 ${
-                            isActive
-                              ? "w-full"
-                              : "w-0 group-hover:w-full"
+                            isActive ? "w-full" : "w-0 group-hover:w-full"
                           }`}
                         />
                       </span>

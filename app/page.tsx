@@ -11,7 +11,7 @@ import Stats from "./components/Stats";
 import Testimonials from "./components/Testimonials";
 
 const marqueeItems = [
-  "40+ Indian Bare Acts",
+  "157+ Indian Bare Acts",
   "Instant Legal Answers",
   "IPC \u00b7 BNS \u00b7 CrPC \u00b7 BNSS",
   "AI-Powered Legal Research",

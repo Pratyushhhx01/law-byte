@@ -71,10 +71,14 @@ export default function RemindersApp() {
           const data = await res.json();
           setReminders(data);
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
       if (!cancelled) setLoading(false);
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function addReminder(e: React.FormEvent) {
@@ -89,13 +93,21 @@ export default function RemindersApp() {
       });
       if (res.ok) {
         const newReminder = await res.json();
-        setReminders((prev) => [...prev, newReminder].sort((a, b) => new Date(a.deadlineAt).getTime() - new Date(b.deadlineAt).getTime()));
+        setReminders((prev) =>
+          [...prev, newReminder].sort(
+            (a, b) =>
+              new Date(a.deadlineAt).getTime() -
+              new Date(b.deadlineAt).getTime(),
+          ),
+        );
         setTitle("");
         setDeadlineAt("");
         setType("other");
         setShowForm(false);
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   async function toggleComplete(id: string, completed: boolean) {
@@ -106,16 +118,20 @@ export default function RemindersApp() {
         body: JSON.stringify({ id, completed: !completed }),
       });
       setReminders((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, completed: !completed } : r))
+        prev.map((r) => (r.id === id ? { ...r, completed: !completed } : r)),
       );
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   async function deleteReminder(id: string) {
     try {
       await fetch(`/api/reminders?id=${id}`, { method: "DELETE" });
       setReminders((prev) => prev.filter((r) => r.id !== id));
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   const active = reminders.filter((r) => !r.completed);
@@ -126,7 +142,10 @@ export default function RemindersApp() {
       <header className="border-b border-white/10 bg-black/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
-            <Link href="/chat" className="text-sm text-white/50 hover:text-white transition-colors">
+            <Link
+              href="/chat"
+              className="text-sm text-white/50 hover:text-white transition-colors"
+            >
               ← Back to Chat
             </Link>
             <h1 className="text-lg font-semibold">Deadline Reminder</h1>
@@ -144,7 +163,10 @@ export default function RemindersApp() {
                       description: `Reminder type: ${r.type}`,
                       start: new Date(r.deadlineAt),
                     }));
-                  downloadIcs("lawbite-reminders.ics", buildIcsCalendar(events));
+                  downloadIcs(
+                    "lawbite-reminders.ics",
+                    buildIcsCalendar(events),
+                  );
                 }}
                 className="rounded-full border border-white/15 px-4 py-2 text-sm font-medium text-white/70 transition-colors hover:border-white/30 hover:text-white"
               >
@@ -164,13 +186,20 @@ export default function RemindersApp() {
 
       <main className="mx-auto max-w-3xl px-6 py-8">
         <p className="mb-8 text-sm text-white/40">
-          Track court dates, filing deadlines, and limitation periods. You&apos;ll be notified 7, 3, and 1 day before each deadline.
+          Track court dates, filing deadlines, and limitation periods.
+          You&apos;ll be notified 7, 3, and 1 day before each deadline.
         </p>
 
         {showForm && (
-          <form onSubmit={addReminder} className="mb-8 rounded-xl border border-white/10 bg-white/[0.03] p-6 space-y-4">
+          <form
+            onSubmit={addReminder}
+            className="mb-8 rounded-xl border border-white/10 bg-white/[0.03] p-6 space-y-4"
+          >
             <div>
-              <label htmlFor="reminder-title" className="block text-sm font-medium text-white/70 mb-2">
+              <label
+                htmlFor="reminder-title"
+                className="block text-sm font-medium text-white/70 mb-2"
+              >
                 Case / Reminder Title
               </label>
               <input
@@ -185,7 +214,10 @@ export default function RemindersApp() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label htmlFor="reminder-date" className="block text-sm font-medium text-white/70 mb-2">
+                <label
+                  htmlFor="reminder-date"
+                  className="block text-sm font-medium text-white/70 mb-2"
+                >
                   Deadline Date
                 </label>
                 <input
@@ -199,7 +231,10 @@ export default function RemindersApp() {
                 />
               </div>
               <div>
-                <label htmlFor="reminder-type" className="block text-sm font-medium text-white/70 mb-2">
+                <label
+                  htmlFor="reminder-type"
+                  className="block text-sm font-medium text-white/70 mb-2"
+                >
                   Type
                 </label>
                 <select
@@ -210,7 +245,13 @@ export default function RemindersApp() {
                   style={{ colorScheme: "dark" }}
                 >
                   {REMINDER_TYPES.map((t) => (
-                    <option key={t.value} value={t.value} style={{ backgroundColor: "#111", color: "#fff" }}>{t.label}</option>
+                    <option
+                      key={t.value}
+                      value={t.value}
+                      style={{ backgroundColor: "#111", color: "#fff" }}
+                    >
+                      {t.label}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -225,11 +266,15 @@ export default function RemindersApp() {
         )}
 
         {loading ? (
-          <div className="py-20 text-center text-sm text-white/40">Loading reminders...</div>
+          <div className="py-20 text-center text-sm text-white/40">
+            Loading reminders...
+          </div>
         ) : reminders.length === 0 ? (
           <div className="py-20 text-center">
             <p className="text-sm text-white/40">No reminders yet.</p>
-            <p className="mt-2 text-xs text-white/25">Add a reminder to track court dates and filing deadlines.</p>
+            <p className="mt-2 text-xs text-white/25">
+              Add a reminder to track court dates and filing deadlines.
+            </p>
           </div>
         ) : (
           <>
@@ -252,14 +297,21 @@ export default function RemindersApp() {
                           className="h-5 w-5 shrink-0 rounded-full border border-white/20 transition-colors hover:border-white/40"
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-white truncate">{r.title}</p>
+                          <p className="text-sm font-medium text-white truncate">
+                            {r.title}
+                          </p>
                           <div className="mt-1 flex items-center gap-3 text-xs">
-                            <span className="text-white/50">{formatDate(r.deadlineAt)}</span>
-                            <span className={`font-medium ${getStatusColor(days)}`}>
+                            <span className="text-white/50">
+                              {formatDate(r.deadlineAt)}
+                            </span>
+                            <span
+                              className={`font-medium ${getStatusColor(days)}`}
+                            >
                               {statusLabel(days)}
                             </span>
                             <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/50">
-                              {REMINDER_TYPES.find((t) => t.value === r.type)?.label || r.type}
+                              {REMINDER_TYPES.find((t) => t.value === r.type)
+                                ?.label || r.type}
                             </span>
                           </div>
                         </div>
@@ -268,7 +320,15 @@ export default function RemindersApp() {
                           onClick={() => deleteReminder(r.id)}
                           className="shrink-0 rounded-md p-1.5 text-white/30 transition-colors hover:text-red-400"
                         >
-                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-4 w-4"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
                             <polyline points="3 6 5 6 21 6" />
                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                           </svg>
@@ -296,20 +356,40 @@ export default function RemindersApp() {
                         onClick={() => toggleComplete(r.id, r.completed)}
                         className="h-5 w-5 shrink-0 rounded-full border border-emerald-400/40 bg-emerald-400/20 flex items-center justify-center"
                       >
-                        <svg viewBox="0 0 24 24" className="h-3 w-3 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="h-3 w-3 text-emerald-400"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
                           <polyline points="20 6 9 17 4 12" />
                         </svg>
                       </button>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-white/50 line-through truncate">{r.title}</p>
-                        <p className="mt-0.5 text-xs text-white/30">{formatDate(r.deadlineAt)}</p>
+                        <p className="text-sm text-white/50 line-through truncate">
+                          {r.title}
+                        </p>
+                        <p className="mt-0.5 text-xs text-white/30">
+                          {formatDate(r.deadlineAt)}
+                        </p>
                       </div>
                       <button
                         type="button"
                         onClick={() => deleteReminder(r.id)}
                         className="shrink-0 rounded-md p-1.5 text-white/20 transition-colors hover:text-red-400"
                       >
-                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
                           <polyline points="3 6 5 6 21 6" />
                           <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                         </svg>

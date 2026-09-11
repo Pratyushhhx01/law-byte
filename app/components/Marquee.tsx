@@ -14,10 +14,12 @@ export default function Marquee({
 
   return (
     <div
-      className={`relative overflow-hidden border-y border-white/10 bg-black py-5 ${className}`}
+      className={`group relative overflow-hidden border-y border-white/10 bg-black py-5 ${className}`}
     >
       <div className="mask-fade-x pointer-events-none absolute inset-0 z-10" />
-      <div className={`flex w-max gap-12 ${animation}`}>
+      <div
+        className={`flex w-max gap-12 ${animation} group-hover:[animation-play-state:paused]`}
+      >
         {doubled.map((item, idx) => (
           <div
             key={`${item}-${idx}`}

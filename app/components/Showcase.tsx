@@ -61,7 +61,7 @@ const rightFeatures = [
     iconColor: "text-cyan-400",
   },
   {
-    label: "My Cases",
+    label: "AI Lawyer",
     desc: "Track your active matters",
     iconPath:
       "M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z",
@@ -181,7 +181,7 @@ export default function Showcase() {
                       >
                         <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
                       </svg>
-                      My Cases
+                      AI Lawyer
                     </div>
                   </div>
 

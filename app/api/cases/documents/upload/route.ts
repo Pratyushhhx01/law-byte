@@ -32,7 +32,10 @@ export async function POST(request: NextRequest) {
     const caseId = formData.get("caseId") as string | null;
 
     if (!file || !caseId) {
-      return NextResponse.json({ error: "file and caseId are required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "file and caseId are required" },
+        { status: 400 },
+      );
     }
 
     const ext = file.name.split(".").pop() || "bin";
@@ -47,7 +50,7 @@ export async function POST(request: NextRequest) {
         Key: key,
         Body: body,
         ContentType: file.type || "application/octet-stream",
-      })
+      }),
     );
 
     const fileUrl = `https://${S3_BUCKET}.s3.ap-south-1.amazonaws.com/${key}`;

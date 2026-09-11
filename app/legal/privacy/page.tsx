@@ -41,8 +41,8 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong className="text-white/90">Content you submit:</strong>{" "}
-            documents, matter details, drafts, and other materials you upload
-            or generate through the Service.
+            documents, matter details, drafts, and other materials you upload or
+            generate through the Service.
           </li>
           <li>
             <strong className="text-white/90">Usage data:</strong> device and
@@ -50,9 +50,8 @@ export default function PrivacyPage() {
             used to operate and improve the Service.
           </li>
           <li>
-            <strong className="text-white/90">Billing data:</strong> handled
-            by our payment processor; we do not store full payment card
-            numbers.
+            <strong className="text-white/90">Billing data:</strong> handled by
+            our payment processor; we do not store full payment card numbers.
           </li>
         </ul>
       </section>
@@ -63,9 +62,9 @@ export default function PrivacyPage() {
         </h2>
         <p className="mt-3">
           We use the information we collect to provide, maintain, secure, and
-          improve the Service, to process transactions, to communicate with
-          you, and to comply with legal obligations. We do not use your
-          content to train third-party models without your explicit consent.
+          improve the Service, to process transactions, to communicate with you,
+          and to comply with legal obligations. We do not use your content to
+          train third-party models without your explicit consent.
         </p>
       </section>
 

@@ -13,6 +13,9 @@ const trustedOrigins = process.env.TRUSTED_ORIGINS
 export const auth = betterAuth({
   database: kyselyAdapter(db),
   plugins: [nextCookies()],
+  emailAndPassword: {
+    enabled: true,
+  },
   socialProviders: {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID!,

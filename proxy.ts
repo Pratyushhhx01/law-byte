@@ -7,10 +7,13 @@ export function proxy() {
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   response.headers.set("X-XSS-Protection", "1; mode=block");
-  response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  response.headers.set(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=()",
+  );
   response.headers.set(
     "Strict-Transport-Security",
-    "max-age=63072000; includeSubDomains; preload"
+    "max-age=63072000; includeSubDomains; preload",
   );
   response.headers.set(
     "Content-Security-Policy",
@@ -22,7 +25,7 @@ export function proxy() {
       "font-src 'self' data: https://fonts.gstatic.com",
       "connect-src 'self' https://integrate.api.nvidia.com https://api.tavily.com https://*.amazonaws.com https://accounts.google.com https://github.com",
       "frame-ancestors 'none'",
-    ].join("; ")
+    ].join("; "),
   );
 
   return response;

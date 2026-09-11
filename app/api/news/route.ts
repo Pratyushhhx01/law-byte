@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { tavily } from "@tavily/core";
 
-const tvly = process.env.TAVILY_API_KEY ? tavily({ apiKey: process.env.TAVILY_API_KEY }) : null;
+const tvly = process.env.TAVILY_API_KEY
+  ? tavily({ apiKey: process.env.TAVILY_API_KEY })
+  : null;
 
 interface NewsItem {
   title: string;
@@ -12,7 +14,10 @@ interface NewsItem {
 
 export async function GET() {
   if (!tvly) {
-    return NextResponse.json({ error: "Tavily API not configured" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Tavily API not configured" },
+      { status: 500 },
+    );
   }
 
   try {
@@ -48,8 +53,37 @@ export async function GET() {
     }
 
     const seen = new Set<string>();
-    const legalKeywords = ["court", "judgment", "law", "legal", "act", "bill", "justice", "constitution", "parliament", "supreme", "high court", "tribunal", "criminal", "civil", "amendment", "section", "article", "penal", "contract", "tax", "gst"];
-    const junkDomains = ["instagram.com", "facebook.com", "twitter.com", "x.com", "tiktok.com", "youtube.com"];
+    const legalKeywords = [
+      "court",
+      "judgment",
+      "law",
+      "legal",
+      "act",
+      "bill",
+      "justice",
+      "constitution",
+      "parliament",
+      "supreme",
+      "high court",
+      "tribunal",
+      "criminal",
+      "civil",
+      "amendment",
+      "section",
+      "article",
+      "penal",
+      "contract",
+      "tax",
+      "gst",
+    ];
+    const junkDomains = [
+      "instagram.com",
+      "facebook.com",
+      "twitter.com",
+      "x.com",
+      "tiktok.com",
+      "youtube.com",
+    ];
     const unique = allResults
       .filter((item) => {
         if (seen.has(item.url)) return false;
@@ -57,7 +91,9 @@ export async function GET() {
         try {
           const host = new URL(item.url).hostname.toLowerCase();
           if (junkDomains.some((d) => host.includes(d))) return false;
-        } catch { /* allow */ }
+        } catch {
+          /* allow */
+        }
         const text = `${item.title} ${item.snippet}`.toLowerCase();
         return legalKeywords.some((kw) => text.includes(kw));
       })

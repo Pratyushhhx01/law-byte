@@ -17,7 +17,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const caseId = searchParams.get("caseId");
     if (!caseId) {
-      return NextResponse.json({ error: "caseId is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "caseId is required" },
+        { status: 400 },
+      );
     }
 
     const docs = await db
@@ -31,7 +34,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ documents: docs });
   } catch (err) {
     console.error("Case documents GET error:", err);
-    return NextResponse.json({ error: "Failed to load documents" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to load documents" },
+      { status: 500 },
+    );
   }
 }
 
@@ -44,12 +50,18 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json().catch(() => null);
     const caseId = typeof body?.caseId === "string" ? body.caseId : "";
-    const fileName = typeof body?.fileName === "string" ? body.fileName.trim() : "";
-    const fileType = typeof body?.fileType === "string" ? body.fileType.trim() : "";
-    const fileUrl = typeof body?.fileUrl === "string" ? body.fileUrl.trim() : "";
+    const fileName =
+      typeof body?.fileName === "string" ? body.fileName.trim() : "";
+    const fileType =
+      typeof body?.fileType === "string" ? body.fileType.trim() : "";
+    const fileUrl =
+      typeof body?.fileUrl === "string" ? body.fileUrl.trim() : "";
 
     if (!caseId || !fileName || !fileType || !fileUrl) {
-      return NextResponse.json({ error: "caseId, fileName, fileType, and fileUrl are required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "caseId, fileName, fileType, and fileUrl are required" },
+        { status: 400 },
+      );
     }
 
     const doc = await db
@@ -68,7 +80,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(doc, { status: 201 });
   } catch (err) {
     console.error("Case documents POST error:", err);
-    return NextResponse.json({ error: "Failed to add document" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to add document" },
+      { status: 500 },
+    );
   }
 }
 
@@ -82,7 +97,10 @@ export async function DELETE(request: NextRequest) {
     const body = await request.json().catch(() => null);
     const id = typeof body?.id === "string" ? body.id : "";
     if (!id) {
-      return NextResponse.json({ error: "Missing document id" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing document id" },
+        { status: 400 },
+      );
     }
 
     await db
@@ -94,6 +112,9 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("Case documents DELETE error:", err);
-    return NextResponse.json({ error: "Failed to delete document" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to delete document" },
+      { status: 500 },
+    );
   }
 }

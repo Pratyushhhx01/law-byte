@@ -142,8 +142,12 @@ export function formatCitation(cit: Citation): string {
     return cit.url ? cit.label : `${cit.label} (web source)`;
   }
 
-  const label = cit.label.replace(/\(Section[s]? \d+(?:[a-z])?[^)]*\)/i, "").trim();
-  const secMatch = cit.label.match(/\(Section[s]? (\d+(?:[a-z])?(?:[-–—]\d+(?:[a-z])?)?)[^)]*\)/i);
+  const label = cit.label
+    .replace(/\(Section[s]? \d+(?:[a-z])?[^)]*\)/i, "")
+    .trim();
+  const secMatch = cit.label.match(
+    /\(Section[s]? (\d+(?:[a-z])?(?:[-–—]\d+(?:[a-z])?)?)[^)]*\)/i,
+  );
 
   let actName = label;
   let year = "";

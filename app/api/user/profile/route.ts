@@ -19,12 +19,23 @@ export async function PUT(request: NextRequest) {
     if (avatar && avatar.size > 0) {
       const MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5MB
       if (avatar.size > MAX_AVATAR_SIZE) {
-        return NextResponse.json({ error: "Avatar must be under 5MB" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Avatar must be under 5MB" },
+          { status: 400 },
+        );
       }
 
-      const allowedImageTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
+      const allowedImageTypes = [
+        "image/png",
+        "image/jpeg",
+        "image/jpg",
+        "image/webp",
+      ];
       if (!allowedImageTypes.includes(avatar.type)) {
-        return NextResponse.json({ error: "Avatar must be PNG, JPEG, or WebP" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Avatar must be PNG, JPEG, or WebP" },
+          { status: 400 },
+        );
       }
 
       const bytes = await avatar.arrayBuffer();
@@ -37,7 +48,7 @@ export async function PUT(request: NextRequest) {
           Key: key,
           Body: Buffer.from(bytes),
           ContentType: avatar.type,
-        })
+        }),
       );
 
       imageUrl = `https://${S3_BUCKET}.s3.${process.env.AWS_REGION || "ap-south-1"}.amazonaws.com/${key}`;
@@ -46,7 +57,10 @@ export async function PUT(request: NextRequest) {
     const updateData: Record<string, string> = {};
     if (name !== null && name !== undefined && name.trim().length > 0) {
       if (name.length > 100) {
-        return NextResponse.json({ error: "Name must be under 100 characters" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Name must be under 100 characters" },
+          { status: 400 },
+        );
       }
       updateData.name = name.trim();
     }
@@ -69,6 +83,9 @@ export async function PUT(request: NextRequest) {
     });
   } catch (err) {
     console.error("Profile update error:", err);
-    return NextResponse.json({ error: "Failed to update profile" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to update profile" },
+      { status: 500 },
+    );
   }
 }

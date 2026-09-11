@@ -28,11 +28,15 @@ describe("Auth Configuration", () => {
   });
 
   it("should have google in trusted providers for linking", () => {
-    expect(auth.options.account?.accountLinking?.trustedProviders).toContain("google");
+    expect(auth.options.account?.accountLinking?.trustedProviders).toContain(
+      "google",
+    );
   });
 
   it("should have github in trusted providers for linking", () => {
-    expect(auth.options.account?.accountLinking?.trustedProviders).toContain("github");
+    expect(auth.options.account?.accountLinking?.trustedProviders).toContain(
+      "github",
+    );
   });
 
   it("should have session expiry set to 7 days", () => {

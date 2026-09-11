@@ -45,21 +45,87 @@ function formatCurrency(amount: number): string {
 /* ─── Limitation Calculator Modal ─── */
 
 const CASE_TYPES = [
-  { id: "contract", label: "Breach of Contract", years: 3, description: "Indian Contract Act, 1872 — S. 73" },
-  { id: "money", label: "Money Recovery", years: 3, description: "Suit for recovery of money" },
-  { id: "property", label: "Property Dispossession", years: 12, description: "Suit for possession of immovable property" },
-  { id: "cheque", label: "Cheque Bounce (S.138 NI Act)", days: 30, description: "Negotiable Instruments Act — 30 days from cause of action" },
-  { id: "consumer", label: "Consumer Complaint", years: 2, description: "Consumer Protection Act, 2019" },
-  { id: "motor", label: "Motor Accident Claim", years: 3, description: "Motor Vehicles Act, 1988 — S. 166" },
-  { id: "termination", label: "Wrongful Termination", years: 1, description: "Industrial Disputes Act, 1947" },
-  { id: "defamation", label: "Defamation", years: 1, description: "Indian Penal Code / BNS — S. 499/356" },
-  { id: "government", label: "Suit Against Government", years: 1, description: "Section 80 CPC — 2 months notice required" },
-  { id: "promissory", label: "Promissory Note / Written Instrument", years: 3, description: "Article 17, Limitation Act, 1963" },
-  { id: "rent", label: "Arrears of Rent", years: 3, description: "Suit for recovery of rent arrears" },
-  { id: "tort", label: "Tort / Negligence", years: 2, description: "General tortious liability" },
+  {
+    id: "contract",
+    label: "Breach of Contract",
+    years: 3,
+    description: "Indian Contract Act, 1872 — S. 73",
+  },
+  {
+    id: "money",
+    label: "Money Recovery",
+    years: 3,
+    description: "Suit for recovery of money",
+  },
+  {
+    id: "property",
+    label: "Property Dispossession",
+    years: 12,
+    description: "Suit for possession of immovable property",
+  },
+  {
+    id: "cheque",
+    label: "Cheque Bounce (S.138 NI Act)",
+    days: 30,
+    description: "Negotiable Instruments Act — 30 days from cause of action",
+  },
+  {
+    id: "consumer",
+    label: "Consumer Complaint",
+    years: 2,
+    description: "Consumer Protection Act, 2019",
+  },
+  {
+    id: "motor",
+    label: "Motor Accident Claim",
+    years: 3,
+    description: "Motor Vehicles Act, 1988 — S. 166",
+  },
+  {
+    id: "termination",
+    label: "Wrongful Termination",
+    years: 1,
+    description: "Industrial Disputes Act, 1947",
+  },
+  {
+    id: "defamation",
+    label: "Defamation",
+    years: 1,
+    description: "Indian Penal Code / BNS — S. 499/356",
+  },
+  {
+    id: "government",
+    label: "Suit Against Government",
+    years: 1,
+    description: "Section 80 CPC — 2 months notice required",
+  },
+  {
+    id: "promissory",
+    label: "Promissory Note / Written Instrument",
+    years: 3,
+    description: "Article 17, Limitation Act, 1963",
+  },
+  {
+    id: "rent",
+    label: "Arrears of Rent",
+    years: 3,
+    description: "Suit for recovery of rent arrears",
+  },
+  {
+    id: "tort",
+    label: "Tort / Negligence",
+    years: 2,
+    description: "General tortious liability",
+  },
 ];
 
-export function CalculatorLimitsModal({ onClose, onBack }: { onClose: () => void; onBack: () => void }) {
+export function CalculatorLimitsModal({
+  onClose,
+  onBack,
+}: {
+  onClose: () => void;
+  onBack: () => void;
+}) {
   const [selectedType, setSelectedType] = useState("");
   const [incidentDate, setIncidentDate] = useState("");
 
@@ -90,20 +156,51 @@ export function CalculatorLimitsModal({ onClose, onBack }: { onClose: () => void
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
       <div
         className="animate-overlay-in mx-4 flex w-full max-w-2xl flex-col rounded-2xl border border-white/10 bg-[#0a0a0a] shadow-2xl max-h-[85vh]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 border-b border-white/[0.06] px-6 py-4">
-          <button type="button" onClick={onBack} className="rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white" aria-label="Back to calculators">
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <button
+            type="button"
+            onClick={onBack}
+            className="rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white"
+            aria-label="Back to calculators"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
           </button>
-          <h2 className="text-sm font-semibold text-white">Statute of Limitations</h2>
-          <button type="button" onClick={onClose} className="ml-auto rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white" aria-label="Close">
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <h2 className="text-sm font-semibold text-white">
+            Statute of Limitations
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="ml-auto rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white"
+            aria-label="Close"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </button>
@@ -111,7 +208,9 @@ export function CalculatorLimitsModal({ onClose, onBack }: { onClose: () => void
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
           <div className="space-y-3">
-            <label className="block text-xs font-medium text-white/50">Case Type</label>
+            <label className="block text-xs font-medium text-white/50">
+              Case Type
+            </label>
             <div className="grid gap-2 sm:grid-cols-2">
               {CASE_TYPES.map((ct) => (
                 <button
@@ -124,9 +223,12 @@ export function CalculatorLimitsModal({ onClose, onBack }: { onClose: () => void
                       : "border-white/[0.08] bg-white/[0.02] hover:border-white/15 hover:bg-white/[0.04]"
                   }`}
                 >
-                  <span className="block text-sm font-medium text-white">{ct.label}</span>
+                  <span className="block text-sm font-medium text-white">
+                    {ct.label}
+                  </span>
                   <span className="mt-1 block text-[11px] text-white/40">
-                    {ct.days ? `${ct.days} days` : `${ct.years} years`} — {ct.description}
+                    {ct.days ? `${ct.days} days` : `${ct.years} years`} —{" "}
+                    {ct.description}
                   </span>
                 </button>
               ))}
@@ -134,7 +236,10 @@ export function CalculatorLimitsModal({ onClose, onBack }: { onClose: () => void
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="calc-incident-date" className="block text-xs font-medium text-white/50">
+            <label
+              htmlFor="calc-incident-date"
+              className="block text-xs font-medium text-white/50"
+            >
               Date of Incident / Cause of Action
             </label>
             <input
@@ -160,23 +265,57 @@ export function CalculatorLimitsModal({ onClose, onBack }: { onClose: () => void
                   }`}
                 >
                   {status === "safe" ? (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
-                      <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      className="h-5 w-5"
+                    >
+                      <path
+                        d="M20 6L9 17l-5-5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
                     </svg>
                   ) : status === "approaching" ? (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
-                      <path d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" />
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      className="h-5 w-5"
+                    >
+                      <path
+                        d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
                     </svg>
                   ) : (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
-                      <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      className="h-5 w-5"
+                    >
+                      <path
+                        d="M18 6L6 18M6 6l12 12"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
                     </svg>
                   )}
                 </div>
                 <div>
                   <p className="text-xs text-white/40">Filing Deadline</p>
-                  <p className="mt-1 text-xl font-semibold text-white">{formatDate(deadline)}</p>
-                  <p className={`mt-1 text-sm font-medium ${status === "safe" ? "text-emerald-400" : status === "approaching" ? "text-amber-400" : "text-red-400"}`}>
+                  <p className="mt-1 text-xl font-semibold text-white">
+                    {formatDate(deadline)}
+                  </p>
+                  <p
+                    className={`mt-1 text-sm font-medium ${status === "safe" ? "text-emerald-400" : status === "approaching" ? "text-amber-400" : "text-red-400"}`}
+                  >
                     {status === "overdue"
                       ? `Overdue by ${Math.abs(daysRemaining)} days`
                       : status === "approaching"
@@ -188,24 +327,32 @@ export function CalculatorLimitsModal({ onClose, onBack }: { onClose: () => void
               <div className="mt-4 grid gap-3 text-xs sm:grid-cols-3">
                 <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-2.5">
                   <p className="text-white/40">Case Type</p>
-                  <p className="mt-0.5 font-medium text-white">{caseType?.label}</p>
+                  <p className="mt-0.5 font-medium text-white">
+                    {caseType?.label}
+                  </p>
                 </div>
                 <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-2.5">
                   <p className="text-white/40">Limitation Period</p>
                   <p className="mt-0.5 font-medium text-white">
-                    {caseType?.days ? `${caseType.days} days` : `${caseType?.years} years`}
+                    {caseType?.days
+                      ? `${caseType.days} days`
+                      : `${caseType?.years} years`}
                   </p>
                 </div>
                 <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-2.5">
                   <p className="text-white/40">Incident Date</p>
-                  <p className="mt-0.5 font-medium text-white">{formatDate(new Date(incidentDate))}</p>
+                  <p className="mt-0.5 font-medium text-white">
+                    {formatDate(new Date(incidentDate))}
+                  </p>
                 </div>
               </div>
             </div>
           )}
 
           <p className="text-[11px] leading-relaxed text-white/30">
-            Disclaimer: Limitation periods under the Limitation Act, 1963 may vary based on specific facts, court interpretations, and legislative amendments. Always consult a qualified legal professional.
+            Disclaimer: Limitation periods under the Limitation Act, 1963 may
+            vary based on specific facts, court interpretations, and legislative
+            amendments. Always consult a qualified legal professional.
           </p>
         </div>
       </div>
@@ -215,13 +362,21 @@ export function CalculatorLimitsModal({ onClose, onBack }: { onClose: () => void
 
 /* ─── Interest Calculator Modal ─── */
 
-export function CalculatorInterestModal({ onClose, onBack }: { onClose: () => void; onBack: () => void }) {
+export function CalculatorInterestModal({
+  onClose,
+  onBack,
+}: {
+  onClose: () => void;
+  onBack: () => void;
+}) {
   const [principal, setPrincipal] = useState("");
   const [rate, setRate] = useState("");
   const [timeMonths, setTimeMonths] = useState("");
   const [startDate, setStartDate] = useState("");
   const [compound, setCompound] = useState(false);
-  const [frequency, setFrequency] = useState<"yearly" | "half-yearly" | "quarterly" | "monthly">("yearly");
+  const [frequency, setFrequency] = useState<
+    "yearly" | "half-yearly" | "quarterly" | "monthly"
+  >("yearly");
 
   const P = parseFloat(principal) || 0;
   const R = parseFloat(rate) || 0;
@@ -236,7 +391,14 @@ export function CalculatorInterestModal({ onClose, onBack }: { onClose: () => vo
   if (P > 0 && R > 0 && T > 0) {
     simpleInterest = (P * R * T) / 100;
     totalSimple = P + simpleInterest;
-    const n = frequency === "yearly" ? 1 : frequency === "half-yearly" ? 2 : frequency === "quarterly" ? 4 : 12;
+    const n =
+      frequency === "yearly"
+        ? 1
+        : frequency === "half-yearly"
+          ? 2
+          : frequency === "quarterly"
+            ? 4
+            : 12;
     compoundInterest = P * Math.pow(1 + R / (100 * n), n * T) - P;
     totalCompound = P + compoundInterest;
   }
@@ -255,20 +417,51 @@ export function CalculatorInterestModal({ onClose, onBack }: { onClose: () => vo
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
       <div
         className="animate-overlay-in mx-4 flex w-full max-w-2xl flex-col rounded-2xl border border-white/10 bg-[#0a0a0a] shadow-2xl max-h-[85vh]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 border-b border-white/[0.06] px-6 py-4">
-          <button type="button" onClick={onBack} className="rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white" aria-label="Back to calculators">
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <button
+            type="button"
+            onClick={onBack}
+            className="rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white"
+            aria-label="Back to calculators"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
           </button>
-          <h2 className="text-sm font-semibold text-white">Interest Calculator</h2>
-          <button type="button" onClick={onClose} className="ml-auto rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white" aria-label="Close">
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <h2 className="text-sm font-semibold text-white">
+            Interest Calculator
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="ml-auto rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white"
+            aria-label="Close"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </button>
@@ -277,7 +470,12 @@ export function CalculatorInterestModal({ onClose, onBack }: { onClose: () => vo
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <label htmlFor="calc-principal" className="block text-xs font-medium text-white/50">Principal Amount (₹)</label>
+              <label
+                htmlFor="calc-principal"
+                className="block text-xs font-medium text-white/50"
+              >
+                Principal Amount (₹)
+              </label>
               <input
                 id="calc-principal"
                 type="number"
@@ -289,7 +487,12 @@ export function CalculatorInterestModal({ onClose, onBack }: { onClose: () => vo
               />
             </div>
             <div className="space-y-2">
-              <label htmlFor="calc-rate" className="block text-xs font-medium text-white/50">Annual Interest Rate (%)</label>
+              <label
+                htmlFor="calc-rate"
+                className="block text-xs font-medium text-white/50"
+              >
+                Annual Interest Rate (%)
+              </label>
               <input
                 id="calc-rate"
                 type="number"
@@ -302,7 +505,12 @@ export function CalculatorInterestModal({ onClose, onBack }: { onClose: () => vo
               />
             </div>
             <div className="space-y-2">
-              <label htmlFor="calc-time" className="block text-xs font-medium text-white/50">Time Period (Months)</label>
+              <label
+                htmlFor="calc-time"
+                className="block text-xs font-medium text-white/50"
+              >
+                Time Period (Months)
+              </label>
               <input
                 id="calc-time"
                 type="number"
@@ -314,7 +522,12 @@ export function CalculatorInterestModal({ onClose, onBack }: { onClose: () => vo
               />
             </div>
             <div className="space-y-2">
-              <label htmlFor="calc-start-date" className="block text-xs font-medium text-white/50">Start Date</label>
+              <label
+                htmlFor="calc-start-date"
+                className="block text-xs font-medium text-white/50"
+              >
+                Start Date
+              </label>
               <input
                 id="calc-start-date"
                 type="date"
@@ -331,7 +544,9 @@ export function CalculatorInterestModal({ onClose, onBack }: { onClose: () => vo
                 type="button"
                 onClick={() => setCompound(false)}
                 className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-200 ${
-                  !compound ? "bg-white text-black" : "border border-white/10 bg-white/[0.02] text-white/60 hover:text-white"
+                  !compound
+                    ? "bg-white text-black"
+                    : "border border-white/10 bg-white/[0.02] text-white/60 hover:text-white"
                 }`}
               >
                 Simple
@@ -340,7 +555,9 @@ export function CalculatorInterestModal({ onClose, onBack }: { onClose: () => vo
                 type="button"
                 onClick={() => setCompound(true)}
                 className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-200 ${
-                  compound ? "bg-white text-black" : "border border-white/10 bg-white/[0.02] text-white/60 hover:text-white"
+                  compound
+                    ? "bg-white text-black"
+                    : "border border-white/10 bg-white/[0.02] text-white/60 hover:text-white"
                 }`}
               >
                 Compound
@@ -348,13 +565,17 @@ export function CalculatorInterestModal({ onClose, onBack }: { onClose: () => vo
             </div>
             {compound && (
               <div className="flex flex-wrap gap-1.5">
-                {(["yearly", "half-yearly", "quarterly", "monthly"] as const).map((f) => (
+                {(
+                  ["yearly", "half-yearly", "quarterly", "monthly"] as const
+                ).map((f) => (
                   <button
                     key={f}
                     type="button"
                     onClick={() => setFrequency(f)}
                     className={`rounded-full px-3 py-1 text-xs font-medium transition-all duration-200 ${
-                      frequency === f ? "bg-white text-black" : "border border-white/10 bg-white/[0.02] text-white/60 hover:text-white"
+                      frequency === f
+                        ? "bg-white text-black"
+                        : "border border-white/10 bg-white/[0.02] text-white/60 hover:text-white"
                     }`}
                   >
                     {f.charAt(0).toUpperCase() + f.slice(1)}
@@ -377,7 +598,15 @@ export function CalculatorInterestModal({ onClose, onBack }: { onClose: () => vo
                           : "bg-emerald-500/10 text-emerald-400"
                     }`}
                   >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-5 w-5"
+                    >
                       <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
                       <line x1="16" y1="2" x2="16" y2="6" />
                       <line x1="8" y1="2" x2="8" y2="6" />
@@ -386,18 +615,30 @@ export function CalculatorInterestModal({ onClose, onBack }: { onClose: () => vo
                   </div>
                 )}
                 <div className="flex-1">
-                  <p className="text-[11px] font-medium uppercase tracking-wider text-white/40">Payment Due Date</p>
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-white/40">
+                    Payment Due Date
+                  </p>
                   {dueDate ? (
                     <>
-                      <p className="mt-1 text-xl font-semibold text-white">{formatDate(dueDate)}</p>
+                      <p className="mt-1 text-xl font-semibold text-white">
+                        {formatDate(dueDate)}
+                      </p>
                       {daysUntilDue !== null && (
-                        <p className={`mt-0.5 text-sm font-medium ${daysUntilDue < 0 ? "text-red-400" : daysUntilDue <= 30 ? "text-amber-400" : "text-emerald-400"}`}>
-                          {daysUntilDue < 0 ? `Overdue by ${Math.abs(daysUntilDue)} days` : daysUntilDue === 0 ? "Due today" : `${daysUntilDue} days remaining`}
+                        <p
+                          className={`mt-0.5 text-sm font-medium ${daysUntilDue < 0 ? "text-red-400" : daysUntilDue <= 30 ? "text-amber-400" : "text-emerald-400"}`}
+                        >
+                          {daysUntilDue < 0
+                            ? `Overdue by ${Math.abs(daysUntilDue)} days`
+                            : daysUntilDue === 0
+                              ? "Due today"
+                              : `${daysUntilDue} days remaining`}
                         </p>
                       )}
                     </>
                   ) : (
-                    <p className="mt-1 text-xs text-white/40">Enter a start date and time period</p>
+                    <p className="mt-1 text-xs text-white/40">
+                      Enter a start date and time period
+                    </p>
                   )}
                 </div>
               </div>
@@ -407,23 +648,34 @@ export function CalculatorInterestModal({ onClose, onBack }: { onClose: () => vo
                   {compound ? "Compound Interest" : "Simple Interest"}
                 </p>
                 <p className="mt-1 text-2xl font-semibold text-white">
-                  ₹{formatCurrency(compound ? compoundInterest : simpleInterest)}
+                  ₹
+                  {formatCurrency(compound ? compoundInterest : simpleInterest)}
                 </p>
                 <p className="mt-0.5 text-sm text-white/50">
-                  Total payable: ₹{formatCurrency(compound ? totalCompound : totalSimple)}
+                  Total payable: ₹
+                  {formatCurrency(compound ? totalCompound : totalSimple)}
                 </p>
                 <div className="mt-3 space-y-1.5 text-sm">
                   <div className="flex justify-between text-white/50">
                     <span>Principal</span>
-                    <span className="font-medium text-white/70">₹{formatCurrency(P)}</span>
+                    <span className="font-medium text-white/70">
+                      ₹{formatCurrency(P)}
+                    </span>
                   </div>
                   <div className="flex justify-between text-white/50">
                     <span>Interest</span>
-                    <span className="font-medium text-white/70">₹{formatCurrency(compound ? compoundInterest : simpleInterest)}</span>
+                    <span className="font-medium text-white/70">
+                      ₹
+                      {formatCurrency(
+                        compound ? compoundInterest : simpleInterest,
+                      )}
+                    </span>
                   </div>
                   <div className="border-t border-white/[0.06] pt-1.5 flex justify-between text-white/70">
                     <span className="font-medium">Total Payable</span>
-                    <span className="font-semibold text-white">₹{formatCurrency(compound ? totalCompound : totalSimple)}</span>
+                    <span className="font-semibold text-white">
+                      ₹{formatCurrency(compound ? totalCompound : totalSimple)}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -437,7 +689,10 @@ export function CalculatorInterestModal({ onClose, onBack }: { onClose: () => vo
           )}
 
           <p className="text-[11px] leading-relaxed text-white/30">
-            Disclaimer: This calculator provides informational estimates only. Actual interest rates may be governed by specific contracts, statutes, or court orders. Always verify with a qualified legal professional.
+            Disclaimer: This calculator provides informational estimates only.
+            Actual interest rates may be governed by specific contracts,
+            statutes, or court orders. Always verify with a qualified legal
+            professional.
           </p>
         </div>
       </div>

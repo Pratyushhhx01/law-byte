@@ -22,7 +22,7 @@ const features: Feature[] = [
   },
   {
     tag: "03",
-    title: "My Cases",
+    title: "AI Lawyer",
     description:
       "A structured interrogation mode that asks one question at a time across 8 legal lenses — building a complete picture before delivering tailored advice.",
   },

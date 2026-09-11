@@ -18,8 +18,8 @@ export default function DocumentsPage() {
               Legal Documents
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-relaxed text-white/65">
-              Lawbite can help you draft, review, and understand a wide range
-              of Indian legal documents.
+              Lawbite can help you draft, review, and understand a wide range of
+              Indian legal documents.
             </p>
           </header>
 
@@ -64,7 +64,7 @@ export default function DocumentsPage() {
                 Knowledge Base
               </h2>
               <p className="mt-3">
-                Lawbite&apos;s knowledge base includes 40+ Indian bare acts at
+                Lawbite&apos;s knowledge base includes 157+ Indian bare acts at
                 the section level, covering criminal law, civil procedure,
                 constitutional law, family law, cyber law, corporate law, tax
                 law, and more. Every response references the specific sections

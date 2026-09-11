@@ -25,7 +25,10 @@ export async function GET(request: NextRequest) {
         .where("userId", "=", user.id)
         .executeTakeFirst();
       if (!notice) {
-        return NextResponse.json({ error: "Notice not found" }, { status: 404 });
+        return NextResponse.json(
+          { error: "Notice not found" },
+          { status: 404 },
+        );
       }
       return NextResponse.json({ notice });
     }
@@ -40,7 +43,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ notices });
   } catch (err) {
     console.error("Notices GET error:", err);
-    return NextResponse.json({ error: "Failed to load notices" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to load notices" },
+      { status: 500 },
+    );
   }
 }
 
@@ -52,12 +58,18 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json().catch(() => null);
-    const recipientName = typeof body?.recipientName === "string" ? body.recipientName.trim() : "";
-    const subject = typeof body?.subject === "string" ? body.subject.trim() : "";
-    const content = typeof body?.content === "string" ? body.content.trim() : "";
+    const recipientName =
+      typeof body?.recipientName === "string" ? body.recipientName.trim() : "";
+    const subject =
+      typeof body?.subject === "string" ? body.subject.trim() : "";
+    const content =
+      typeof body?.content === "string" ? body.content.trim() : "";
 
     if (!recipientName || !subject || !content) {
-      return NextResponse.json({ error: "recipientName, subject, and content are required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "recipientName, subject, and content are required" },
+        { status: 400 },
+      );
     }
 
     const notice = await db
@@ -67,8 +79,14 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         caseId: typeof body?.caseId === "string" ? body.caseId : null,
         recipientName,
-        recipientEmail: typeof body?.recipientEmail === "string" ? body.recipientEmail.trim() : "",
-        recipientAddress: typeof body?.recipientAddress === "string" ? body.recipientAddress.trim() : "",
+        recipientEmail:
+          typeof body?.recipientEmail === "string"
+            ? body.recipientEmail.trim()
+            : "",
+        recipientAddress:
+          typeof body?.recipientAddress === "string"
+            ? body.recipientAddress.trim()
+            : "",
         subject,
         content,
         status: "draft",
@@ -79,7 +97,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(notice, { status: 201 });
   } catch (err) {
     console.error("Notices POST error:", err);
-    return NextResponse.json({ error: "Failed to create notice" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to create notice" },
+      { status: 500 },
+    );
   }
 }
 
@@ -97,18 +118,35 @@ export async function PATCH(request: NextRequest) {
     }
 
     const updates: Record<string, unknown> = {};
-    if (body.recipientName !== undefined) updates.recipientName = typeof body.recipientName === "string" ? body.recipientName.trim() : "";
-    if (body.recipientEmail !== undefined) updates.recipientEmail = typeof body.recipientEmail === "string" ? body.recipientEmail.trim() : "";
-    if (body.recipientAddress !== undefined) updates.recipientAddress = typeof body.recipientAddress === "string" ? body.recipientAddress.trim() : "";
-    if (body.subject !== undefined) updates.subject = typeof body.subject === "string" ? body.subject.trim() : "";
-    if (body.content !== undefined) updates.content = typeof body.content === "string" ? body.content.trim() : "";
+    if (body.recipientName !== undefined)
+      updates.recipientName =
+        typeof body.recipientName === "string" ? body.recipientName.trim() : "";
+    if (body.recipientEmail !== undefined)
+      updates.recipientEmail =
+        typeof body.recipientEmail === "string"
+          ? body.recipientEmail.trim()
+          : "";
+    if (body.recipientAddress !== undefined)
+      updates.recipientAddress =
+        typeof body.recipientAddress === "string"
+          ? body.recipientAddress.trim()
+          : "";
+    if (body.subject !== undefined)
+      updates.subject =
+        typeof body.subject === "string" ? body.subject.trim() : "";
+    if (body.content !== undefined)
+      updates.content =
+        typeof body.content === "string" ? body.content.trim() : "";
     if (body.status !== undefined) {
       updates.status = body.status;
       if (body.status === "sent") updates.sentAt = new Date();
     }
 
     if (Object.keys(updates).length === 0) {
-      return NextResponse.json({ error: "No fields to update" }, { status: 400 });
+      return NextResponse.json(
+        { error: "No fields to update" },
+        { status: 400 },
+      );
     }
 
     await db
@@ -121,7 +159,10 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("Notices PATCH error:", err);
-    return NextResponse.json({ error: "Failed to update notice" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to update notice" },
+      { status: 500 },
+    );
   }
 }
 
@@ -147,6 +188,9 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("Notices DELETE error:", err);
-    return NextResponse.json({ error: "Failed to delete notice" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to delete notice" },
+      { status: 500 },
+    );
   }
 }

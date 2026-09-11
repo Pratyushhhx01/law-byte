@@ -17,18 +17,16 @@ export default function RiskClosurePage() {
       <section>
         <h2 className="text-xl font-semibold text-white">1. Overview</h2>
         <p className="mt-3">
-          Lawbite provides tools that help legal teams draft, review, and
-          manage documents and matters. Like all software that operates on
-          information you care about, there are inherent risks you should
-          understand before relying on the Service. This page makes those
-          risks explicit and explains our shared responsibilities.
+          Lawbite provides tools that help legal teams draft, review, and manage
+          documents and matters. Like all software that operates on information
+          you care about, there are inherent risks you should understand before
+          relying on the Service. This page makes those risks explicit and
+          explains our shared responsibilities.
         </p>
       </section>
 
       <section>
-        <h2 className="text-xl font-semibold text-white">
-          2. Inherent Risks
-        </h2>
+        <h2 className="text-xl font-semibold text-white">2. Inherent Risks</h2>
         <p className="mt-3">
           By using the Service, you acknowledge and accept risks that include
           but are not limited to:
@@ -46,13 +44,12 @@ export default function RiskClosurePage() {
           </li>
           <li>
             <strong className="text-white/90">Service availability:</strong>{" "}
-            despite our efforts, the Service may be temporarily unavailable
-            or degraded.
+            despite our efforts, the Service may be temporarily unavailable or
+            degraded.
           </li>
           <li>
-            <strong className="text-white/90">Data exposure:</strong>{" "}
-            despite reasonable safeguards, no system is immune from
-            unauthorised access.
+            <strong className="text-white/90">Data exposure:</strong> despite
+            reasonable safeguards, no system is immune from unauthorised access.
           </li>
         </ul>
       </section>
@@ -63,10 +60,10 @@ export default function RiskClosurePage() {
         </h2>
         <p className="mt-3">
           You assume responsibility for reviewing and validating any output
-          before relying on it. You agree that the final decision to use,
-          send, file, or otherwise rely on a document or recommendation
-          produced by the Service is yours alone, and that professional
-          judgement by a qualified lawyer remains essential.
+          before relying on it. You agree that the final decision to use, send,
+          file, or otherwise rely on a document or recommendation produced by
+          the Service is yours alone, and that professional judgement by a
+          qualified lawyer remains essential.
         </p>
       </section>
 
@@ -76,11 +73,10 @@ export default function RiskClosurePage() {
         </h2>
         <p className="mt-3">
           We mitigate these risks through practices such as access controls,
-          encryption in transit and at rest, routine testing, audit logs, and
-          a published incident response process. We expect you to use the
-          Service responsibly, including by enabling available security
-          features, training authorised users, and monitoring activity under
-          your account.
+          encryption in transit and at rest, routine testing, audit logs, and a
+          published incident response process. We expect you to use the Service
+          responsibly, including by enabling available security features,
+          training authorised users, and monitoring activity under your account.
         </p>
       </section>
 

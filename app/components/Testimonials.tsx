@@ -12,7 +12,7 @@ type Testimonial = {
 const testimonials: Testimonial[] = [
   {
     quote:
-      "I used the My Cases mode for a bail application. It walked me through every angle I hadn't considered — the structured approach saved me hours of research.",
+      "I used the AI Lawyer mode for a bail application. It walked me through every angle I hadn't considered — the structured approach saved me hours of research.",
     name: "Arjun Mehta",
     role: "Junior Advocate, Delhi High Court",
   },
