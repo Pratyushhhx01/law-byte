@@ -50,72 +50,108 @@ const CASE_TYPES = [
     label: "Breach of Contract",
     years: 3,
     description: "Indian Contract Act, 1872 — S. 73",
+    icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
+    iconBg: "bg-blue-500/10",
+    iconColor: "text-blue-400",
   },
   {
     id: "money",
     label: "Money Recovery",
     years: 3,
     description: "Suit for recovery of money",
+    icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+    iconBg: "bg-emerald-500/10",
+    iconColor: "text-emerald-400",
   },
   {
     id: "property",
     label: "Property Dispossession",
     years: 12,
     description: "Suit for possession of immovable property",
+    icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
+    iconBg: "bg-amber-500/10",
+    iconColor: "text-amber-400",
   },
   {
     id: "cheque",
     label: "Cheque Bounce (S.138 NI Act)",
     days: 30,
     description: "Negotiable Instruments Act — 30 days from cause of action",
+    icon: "M2.5 9a14.197 14.197 0 0119 0M2.5 15a14.197 14.197 0 0019 0M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z",
+    iconBg: "bg-red-500/10",
+    iconColor: "text-red-400",
   },
   {
     id: "consumer",
     label: "Consumer Complaint",
     years: 2,
     description: "Consumer Protection Act, 2019",
+    icon: "M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z",
+    iconBg: "bg-yellow-500/10",
+    iconColor: "text-yellow-400",
   },
   {
     id: "motor",
     label: "Motor Accident Claim",
     years: 3,
     description: "Motor Vehicles Act, 1988 — S. 166",
+    icon: "M8 17h.01M16 17h.01M3 11l1.5-5A2 2 0 016.4 4h11.2a2 2 0 011.9 1.4L21 11M3 11h18M3 11v6a1 1 0 001 1h1a1 1 0 001-1v-1h12v1a1 1 0 001 1h1a1 1 0 001-1v-6",
+    iconBg: "bg-orange-500/10",
+    iconColor: "text-orange-400",
   },
   {
     id: "termination",
     label: "Wrongful Termination",
     years: 1,
     description: "Industrial Disputes Act, 1947",
+    icon: "M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1",
+    iconBg: "bg-purple-500/10",
+    iconColor: "text-purple-400",
   },
   {
     id: "defamation",
     label: "Defamation",
     years: 1,
     description: "Indian Penal Code / BNS — S. 499/356",
+    icon: "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+    iconBg: "bg-rose-500/10",
+    iconColor: "text-rose-400",
   },
   {
     id: "government",
     label: "Suit Against Government",
     years: 1,
     description: "Section 80 CPC — 2 months notice required",
+    icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
+    iconBg: "bg-indigo-500/10",
+    iconColor: "text-indigo-400",
   },
   {
     id: "promissory",
     label: "Promissory Note / Written Instrument",
     years: 3,
     description: "Article 17, Limitation Act, 1963",
+    icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+    iconBg: "bg-cyan-500/10",
+    iconColor: "text-cyan-400",
   },
   {
     id: "rent",
     label: "Arrears of Rent",
     years: 3,
     description: "Suit for recovery of rent arrears",
+    icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
+    iconBg: "bg-teal-500/10",
+    iconColor: "text-teal-400",
   },
   {
     id: "tort",
     label: "Tort / Negligence",
     years: 2,
     description: "General tortious liability",
+    icon: "M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z",
+    iconBg: "bg-pink-500/10",
+    iconColor: "text-pink-400",
   },
 ];
 
@@ -223,13 +259,32 @@ export function CalculatorLimitsModal({
                       : "border-white/[0.08] bg-white/[0.02] hover:border-white/15 hover:bg-white/[0.04]"
                   }`}
                 >
-                  <span className="block text-sm font-medium text-white">
-                    {ct.label}
-                  </span>
-                  <span className="mt-1 block text-[11px] text-white/40">
-                    {ct.days ? `${ct.days} days` : `${ct.years} years`} —{" "}
-                    {ct.description}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${ct.iconBg} ${ct.iconColor}`}
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d={ct.icon} />
+                      </svg>
+                    </div>
+                    <div>
+                      <span className="block text-sm font-medium text-white">
+                        {ct.label}
+                      </span>
+                      <span className="mt-0.5 block text-[11px] text-white/40">
+                        {ct.days ? `${ct.days} days` : `${ct.years} years`} —{" "}
+                        {ct.description}
+                      </span>
+                    </div>
+                  </div>
                 </button>
               ))}
             </div>
