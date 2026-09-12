@@ -279,6 +279,11 @@ export async function DELETE(request: NextRequest) {
         .where("userId", "=", user.id)
         .execute();
       await trx
+        .deleteFrom("case_document")
+        .where("caseId", "=", id)
+        .where("userId", "=", user.id)
+        .execute();
+      await trx
         .deleteFrom("case_folder")
         .where("id", "=", id)
         .where("userId", "=", user.id)

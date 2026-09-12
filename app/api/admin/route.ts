@@ -4,7 +4,8 @@ import { db } from "@/lib/db";
 
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "")
   .split(",")
-  .map((e) => e.trim().toLowerCase());
+  .map((e) => e.trim().toLowerCase())
+  .filter((e) => e.length > 0);
 
 export async function GET(request: NextRequest) {
   try {

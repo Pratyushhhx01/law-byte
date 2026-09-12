@@ -64,6 +64,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const folder = await db
+      .selectFrom("case_folder")
+      .select("id")
+      .where("id", "=", caseId)
+      .where("userId", "=", user.id)
+      .executeTakeFirst();
+
+    if (!folder) {
+      return NextResponse.json(
+        { error: "Case folder not found" },
+        { status: 404 },
+      );
+    }
+
     const doc = await db
       .insertInto("case_document")
       .values({

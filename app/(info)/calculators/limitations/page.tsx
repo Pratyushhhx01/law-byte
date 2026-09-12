@@ -55,8 +55,9 @@ const CASE_TYPES = [
   {
     id: "government",
     label: "Suit Against Government",
-    years: 1,
-    description: "Section 80 CPC — 2 months notice required",
+    years: 3,
+    description:
+      "Article 113, Limitation Act — S. 80 CPC requires 2 months notice",
   },
   {
     id: "promissory",

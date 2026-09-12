@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
 import { S3_BUCKET } from "@/lib/s3";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 
@@ -35,6 +36,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "file and caseId are required" },
         { status: 400 },
+      );
+    }
+
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: "File must be under 10MB" },
+        { status: 400 },
+      );
+    }
+
+    const folder = await db
+      .selectFrom("case_folder")
+      .select("id")
+      .where("id", "=", caseId)
+      .where("userId", "=", user.id)
+      .executeTakeFirst();
+
+    if (!folder) {
+      return NextResponse.json(
+        { error: "Case folder not found" },
+        { status: 404 },
       );
     }
 

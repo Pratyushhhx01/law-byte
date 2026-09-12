@@ -38,10 +38,16 @@ export async function PUT(request: NextRequest) {
         );
       }
 
-      const bytes = await avatar.arrayBuffer();
-      const ext = avatar.name.split(".").pop() || "jpg";
+      const extMap: Record<string, string> = {
+        "image/png": "png",
+        "image/jpeg": "jpg",
+        "image/jpg": "jpg",
+        "image/webp": "webp",
+      };
+      const ext = extMap[avatar.type] || "jpg";
       const key = `avatars/${session.user.id}.${ext}`;
 
+      const bytes = await avatar.arrayBuffer();
       await s3Client.send(
         new PutObjectCommand({
           Bucket: S3_BUCKET,

@@ -13,9 +13,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "messages required" }, { status: 400 });
     }
 
+    const validMessages = messages.filter(
+      (m: { role?: string; content?: string }) =>
+        m && typeof m.role === "string" && typeof m.content === "string",
+    );
+
     if (format === "txt") {
       let text = `${title || "LawBite Conversation"}\n${"=".repeat(40)}\n\n`;
-      for (const m of messages) {
+      for (const m of validMessages) {
         const role = m.role === "user" ? "You" : "LawBite AI";
         text += `${role}:\n${m.content}\n\n`;
       }
@@ -33,7 +38,7 @@ export async function POST(request: NextRequest) {
       const data = {
         title: title || "LawBite Conversation",
         exportedAt: new Date().toISOString(),
-        messages,
+        messages: validMessages,
       };
       return new NextResponse(JSON.stringify(data, null, 2), {
         headers: {

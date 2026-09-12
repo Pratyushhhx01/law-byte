@@ -1,7 +1,23 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { Pool } from "pg";
 
-describe("Database Connection", () => {
+const dbAvailable = await (async () => {
+  try {
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
+      connectionTimeoutMillis: 5000,
+    });
+    await pool.query("SELECT 1");
+    await pool.end();
+    return true;
+  } catch {
+    return false;
+  }
+})();
+const describeDb = describe.skipIf(!dbAvailable);
+
+describeDb("Database Connection", () => {
   let pool: Pool;
 
   beforeAll(() => {

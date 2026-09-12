@@ -29,15 +29,19 @@ export async function GET() {
 
     const allResults: NewsItem[] = [];
 
-    for (const query of queries) {
-      try {
-        const response = await tvly.search(query, {
+    const queryResults = await Promise.allSettled(
+      queries.map((query) =>
+        tvly.search(query, {
           search_depth: "basic",
           max_results: 5,
           include_answer: false,
-        });
+        }),
+      ),
+    );
 
-        for (const r of response.results ?? []) {
+    for (const result of queryResults) {
+      if (result.status === "fulfilled") {
+        for (const r of result.value.results ?? []) {
           if (r.url && r.title) {
             allResults.push({
               title: r.title,
@@ -47,8 +51,6 @@ export async function GET() {
             });
           }
         }
-      } catch {
-        // skip failed query
       }
     }
 
