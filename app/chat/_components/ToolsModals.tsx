@@ -26,6 +26,9 @@ interface Template {
   id: string;
   name: string;
   category: string;
+  icon: string;
+  iconBg: string;
+  iconColor: string;
   fields: TemplateField[];
   generate: (data: Record<string, string>) => string;
 }
@@ -35,6 +38,9 @@ const TEMPLATES: Template[] = [
     id: "rental",
     name: "Rental Agreement",
     category: "Property",
+    icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
+    iconBg: "bg-amber-500/10",
+    iconColor: "text-amber-400",
     fields: [
       { label: "Landlord Name", required: true },
       { label: "Landlord Address", required: true },
@@ -54,6 +60,9 @@ const TEMPLATES: Template[] = [
     id: "employment",
     name: "Employment Contract",
     category: "Employment",
+    icon: "M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z",
+    iconBg: "bg-blue-500/10",
+    iconColor: "text-blue-400",
     fields: [
       { label: "Company Name", required: true },
       { label: "Company Address", required: true },
@@ -71,6 +80,9 @@ const TEMPLATES: Template[] = [
     id: "nda",
     name: "Non-Disclosure Agreement",
     category: "Business",
+    icon: "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z",
+    iconBg: "bg-emerald-500/10",
+    iconColor: "text-emerald-400",
     fields: [
       { label: "Party A Name", required: true },
       { label: "Party A Address", required: true },
@@ -86,6 +98,9 @@ const TEMPLATES: Template[] = [
     id: "partnership",
     name: "Partnership Deed",
     category: "Business",
+    icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z",
+    iconBg: "bg-purple-500/10",
+    iconColor: "text-purple-400",
     fields: [
       { label: "Firm Name", required: true },
       { label: "Firm Address", required: true },
@@ -107,6 +122,9 @@ const TEMPLATES: Template[] = [
     id: "poa",
     name: "Power of Attorney",
     category: "General",
+    icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
+    iconBg: "bg-rose-500/10",
+    iconColor: "text-rose-400",
     fields: [
       { label: "Principal Name", required: true },
       { label: "Principal Address", required: true },
@@ -122,6 +140,9 @@ const TEMPLATES: Template[] = [
     id: "sale-deed",
     name: "Sale Deed",
     category: "Property",
+    icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
+    iconBg: "bg-teal-500/10",
+    iconColor: "text-teal-400",
     fields: [
       { label: "Seller Name", required: true },
       { label: "Seller Address", required: true },
@@ -138,6 +159,9 @@ const TEMPLATES: Template[] = [
     id: "will",
     name: "Will",
     category: "Document",
+    icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+    iconBg: "bg-indigo-500/10",
+    iconColor: "text-indigo-400",
     fields: [
       { label: "Testator Name", required: true },
       { label: "Testator Address", required: true },
@@ -154,6 +178,9 @@ const TEMPLATES: Template[] = [
     id: "affidavit",
     name: "Affidavit",
     category: "Document",
+    icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4",
+    iconBg: "bg-cyan-500/10",
+    iconColor: "text-cyan-400",
     fields: [
       { label: "Deponent Name", required: true },
       { label: "Deponent Address", required: true },
@@ -168,6 +195,9 @@ const TEMPLATES: Template[] = [
     id: "petition",
     name: "Petition / Plaint",
     category: "Document",
+    icon: "M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3",
+    iconBg: "bg-orange-500/10",
+    iconColor: "text-orange-400",
     fields: [
       { label: "Petitioner Name", required: true },
       { label: "Respondent Name", required: true },
@@ -183,6 +213,9 @@ const TEMPLATES: Template[] = [
     id: "legal-notice",
     name: "Legal Notice",
     category: "Document",
+    icon: "M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z",
+    iconBg: "bg-pink-500/10",
+    iconColor: "text-pink-400",
     fields: [
       { label: "Sender Name", required: true },
       { label: "Recipient Name", required: true },
@@ -197,6 +230,9 @@ const TEMPLATES: Template[] = [
     id: "fir-draft",
     name: "FIR Draft",
     category: "Document",
+    icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
+    iconBg: "bg-red-500/10",
+    iconColor: "text-red-400",
     fields: [
       { label: "Complainant Name", required: true },
       { label: "Police Station", required: true },
@@ -211,6 +247,9 @@ const TEMPLATES: Template[] = [
     id: "consumer-complaint",
     name: "Consumer Complaint",
     category: "Document",
+    icon: "M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z",
+    iconBg: "bg-yellow-500/10",
+    iconColor: "text-yellow-400",
     fields: [
       { label: "Complainant Name", required: true },
       { label: "Opposite Party Name", required: true },
@@ -225,6 +264,9 @@ const TEMPLATES: Template[] = [
     id: "rti-application",
     name: "RTI Application",
     category: "Document",
+    icon: "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+    iconBg: "bg-sky-500/10",
+    iconColor: "text-sky-400",
     fields: [
       { label: "Applicant Name", required: true },
       { label: "Applicant Address", required: true },
@@ -320,7 +362,9 @@ export function TemplatesModal({
                   }}
                   className="flex w-full items-center gap-4 rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 text-left transition-all hover:border-white/20 hover:bg-white/[0.05]"
                 >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-500/10 text-violet-400">
+                  <div
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${t.iconBg} ${t.iconColor}`}
+                  >
                     <svg
                       viewBox="0 0 24 24"
                       className="h-5 w-5"
@@ -330,8 +374,7 @@ export function TemplatesModal({
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     >
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                      <polyline points="14 2 14 8 20 8" />
+                      <path d={t.icon} />
                     </svg>
                   </div>
                   <div>
@@ -417,6 +460,9 @@ interface FilingStep {
 interface FilingGuide {
   id: string;
   name: string;
+  icon: string;
+  iconBg: string;
+  iconColor: string;
   steps: FilingStep[];
   docFields: { label: string; placeholder?: string; required?: boolean }[];
   generateDocument: (data: Record<string, string>) => string;
@@ -426,6 +472,9 @@ const FILING_GUIDES: FilingGuide[] = [
   {
     id: "rti",
     name: "RTI Application",
+    icon: "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+    iconBg: "bg-sky-500/10",
+    iconColor: "text-sky-400",
     steps: [
       {
         title: "Identify the Public Authority",
@@ -464,6 +513,9 @@ const FILING_GUIDES: FilingGuide[] = [
   {
     id: "consumer",
     name: "Consumer Complaint",
+    icon: "M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z",
+    iconBg: "bg-yellow-500/10",
+    iconColor: "text-yellow-400",
     steps: [
       {
         title: "Determine Jurisdiction",
@@ -497,6 +549,9 @@ const FILING_GUIDES: FilingGuide[] = [
   {
     id: "fir",
     name: "FIR Draft",
+    icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
+    iconBg: "bg-red-500/10",
+    iconColor: "text-red-400",
     steps: [
       {
         title: "Identify Police Station",
@@ -530,6 +585,9 @@ const FILING_GUIDES: FilingGuide[] = [
   {
     id: "notice",
     name: "Legal Notice",
+    icon: "M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z",
+    iconBg: "bg-pink-500/10",
+    iconColor: "text-pink-400",
     steps: [
       {
         title: "Identify Grounds",
@@ -655,7 +713,9 @@ export function FilingModal({
                   }}
                   className="flex w-full items-center gap-4 rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 text-left transition-all hover:border-white/20 hover:bg-white/[0.05]"
                 >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-amber-400">
+                  <div
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${g.iconBg} ${g.iconColor}`}
+                  >
                     <svg
                       viewBox="0 0 24 24"
                       className="h-5 w-5"
@@ -665,8 +725,7 @@ export function FilingModal({
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     >
-                      <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
-                      <rect x="9" y="3" width="6" height="4" rx="1" />
+                      <path d={g.icon} />
                     </svg>
                   </div>
                   <div>
