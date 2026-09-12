@@ -1,6 +1,17 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { s3kb } from "@/lib/s3";
 
+// Probe S3 once at module load; skip all S3 tests if unreachable
+const s3Available = await (async () => {
+  try {
+    const index = await s3kb.getFullTextIndex();
+    return Array.isArray(index) && index.length > 0;
+  } catch {
+    return false;
+  }
+})();
+const describeS3 = describe.skipIf(!s3Available);
+
 // ─── Complete actMap extracted from app/api/chat/route.ts ───────────────────
 // Duplicate entries removed; here keys are S3 IDs (values in the original map)
 const ALL_S3_KEYS = new Set<string>();
@@ -225,7 +236,7 @@ const ALL_S3_KEYS = new Set<string>();
   "consumer-protection-act-amended",
 ].forEach((k) => ALL_S3_KEYS.add(k));
 
-describe("S3 Knowledge Base — Acts Inventory", () => {
+describeS3("S3 Knowledge Base — Acts Inventory", () => {
   let actsInS3: string[] = [];
 
   beforeAll(async () => {
@@ -248,7 +259,7 @@ describe("S3 Knowledge Base — Acts Inventory", () => {
   });
 });
 
-describe("S3 Knowledge Base — Act Data Verification", () => {
+describeS3("S3 Knowledge Base — Act Data Verification", () => {
   const present: string[] = [];
   const missing: string[] = [];
   const withSections: string[] = [];
@@ -581,7 +592,7 @@ describe("S3 Knowledge Base — Act Data Verification", () => {
 });
 
 // ── Full-text verification ──────────────────────────────────────────────
-describe("S3 Knowledge Base — Full Text Availability", () => {
+describeS3("S3 Knowledge Base — Full Text Availability", () => {
   let actsInS3: string[] = [];
 
   beforeAll(async () => {
@@ -609,7 +620,7 @@ describe("S3 Knowledge Base — Full Text Availability", () => {
 });
 
 // ── Section retrieval tests ─────────────────────────────────────────────
-describe("S3 Knowledge Base — Section Retrieval", () => {
+describeS3("S3 Knowledge Base — Section Retrieval", () => {
   it("should retrieve a specific section from bharatiya-nyaya-sanhita", async () => {
     const sec = await s3kb.getSection("bharatiya-nyaya-sanhita", "1");
     expect(sec).not.toBeNull();
@@ -638,7 +649,7 @@ describe("S3 Knowledge Base — Section Retrieval", () => {
 });
 
 // ── Search across acts ───────────────────────────────────────────────────
-describe("S3 Knowledge Base — Cross-Act Search", () => {
+describeS3("S3 Knowledge Base — Cross-Act Search", () => {
   it("should find results when searching for a known term", async () => {
     const results = await s3kb.searchActs("Preamble");
     expect(results.length).toBeGreaterThan(0);
@@ -654,7 +665,7 @@ describe("S3 Knowledge Base — Cross-Act Search", () => {
 });
 
 // ── Reference data ──────────────────────────────────────────────────────
-describe("S3 Knowledge Base — Reference Data", () => {
+describeS3("S3 Knowledge Base — Reference Data", () => {
   const references: Array<{ key: string; name: string }> = [
     { key: "bailable-offenses", name: "Bailable/Non-Bailable Offenses" },
     { key: "limitation-periods", name: "Limitation Periods" },
@@ -677,7 +688,7 @@ describe("S3 Knowledge Base — Reference Data", () => {
 });
 
 // ── Source attribution summary (uses data already collected above) ─────
-describe("S3 Knowledge Base — Source Attribution Summary", () => {
+describeS3("S3 Knowledge Base — Source Attribution Summary", () => {
   // This suite reuses data collected by the Act Data Verification suite above.
   // We re-read only the index (cheap) and compare against the already unique keys.
   let actsInS3: string[] = [];

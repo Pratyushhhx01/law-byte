@@ -1834,7 +1834,57 @@ async function getLegalKnowledge(
     }
 
     if (targetAct && parts.length === 0) {
-      if (fullTextActs.has(targetAct)) {
+      // Try the cheaper section-list approach first (1 S3 call for list + 1 for section)
+      const secList = await s3kb.getSectionList(targetAct);
+      if (secList) {
+        const words = lower
+          .replace(/[^a-z\s]/g, " ")
+          .split(/\s+/)
+          .filter(
+            (w) =>
+              w.length > 3 &&
+              ![
+                "what",
+                "the",
+                "for",
+                "and",
+                "that",
+                "this",
+                "with",
+                "under",
+                "from",
+                "about",
+              ].includes(w),
+          );
+        let bestMatch = null;
+        let bestScore = 0;
+        for (const s of secList) {
+          const titleLower = s.title.toLowerCase();
+          let score = 0;
+          for (const w of words) {
+            if (titleLower.includes(w)) score++;
+          }
+          if (score > bestScore) {
+            bestScore = score;
+            bestMatch = s;
+          }
+        }
+        if (bestMatch && bestScore > 0) {
+          const sec = await s3kb.getSection(targetAct, bestMatch.section);
+          if (sec) {
+            parts.push(
+              `[${targetAct.toUpperCase()} Section ${sec.section}] ${sec.title}: ${sec.text}`,
+            );
+            citations.push({
+              type: "act",
+              label: `${displayActName(targetAct)} § ${sec.section}`,
+              snippet: `${sec.title}: ${sec.text}`,
+            });
+          }
+        }
+      }
+      // Only fetch full text as a last resort (expensive — entire act from S3)
+      if (parts.length === 0 && fullTextActs.has(targetAct)) {
         const full = await s3kb.getFullText(targetAct);
         if (full) {
           parts.push(
@@ -1845,55 +1895,6 @@ async function getLegalKnowledge(
             label: displayActName(targetAct),
             snippet: full.substring(0, 3000),
           });
-        }
-      } else {
-        const secList = await s3kb.getSectionList(targetAct);
-        if (secList) {
-          const words = lower
-            .replace(/[^a-z\s]/g, " ")
-            .split(/\s+/)
-            .filter(
-              (w) =>
-                w.length > 3 &&
-                ![
-                  "what",
-                  "the",
-                  "for",
-                  "and",
-                  "that",
-                  "this",
-                  "with",
-                  "under",
-                  "from",
-                  "about",
-                ].includes(w),
-            );
-          let bestMatch = null;
-          let bestScore = 0;
-          for (const s of secList) {
-            const titleLower = s.title.toLowerCase();
-            let score = 0;
-            for (const w of words) {
-              if (titleLower.includes(w)) score++;
-            }
-            if (score > bestScore) {
-              bestScore = score;
-              bestMatch = s;
-            }
-          }
-          if (bestMatch && bestScore > 0) {
-            const sec = await s3kb.getSection(targetAct, bestMatch.section);
-            if (sec) {
-              parts.push(
-                `[${targetAct.toUpperCase()} Section ${sec.section}] ${sec.title}: ${sec.text}`,
-              );
-              citations.push({
-                type: "act",
-                label: `${displayActName(targetAct)} § ${sec.section}`,
-                snippet: `${sec.title}: ${sec.text}`,
-              });
-            }
-          }
         }
       }
     }
@@ -1929,18 +1930,26 @@ async function getLegalKnowledge(
 
       const searchResults = await s3kb.searchActs(searchQuery);
       if (searchResults.length > 0) {
-        for (const r of searchResults.slice(0, 5)) {
+        const sectionFetches = searchResults.slice(0, 5).map(async (r) => {
           const sec = await s3kb.getSection(r.act, r.section);
           const text = sec ? sec.text : "";
           if (text) {
-            parts.push(
-              `[${r.act.toUpperCase()} ${r.section}] ${r.title}: ${text}`,
-            );
-            citations.push({
-              type: "act",
-              label: `${displayActName(r.act)} § ${r.section}`,
-              snippet: `${r.title}: ${text}`,
-            });
+            return {
+              part: `[${r.act.toUpperCase()} ${r.section}] ${r.title}: ${text}`,
+              citation: {
+                type: "act" as const,
+                label: `${displayActName(r.act)} § ${r.section}`,
+                snippet: `${r.title}: ${text}`,
+              },
+            };
+          }
+          return null;
+        });
+        const fetched = await Promise.all(sectionFetches);
+        for (const item of fetched) {
+          if (item) {
+            parts.push(item.part);
+            citations.push(item.citation);
           }
         }
       }
@@ -2329,7 +2338,12 @@ Never transpose tables, never leave a table cell blank, never invent section num
     const isAnalysisMultiRef =
       conversationType === "analysis" && tableAppropriate;
     const hasRefs = refCount >= 1;
-    const skipS3 = isTalkToAi && !hasRefs;
+    const queryMentionsIndianLegalTerm = (() => {
+      if (!contextQuery) return false;
+      const lower = contextQuery.toLowerCase();
+      return Object.keys(actMap).some((key) => lower.includes(key));
+    })();
+    const skipS3 = isTalkToAi && !hasRefs && !queryMentionsIndianLegalTerm;
 
     let needsSearch = false;
     if (contextQuery) {
@@ -2422,7 +2436,7 @@ Never transpose tables, never leave a table cell blank, never invent section num
               ? 4096
               : conversationType === "draft"
                 ? 12288
-                : 2048;
+                : 512;
 
     const hasMultimodalContent =
       Array.isArray(lastUserMessage?.content) &&

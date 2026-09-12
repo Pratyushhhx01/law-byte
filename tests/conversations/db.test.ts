@@ -3,7 +3,24 @@ import { Pool } from "pg";
 import { db } from "@/lib/db";
 import { sql } from "kysely";
 
-describe("Conversations — Schema", () => {
+// Probe DB once at module load; skip all DB tests if unreachable
+const dbAvailable = await (async () => {
+  try {
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
+      connectionTimeoutMillis: 5000,
+    });
+    await pool.query("SELECT 1");
+    await pool.end();
+    return true;
+  } catch {
+    return false;
+  }
+})();
+const describeDb = describe.skipIf(!dbAvailable);
+
+describeDb("Conversations — Schema", () => {
   let pool: Pool;
 
   beforeAll(() => {
@@ -59,7 +76,7 @@ describe("Conversations — Schema", () => {
   });
 });
 
-describe("Conversations — Kysely round-trip", () => {
+describeDb("Conversations — Kysely round-trip", () => {
   const testId = `test-${Date.now()}`;
 
   afterAll(async () => {
