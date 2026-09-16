@@ -11,6 +11,7 @@ import { SECTION_MAPPINGS, mappingPromptBlock } from "@/lib/section-mapping";
 
 const NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 const NVIDIA_MODELS = [
+  "meta/muse-glimmer-30b",
   "nvidia/nemotron-3.5-lightning-30b-a3b",
   "nvidia/nemotron-3-super-120b-a12b",
 ];
@@ -2441,14 +2442,14 @@ Never transpose tables, never leave a table cell blank, never invent section num
       conversationType === "analysis"
         ? 16384
         : conversationType === "talk-to-ai"
-          ? 1024
+          ? 4096
           : conversationType === "grill"
-            ? 1024
+            ? 4096
             : conversationType === "review"
               ? 4096
               : conversationType === "draft"
                 ? 12288
-                : 512;
+                : 4096;
 
     const hasMultimodalContent =
       Array.isArray(lastUserMessage?.content) &&
@@ -2467,10 +2468,6 @@ Never transpose tables, never leave a table cell blank, never invent section num
         (isTalkToAi && tableAppropriate) || isAnalysisMultiRef ? 0.3 : 1.0,
       top_p: 0.95,
       stream: true,
-      chat_template_kwargs: {
-        enable_thinking: false,
-        force_nonempty_content: true,
-      },
     };
 
     const modelsToTry = model === NVIDIA_MODEL ? NVIDIA_MODELS : [model];
