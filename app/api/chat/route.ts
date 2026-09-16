@@ -2753,6 +2753,13 @@ Never transpose tables, never leave a table cell blank, never invent section num
             }
           } catch (err) {
             console.warn("[ChatAPI] stream pipe error:", err);
+            if (!emittedAny) {
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({ content: "I apologize, but I encountered an error while generating the response. Please try again." })}\n\n`,
+                ),
+              );
+            }
           } finally {
             try {
               controller.enqueue(encoder.encode("data: [DONE]\n\n"));
