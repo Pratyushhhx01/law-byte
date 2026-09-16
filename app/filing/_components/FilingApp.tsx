@@ -947,7 +947,7 @@ export default function FilingApp() {
                       const content = selected.generateDocument(formData);
                       exportAsPdf(content, selected.name);
                     }}
-                    className="rounded-lg border border-white/10 px-4 py-2 text-sm text-white/50 transition-colors hover:text-white/70 disabled:opacity-40"
+                    className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:opacity-40"
                   >
                     Download PDF
                   </button>
@@ -1353,7 +1353,7 @@ export default function FilingApp() {
                       const content = selected.generateDocument(formData);
                       exportAsPdf(content, selected.name);
                     }}
-                    className="rounded-lg border border-white/10 px-4 py-2 text-sm text-white/50 hover:text-white/70"
+                    className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500"
                   >
                     Download PDF
                   </button>
