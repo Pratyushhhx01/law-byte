@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { FormEvent, KeyboardEvent, ReactNode } from "react";
 import { signOut } from "@/lib/auth-client";
 import LogoIcon from "../../components/LogoIcon";
@@ -12,7 +13,7 @@ import {
   CalculatorInterestModal,
 } from "./CalculatorModals";
 import { RemindersModal } from "./RemindersModal";
-import { TemplatesModal, FilingModal } from "./ToolsModals";
+import { TemplatesModal } from "./ToolsModals";
 import { formatCitation, copyToClipboard } from "@/lib/citations";
 
 type Role = "user" | "assistant";
@@ -218,6 +219,7 @@ const freshConversation: Conversation = {
 };
 
 export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
+  const router = useRouter();
   const [user, setUser] = useState<ChatUser>(initialUser);
   const [conversations, setConversations] = useState<Conversation[]>(() => {
     const demos = initialConversations.map((c) => ({
@@ -319,9 +321,7 @@ export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
     "limits" | "interest" | null
   >(null);
   const [toolsOpen, setToolsOpen] = useState(false);
-  const [activeTool, setActiveTool] = useState<"templates" | "filing" | null>(
-    null,
-  );
+  const [activeTool, setActiveTool] = useState<"templates" | null>(null);
   const [remindersOpen, setRemindersOpen] = useState(false);
   const [dismissedNotifications, setDismissedNotifications] = useState<
     { id: string; threshold: number }[]
@@ -4705,7 +4705,7 @@ export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
 
                         <button
                           type="button"
-                          onClick={() => setActiveTool("filing")}
+                          onClick={() => router.push("/filing")}
                           className="flex items-center gap-4 rounded-xl border border-white/[0.08] bg-white/[0.02] p-5 text-left transition-all hover:border-amber-400/30 hover:bg-amber-400/[0.06]"
                         >
                           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-amber-400">
@@ -7108,7 +7108,7 @@ export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTool("filing")}
+                onClick={() => router.push("/filing")}
                 className="flex w-full items-center gap-4 rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 text-left transition-all hover:border-white/20 hover:bg-white/[0.05]"
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-amber-400">
@@ -7141,16 +7141,6 @@ export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
 
       {activeTool === "templates" && (
         <TemplatesModal
-          onClose={() => setActiveTool(null)}
-          onBack={() => {
-            setActiveTool(null);
-            setToolsOpen(true);
-          }}
-        />
-      )}
-
-      {activeTool === "filing" && (
-        <FilingModal
           onClose={() => setActiveTool(null)}
           onBack={() => {
             setActiveTool(null);
