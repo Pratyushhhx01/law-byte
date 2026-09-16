@@ -17,7 +17,7 @@ const NVIDIA_MODELS = [
 ];
 const NVIDIA_MODEL = NVIDIA_MODELS[0];
 const REVIEW_MODEL = "meta/llama-3.2-11b-vision-instruct";
-const NVIDIA_CONNECT_TIMEOUT_MS = 30_000;
+const NVIDIA_CONNECT_TIMEOUT_MS = 180_000;
 
 async function fetchNvidia(url: string, init: RequestInit): Promise<Response> {
   const controller = new AbortController();
