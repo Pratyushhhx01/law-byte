@@ -3,7 +3,6 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import type { FormEvent, KeyboardEvent, ReactNode } from "react";
 import { signOut } from "@/lib/auth-client";
 import LogoIcon from "../../components/LogoIcon";
@@ -13,7 +12,7 @@ import {
   CalculatorInterestModal,
 } from "./CalculatorModals";
 import { RemindersModal } from "./RemindersModal";
-import { TemplatesModal } from "./ToolsModals";
+import { TemplatesModal, FilingModal } from "./ToolsModals";
 import { formatCitation, copyToClipboard } from "@/lib/citations";
 
 type Role = "user" | "assistant";
@@ -44,6 +43,8 @@ type ChatUser = {
 type ChatAppProps = {
   user: ChatUser;
   shareId?: string | null;
+  initialTool?: "templates" | "filing" | null;
+  initialItem?: string | null;
 };
 
 type ConversationType =
@@ -218,8 +219,12 @@ const freshConversation: Conversation = {
   messages: [],
 };
 
-export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
-  const router = useRouter();
+export default function ChatApp({
+  user: initialUser,
+  shareId,
+  initialTool = null,
+  initialItem = null,
+}: ChatAppProps) {
   const [user, setUser] = useState<ChatUser>(initialUser);
   const [conversations, setConversations] = useState<Conversation[]>(() => {
     const demos = initialConversations.map((c) => ({
@@ -232,6 +237,10 @@ export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
   const [activeId, setActiveId] = useState<string>(freshConversation.id);
   const [syncStatus, setSyncStatus] = useState<"idle" | "synced">("idle");
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeIdRef = useRef(activeId);
+  useEffect(() => {
+    activeIdRef.current = activeId;
+  }, [activeId]);
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -246,9 +255,10 @@ export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
         const server: Conversation[] = data.conversations ?? [];
         if (server.length > 0) {
           setConversations((prev) => {
-            const activeInServer = server.some((c) => c.id === activeId);
+            const currentActiveId = activeIdRef.current;
+            const activeInServer = server.some((c) => c.id === currentActiveId);
             if (activeInServer) return server;
-            const currentActive = prev.find((c) => c.id === activeId);
+            const currentActive = prev.find((c) => c.id === currentActiveId);
             if (currentActive && currentActive.messages.length === 0) {
               return [currentActive, ...server];
             }
@@ -321,7 +331,9 @@ export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
     "limits" | "interest" | null
   >(null);
   const [toolsOpen, setToolsOpen] = useState(false);
-  const [activeTool, setActiveTool] = useState<"templates" | null>(null);
+  const [activeTool, setActiveTool] = useState<"templates" | "filing" | null>(
+    initialTool,
+  );
   const [remindersOpen, setRemindersOpen] = useState(false);
   const [dismissedNotifications, setDismissedNotifications] = useState<
     { id: string; threshold: number }[]
@@ -3658,8 +3670,9 @@ export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
                                   <polyline points="9 15 12 18 15 15" />
                                 </svg>
                               </button>
-                              <a
-                                href="/filing"
+                              <button
+                                type="button"
+                                onClick={() => setActiveTool("filing")}
                                 className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-emerald-400/70 transition-colors hover:bg-emerald-500/10 hover:text-emerald-400"
                                 title="File & Send to Authority"
                               >
@@ -3676,7 +3689,7 @@ export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
                                   <path d="M22 2L15 22L11 13L2 9L22 2Z" />
                                 </svg>
                                 File &amp; Send
-                              </a>
+                              </button>
                             </>
                           )}
                         </div>
@@ -4705,7 +4718,7 @@ export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
 
                         <button
                           type="button"
-                          onClick={() => router.push("/filing")}
+                          onClick={() => setActiveTool("filing")}
                           className="flex items-center gap-4 rounded-xl border border-white/[0.08] bg-white/[0.02] p-5 text-left transition-all hover:border-amber-400/30 hover:bg-amber-400/[0.06]"
                         >
                           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-amber-400">
@@ -7108,7 +7121,7 @@ export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
               </button>
               <button
                 type="button"
-                onClick={() => router.push("/filing")}
+                onClick={() => setActiveTool("filing")}
                 className="flex w-full items-center gap-4 rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 text-left transition-all hover:border-white/20 hover:bg-white/[0.05]"
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-amber-400">
@@ -7141,6 +7154,18 @@ export default function ChatApp({ user: initialUser, shareId }: ChatAppProps) {
 
       {activeTool === "templates" && (
         <TemplatesModal
+          initialItem={initialItem}
+          onClose={() => setActiveTool(null)}
+          onBack={() => {
+            setActiveTool(null);
+            setToolsOpen(true);
+          }}
+        />
+      )}
+
+      {activeTool === "filing" && (
+        <FilingModal
+          initialItem={initialItem}
           onClose={() => setActiveTool(null)}
           onBack={() => {
             setActiveTool(null);

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { exportAsWord, exportAsPdf } from "@/lib/export";
+import { AUTHORITIES } from "@/lib/authorities";
 
 /* ─── Shared helpers ─── */
 
@@ -281,11 +282,15 @@ const TEMPLATES: Template[] = [
 export function TemplatesModal({
   onClose,
   onBack,
+  initialItem,
 }: {
   onClose: () => void;
   onBack: () => void;
+  initialItem?: string | null;
 }) {
-  const [selected, setSelected] = useState<Template | null>(null);
+  const [selected, setSelected] = useState<Template | null>(
+    () => TEMPLATES.find((t) => t.id === initialItem) ?? null,
+  );
   const [formData, setFormData] = useState<Record<string, string>>({});
 
   const handleFieldChange = (label: string, value: string) => {
@@ -459,6 +464,7 @@ interface FilingStep {
 
 interface FilingGuide {
   id: string;
+  authorityId?: string;
   name: string;
   icon: string;
   iconBg: string;
@@ -471,6 +477,7 @@ interface FilingGuide {
 const FILING_GUIDES: FilingGuide[] = [
   {
     id: "rti",
+    authorityId: "rti-online",
     name: "RTI Application",
     icon: "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
     iconBg: "bg-sky-500/10",
@@ -512,6 +519,7 @@ const FILING_GUIDES: FilingGuide[] = [
   },
   {
     id: "consumer",
+    authorityId: "e-jagriti",
     name: "Consumer Complaint",
     icon: "M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z",
     iconBg: "bg-yellow-500/10",
@@ -548,6 +556,7 @@ const FILING_GUIDES: FilingGuide[] = [
   },
   {
     id: "fir",
+    authorityId: "police",
     name: "FIR Draft",
     icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
     iconBg: "bg-red-500/10",
@@ -618,16 +627,78 @@ const FILING_GUIDES: FilingGuide[] = [
   },
 ];
 
+type SendStep = "preview" | "credentials" | "sending" | "sent" | "portal-guide";
+
 export function FilingModal({
   onClose,
   onBack,
+  initialItem,
 }: {
   onClose: () => void;
   onBack: () => void;
+  initialItem?: string | null;
 }) {
-  const [selected, setSelected] = useState<FilingGuide | null>(null);
+  const [selected, setSelected] = useState<FilingGuide | null>(
+    () => FILING_GUIDES.find((g) => g.id === initialItem) ?? null,
+  );
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<Record<string, string>>({});
+
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [sendStep, setSendStep] = useState<SendStep>("preview");
+  const [sendFormData, setSendFormData] = useState<Record<string, string>>({});
+  const [sendError, setSendError] = useState("");
+  const [sendSuccess, setSendSuccess] = useState<{
+    messageId?: string;
+    sentTo?: string;
+  }>({});
+
+  const authority = selected?.authorityId
+    ? (AUTHORITIES[selected.authorityId] ?? null)
+    : null;
+
+  const handleOpenSend = () => {
+    setSendStep("preview");
+    setSendFormData({});
+    setSendError("");
+    setSendSuccess({});
+    setShowSendModal(true);
+  };
+
+  const handleSendEmail = async () => {
+    if (!authority || !selected) return;
+    setSendStep("sending");
+    setSendError("");
+    try {
+      const docContent = selected.generateDocument(formData);
+      const res = await fetch("/api/filing/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: authority.email,
+          subject: `${selected.name} — ${formData["Complainant Name"] || formData["Applicant Name"] || formData["Sender Name"] || "LawBite User"}`,
+          documentContent: docContent,
+          complaintType: selected.authorityId,
+          userEmail: sendFormData["Your Email"] || "",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.portalUrl) {
+          setSendStep("portal-guide");
+          return;
+        }
+        setSendError(data.error || "Failed to send email");
+        setSendStep("credentials");
+        return;
+      }
+      setSendSuccess({ messageId: data.messageId, sentTo: data.sentTo });
+      setSendStep("sent");
+    } catch {
+      setSendError("Network error. Please try again.");
+      setSendStep("credentials");
+    }
+  };
 
   const handleFieldChange = (label: string, value: string) => {
     setFormData((prev) => ({ ...prev, [label]: value }));
@@ -838,24 +909,201 @@ export function FilingModal({
             >
               Download PDF
             </button>
-            <a
-              href="/filing"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-500"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-3.5 w-3.5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
+            {selected.authorityId && (
+              <button
+                type="button"
+                onClick={handleOpenSend}
+                className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-500"
               >
-                <path d="M22 2L11 13" />
-                <path d="M22 2L15 22L11 13L2 9L22 2Z" />
-              </svg>
-              File &amp; Send
-            </a>
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M22 2L11 13" />
+                  <path d="M22 2L15 22L11 13L2 9L22 2Z" />
+                </svg>
+                File &amp; Send
+              </button>
+            )}
+          </div>
+        )}
+
+        {showSendModal && selected && authority && (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowSendModal(false)}
+          >
+            <div
+              className="animate-overlay-in mx-4 w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0a0a] p-5 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <h4 className="text-sm font-semibold text-white">
+                    File &amp; Send
+                  </h4>
+                  <p className="text-[11px] text-white/40">
+                    {selected.name} &rarr; {authority.name}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowSendModal(false)}
+                  className="rounded-lg p-1 text-white/40 hover:text-white/70"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+
+              {sendStep === "preview" && (
+                <div className="space-y-3">
+                  <p className="text-sm leading-relaxed text-white/60">
+                    {authority.email
+                      ? `Your drafted document can be emailed directly to ${authority.name}.`
+                      : `${authority.name} accepts filings via ${authority.portalName}. We'll show you how to file.`}
+                  </p>
+                  <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3 text-xs text-white/50">
+                    <p className="font-medium text-white/70">
+                      {authority.name}
+                    </p>
+                    {authority.email ? (
+                      <p className="mt-1">{authority.email}</p>
+                    ) : null}
+                    <p className="mt-1 break-all">{authority.portalUrl}</p>
+                  </div>
+                  {sendError ? (
+                    <p className="text-xs text-red-400">{sendError}</p>
+                  ) : null}
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button
+                      onClick={() => setShowSendModal(false)}
+                      className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/50 transition-colors hover:text-white/70"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() =>
+                        setSendStep(
+                          authority.email ? "credentials" : "portal-guide",
+                        )
+                      }
+                      className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/20"
+                    >
+                      Continue &rarr;
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {sendStep === "credentials" && (
+                <div className="space-y-3">
+                  <label className="block text-xs font-medium text-white/50">
+                    Your Email
+                  </label>
+                  <input
+                    type="email"
+                    value={sendFormData["Your Email"] || ""}
+                    onChange={(e) =>
+                      setSendFormData((prev) => ({
+                        ...prev,
+                        "Your Email": e.target.value,
+                      }))
+                    }
+                    placeholder="you@example.com"
+                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-white/25"
+                  />
+                  {sendError ? (
+                    <p className="text-xs text-red-400">{sendError}</p>
+                  ) : null}
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => setSendStep("preview")}
+                      className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/50 transition-colors hover:text-white/70"
+                    >
+                      Back
+                    </button>
+                    <button
+                      disabled={!sendFormData["Your Email"]?.trim()}
+                      onClick={handleSendEmail}
+                      className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-500 disabled:opacity-40"
+                    >
+                      Send Now
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {sendStep === "sending" && (
+                <p className="py-6 text-center text-sm text-white/50">
+                  Sending&hellip;
+                </p>
+              )}
+
+              {sendStep === "sent" && (
+                <div className="space-y-4 text-center">
+                  <p className="text-sm text-emerald-400">
+                    Sent successfully to {sendSuccess.sentTo || authority.email}
+                    .
+                  </p>
+                  <div className="flex justify-center gap-2">
+                    <button
+                      onClick={() =>
+                        exportAsWord(
+                          selected.generateDocument(formData),
+                          selected.name,
+                        )
+                      }
+                      className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/20"
+                    >
+                      Download Word
+                    </button>
+                    <button
+                      onClick={() => setShowSendModal(false)}
+                      className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/50 transition-colors hover:text-white/70"
+                    >
+                      Done
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {sendStep === "portal-guide" && (
+                <div className="space-y-3">
+                  <ol className="list-decimal space-y-1.5 pl-5 text-xs leading-relaxed text-white/60">
+                    {authority.filingSteps.map((s, i) => (
+                      <li key={i}>{s}</li>
+                    ))}
+                  </ol>
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button
+                      onClick={() => setShowSendModal(false)}
+                      className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/50 transition-colors hover:text-white/70"
+                    >
+                      Close
+                    </button>
+                    <a
+                      href={authority.portalUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-500"
+                    >
+                      Open {authority.portalName} &rarr;
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

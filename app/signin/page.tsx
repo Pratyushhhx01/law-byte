@@ -45,10 +45,14 @@ function GoogleIcon({ className }: { className?: string }) {
 function SignInForm() {
   const searchParams = useSearchParams();
   const shareId = searchParams.get("shareId");
+  const next = searchParams.get("next");
   const [loading, setLoading] = useState<"google" | "github" | null>(null);
   const [error, setError] = useState("");
 
-  const callbackURL = shareId ? `/chat?shareId=${shareId}` : "/chat";
+  const safeNext =
+    next && next.startsWith("/") && !next.startsWith("//") ? next : null;
+  const callbackURL =
+    safeNext ?? (shareId ? `/chat?shareId=${shareId}` : "/chat");
 
   async function handleSocialLogin(provider: "google" | "github") {
     setLoading(provider);

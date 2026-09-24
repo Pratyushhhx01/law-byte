@@ -1,12 +1,46 @@
 import type { Metadata } from "next";
-import FilingApp from "./_components/FilingApp";
+import Link from "next/link";
+import ResourceLayout from "../resources/_components/ResourceLayout";
+import { filingGuidePreviews } from "./_data";
 
 export const metadata: Metadata = {
   title: "Filing Assistance — Lawbite",
   description:
-    "Step-by-step guidance for filing RTI applications, consumer complaints, FIRs, and more.",
+    "See the filing assistance features available on Lawbite — RTI, consumer complaints, FIRs, and more.",
 };
 
 export default function FilingPage() {
-  return <FilingApp />;
+  return (
+    <ResourceLayout
+      title="Filing Assistance"
+      description="Lawbite guides you through filing RTI applications, consumer complaints, FIRs, legal notices, and more."
+    >
+      <section>
+        <h2 className="text-xl font-semibold text-white">
+          Filing Features Available
+        </h2>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          {filingGuidePreviews.map((guide) => (
+            <Link
+              key={guide.id}
+              href={`/chat?tool=filing&item=${guide.id}`}
+              className="group rounded-lg border border-white/10 bg-white/[0.03] p-4 transition-all hover:border-white/20 hover:bg-white/[0.06]"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-semibold text-white">
+                  {guide.name}
+                </h3>
+                <span className="shrink-0 text-[11px] text-white/35">
+                  ~{guide.estimatedTime}
+                </span>
+              </div>
+              <p className="mt-1.5 text-xs leading-relaxed text-white/55">
+                {guide.description}
+              </p>
+            </Link>
+          ))}
+        </div>
+      </section>
+    </ResourceLayout>
+  );
 }

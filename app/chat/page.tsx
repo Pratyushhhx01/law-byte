@@ -13,22 +13,34 @@ export const metadata: Metadata = {
 export default async function ChatPage({
   searchParams,
 }: {
-  searchParams: Promise<{ shareId?: string }>;
+  searchParams: Promise<{ shareId?: string; tool?: string; item?: string }>;
 }) {
+  const params = await searchParams;
+  const tool =
+    params.tool === "templates" || params.tool === "filing"
+      ? params.tool
+      : null;
+  const item = params.item ?? null;
+
   let session;
   try {
     session = await auth.api.getSession({
       headers: await headers(),
     });
   } catch {
-    redirect("/signin");
+    session = null;
   }
 
   if (!session) {
-    redirect("/signin");
+    const qs = new URLSearchParams();
+    if (params.shareId) qs.set("shareId", params.shareId);
+    if (tool) qs.set("tool", tool);
+    if (item) qs.set("item", item);
+    const query = qs.toString();
+    redirect(
+      `/signin?next=${encodeURIComponent(`/chat${query ? `?${query}` : ""}`)}`,
+    );
   }
-
-  const { shareId } = await searchParams;
 
   return (
     <ChatApp
@@ -38,7 +50,9 @@ export default async function ChatPage({
         email: session.user.email,
         image: session.user.image ?? null,
       }}
-      shareId={shareId ?? null}
+      shareId={params.shareId ?? null}
+      initialTool={tool}
+      initialItem={item}
     />
   );
 }

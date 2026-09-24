@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "prettier": "prettier --check .",
+    "prettier:write": "prettier --write .",
     "eval": "node scripts/chat-eval.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -40,6 +42,7 @@
     "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.7",
+    "prettier": "^3.9.9",
     "supertest": "^7.2.2",
     "tailwindcss": "^4",
     "typescript": "^5",

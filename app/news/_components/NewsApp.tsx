@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 
 interface NewsItem {
   title: string;
@@ -72,6 +73,25 @@ export default function NewsApp() {
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
+        <Link
+          href="/"
+          className="mb-6 inline-flex items-center gap-1.5 text-sm text-white/50 transition-colors hover:text-white"
+        >
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M10 19l-7-7m0 0l7-7m-7 7h18"
+            />
+          </svg>
+          Back
+        </Link>
         <div className="mb-10 text-center">
           <h1 className="text-3xl font-bold tracking-tight">Legal News</h1>
           <p className="mt-3 text-sm text-white/50">

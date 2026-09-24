@@ -71,6 +71,10 @@ export default function CasesApp(_props: CasesAppProps) {
   const [deleteConfirmName, setDeleteConfirmName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formFileInputRef = useRef<HTMLInputElement>(null);
+  const casesRef = useRef<CaseFolder[]>(cases);
+  useEffect(() => {
+    casesRef.current = cases;
+  }, [cases]);
 
   useEffect(() => {
     let cancelled = false;
@@ -103,7 +107,7 @@ export default function CasesApp(_props: CasesAppProps) {
         const data = await res.json();
         if (cancelled) return;
         if (!res.ok || data.error) {
-          const local = cases.find((c) => c.id === selectedId);
+          const local = casesRef.current.find((c) => c.id === selectedId);
           if (local) {
             setDetail({ ...local, documents: [], conversations: [] });
           }
@@ -115,7 +119,7 @@ export default function CasesApp(_props: CasesAppProps) {
           conversations: data.conversations || [],
         });
       } catch {
-        const local = cases.find((c) => c.id === selectedId);
+        const local = casesRef.current.find((c) => c.id === selectedId);
         if (local) setDetail({ ...local, documents: [], conversations: [] });
       }
     })();
