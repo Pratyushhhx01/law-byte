@@ -96,7 +96,13 @@ function loadConversations(): Conversation[] | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(CONVERSATIONS_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    const started = parsed.filter(
+      (c: Conversation) => Array.isArray(c?.messages) && c.messages.length > 0,
+    );
+    return started.length > 0 ? started : null;
   } catch {
     return null;
   }
@@ -105,7 +111,10 @@ function loadConversations(): Conversation[] | null {
 function saveConversations(convos: Conversation[]) {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(convos));
+    const started = convos.filter(
+      (c) => Array.isArray(c?.messages) && c.messages.length > 0,
+    );
+    localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(started));
   } catch {}
 }
 
@@ -2142,12 +2151,13 @@ export default function ChatApp({
   function groupConversations(type: ConversationType, now: number) {
     const DAY = 1000 * 60 * 60 * 24;
 
+    const started = conversations.filter(
+      (c) => Array.isArray(c.messages) && c.messages.length > 0,
+    );
     const filtered =
       type === "talk-to-ai"
-        ? conversations.filter(
-            (c) => c.type === "talk-to-ai" || c.type === "chat",
-          )
-        : conversations.filter((c) => c.type === type);
+        ? started.filter((c) => c.type === "talk-to-ai" || c.type === "chat")
+        : started.filter((c) => c.type === type);
     const pinned = filtered.filter((c) => c.pinned);
     const unpinned = filtered.filter((c) => !c.pinned);
 
@@ -6697,7 +6707,10 @@ export default function ChatApp({
                   {caseFolders.length > 0
                     ? caseFolders.map((f) => {
                         const folderConvs = conversations.filter(
-                          (c) => c.folderId === f.id,
+                          (c) =>
+                            c.folderId === f.id &&
+                            Array.isArray(c.messages) &&
+                            c.messages.length > 0,
                         );
                         return (
                           <div key={f.id} className="group">

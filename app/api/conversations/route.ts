@@ -32,6 +32,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    await db
+      .deleteFrom("conversation")
+      .where("userId", "=", user.id)
+      .where(
+        sql<boolean>`coalesce(case when jsonb_typeof(messages) = 'array' then jsonb_array_length(messages) else 1 end, 1) = 0`,
+      )
+      .execute();
+
     const rows = await db
       .selectFrom("conversation")
       .selectAll()
@@ -40,16 +48,18 @@ export async function GET(request: NextRequest) {
       .orderBy("updatedAt", "desc")
       .execute();
 
-    const conversations = rows.map((r) => ({
-      id: r.id,
-      title: r.title,
-      preview: r.preview,
-      type: r.type,
-      pinned: r.pinned,
-      folderId: r.folderId,
-      createdAt: new Date(r.createdAt).getTime(),
-      messages: (r.messages as ConversationMessage[]) ?? [],
-    }));
+    const conversations = rows
+      .map((r) => ({
+        id: r.id,
+        title: r.title,
+        preview: r.preview,
+        type: r.type,
+        pinned: r.pinned,
+        folderId: r.folderId,
+        createdAt: new Date(r.createdAt).getTime(),
+        messages: (r.messages as ConversationMessage[]) ?? [],
+      }))
+      .filter((c) => Array.isArray(c.messages) && c.messages.length > 0);
 
     return NextResponse.json({ conversations });
   } catch (err) {
@@ -98,6 +108,7 @@ export async function POST(request: NextRequest) {
           ? item.folderId
           : null;
       const messages = Array.isArray(item.messages) ? item.messages : [];
+      if (messages.length === 0) continue;
       const createdAt = item.createdAt ? new Date(item.createdAt) : new Date();
 
       await db
