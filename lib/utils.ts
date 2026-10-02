@@ -1,7 +1,7 @@
 /** Strip model thinking tokens from streaming output */
 export function stripThinkingTokens(text: string): string {
-  return text
-    .replace(/<think>[\s\S]*?<\/think>/g, "")
+  const withoutComplete = text
+    .replace(/[\s\S]*?<\/think>/g, "")
     .replace(/<\|channel\|?>[\s\S]*?<\|\/?channel\|?>/g, "")
     .replace(/<channel\|?>[\s\S]*?<\/?channel\|?>/g, "")
     .replace(/\|channel\|?>[\s\S]*?<\/?channel\|?>/g, "")
@@ -10,6 +10,12 @@ export function stripThinkingTokens(text: string): string {
     .replace(/<\|channel[^\n<]*/g, "")
     .replace(/<channel[^\n<]*/g, "")
     .replace(/\|channel[^\n<]*/g, "");
+
+  // A think block the model never closed still holds only reasoning — it must
+  // never reach the user, otherwise the reply renders as empty.
+  const THINK_OPEN = "<" + "think>";
+  const unclosed = withoutComplete.indexOf(THINK_OPEN);
+  return unclosed === -1 ? withoutComplete : withoutComplete.slice(0, unclosed);
 }
 
 /** Simple in-memory rate limiter */

@@ -40,6 +40,42 @@ const tvly = process.env.TAVILY_API_KEY
   ? tavily({ apiKey: process.env.TAVILY_API_KEY })
   : null;
 
+/** True once the buffer contains at least one newline-terminated `data:` line. */
+function hasCompleteDataLine(text: string): boolean {
+  const idx = text.lastIndexOf("\n");
+  if (idx === -1) return false;
+  return text
+    .slice(0, idx)
+    .split("\n")
+    .some((l) => l.startsWith("data: "));
+}
+
+/**
+ * NVIDIA returns HTTP 200 with an SSE `{"error": ...}` frame when a model is
+ * overloaded. Detect it in the buffered prefix so we can fail over to the next
+ * model instead of piping an empty stream to the client.
+ */
+function extractSseError(text: string): string | null {
+  const idx = text.lastIndexOf("\n");
+  if (idx === -1) return null;
+  for (const line of text.slice(0, idx).split("\n")) {
+    if (!line.startsWith("data: ")) continue;
+    const data = line.slice(6).trim();
+    if (!data || data === "[DONE]") continue;
+    try {
+      const parsed = JSON.parse(data);
+      if (parsed.error) {
+        return typeof parsed.error === "string"
+          ? parsed.error
+          : JSON.stringify(parsed.error);
+      }
+    } catch {
+      /* incomplete frame, ignore */
+    }
+  }
+  return null;
+}
+
 const VALID_CONVERSATION_TYPES = new Set([
   "chat",
   "analysis",
@@ -830,7 +866,8 @@ If you still need more information, do NOT include [ADVICE_COMPLETE]. Just ask t
 - Do NOT provide any advice or suggestions until you have gathered enough information.
 - If the user's answer is vague, ask ONE clarifying follow-up before moving to the next lens.
 - Stay strictly within Indian law. Never answer about laws of any other country.
-- When greeted, reply ONLY with: "I am ready to help. What legal problem are you facing?"
+- If the user's first message is ONLY a greeting (hello, hi, hey, namaste, good morning, etc.) with no legal problem described, reply ONLY with: "I am ready to help. What legal problem are you facing?"
+- If the user's first message already DESCRIBES a legal problem, do NOT ask question 1 again — they already answered it. Briefly acknowledge it, then use the [acknowledgement] / "---" / [next unanswered question] format to ask the first question from the sequence that they have not yet answered (usually STATE).
 - Never use markdown, asterisks, dashes, section headers, or bullet points. Use plain text only.
 - REMINDER: After your brief acknowledgement response, you MUST put "---" on its own line, then the NEXT SINGLE question. NEVER put more than one question after "---". NEVER skip the "---" delimiter. LANGUAGE RULES: You must ALWAYS respond in English. No matter what language the user writes in (including Hindi, Devanagari script, or any other language), ALWAYS respond in English. Never respond in Hindi or any language other than English.
 
@@ -862,6 +899,9 @@ NEVER answer questions about:
 
 ## Your Job
 Analyze uploaded legal documents (rental agreements, employment contracts, FIRs, court notices, sale deeds, partnership deeds, etc.) and provide a thorough risk assessment with plain-language explanations.
+
+## Attached Images
+When the user attaches an image (a photo or scan of a document), you CAN see it directly — read the text rendered inside the image and review exactly what you see, clause by clause, using the format below. NEVER say you cannot see, view, or inspect images. If a part of the image is illegible, mark that part "illegible in image" instead of refusing.
 
 ## Document Types You Can Review
 1. RENTAL/LEASE AGREEMENTS
@@ -2473,12 +2513,24 @@ Never transpose tables, never leave a table cell blank, never invent section num
     const modelsToTry = model === NVIDIA_MODEL ? NVIDIA_MODELS : [model];
     const encoder = new TextEncoder();
     const needsPostProcess = isDraft;
+    const explicitTableRequest =
+      isTalkToAi &&
+      /(comparison|compare|difference|differences|in a table|as a table|\btable\b)/i.test(
+        userQuery,
+      );
+    // Analysis and table replies are quality-checked (tightened, missing
+    // refs/blank cells repaired) after the stream ends, so they are buffered
+    // instead of streamed — otherwise the checked version would duplicate the
+    // raw one, or the checks would never run at all.
+    const bufferOutput =
+      isAnalysis || (isTalkToAi && (tableAppropriate || explicitTableRequest));
     let responseText = "";
     let lastError = "";
-    let nvidiaResponse: Response | null = null;
+    let streamReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+    let streamHead = "";
     let workingModel = "";
     console.log(
-      `[ChatAPI] convType=${conversationType}, model=${model}, messages=${messagesWithSystem.length}, sysPromptLen=${finalSystemPrompt.length}`,
+      `[ChatAPI] convType=${conversationType}, model=${model}, messages=${messagesWithSystem.length}, sysPromptLen=${finalSystemPrompt.length}, buffered=${bufferOutput}`,
     );
 
     for (const m of modelsToTry) {
@@ -2512,7 +2564,30 @@ Never transpose tables, never leave a table cell blank, never invent section num
         }
 
         if (!needsPostProcess) {
-          nvidiaResponse = res;
+          const reader = res.body?.getReader();
+          if (!reader) {
+            lastError = `${m}: empty response body`;
+            console.warn(`Model ${m} returned an empty body, trying next...`);
+            continue;
+          }
+          const peekDecoder = new TextDecoder();
+          let head = "";
+          while (!hasCompleteDataLine(head)) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            head += peekDecoder.decode(value, { stream: true });
+          }
+          const headError = extractSseError(head);
+          if (headError || !hasCompleteDataLine(head)) {
+            await reader.cancel().catch(() => {});
+            lastError = headError
+              ? `${m}: SSE error: ${headError}`
+              : `${m}: stream ended without content`;
+            console.warn(`Model ${m} unusable (${lastError}), trying next...`);
+            continue;
+          }
+          streamReader = reader;
+          streamHead = head;
           workingModel = m;
           console.log(`[ChatAPI] model ${m} streaming directly to client`);
           break;
@@ -2558,7 +2633,7 @@ Never transpose tables, never leave a table cell blank, never invent section num
       }
     }
 
-    if (!nvidiaResponse && !responseText) {
+    if (!streamReader && !responseText) {
       console.error("All models failed:", lastError);
       const fallbackMsg =
         "I apologize, but I'm experiencing temporary technical difficulties. Please try again in a moment, or rephrase your question about Indian law and I'll do my best to help.";
@@ -2567,7 +2642,7 @@ Never transpose tables, never leave a table cell blank, never invent section num
           try {
             controller.enqueue(
               encoder.encode(
-                `data: ${JSON.stringify({ choices: [{ delta: { content: fallbackMsg } }] })}\n\n`,
+                `data: ${JSON.stringify({ content: fallbackMsg })}\n\n`,
               ),
             );
             controller.enqueue(encoder.encode("data: [DONE]\n\n"));
@@ -2591,31 +2666,58 @@ Never transpose tables, never leave a table cell blank, never invent section num
       });
     }
 
-    if (nvidiaResponse && !needsPostProcess) {
-      const reader = nvidiaResponse.body!.getReader();
+    if (streamReader && !needsPostProcess) {
+      const reader = streamReader;
       const stream = new ReadableStream({
         async start(controller) {
           const decoder = new TextDecoder();
-          let buffer = "";
+          let buffer = streamHead;
           let analysisFullContent = "";
           let analysisReasoningContent = "";
           let emittedAny = false;
           let allReasoningContent = "";
+          let rawContent = "";
+          let emittedLen = 0;
+          const HOLD_CHARS = 40;
+          const enqueueContent = (text: string) => {
+            if (!text) return;
+            emittedAny = true;
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ content: fixArticleSectionTerminology(text) })}\n\n`,
+              ),
+            );
+          };
+          // Emit only the visible suffix of the accumulated content. Holding
+          // back a short tail keeps thinking/control tokens that are split
+          // across chunk boundaries from ever reaching the client.
+          const emitVisibleDelta = (flush: boolean) => {
+            const visible = stripThinkingTokens(rawContent);
+            const limit = flush ? visible.length : visible.length - HOLD_CHARS;
+            if (limit <= emittedLen) return;
+            const delta = visible.slice(emittedLen, limit);
+            emittedLen = limit;
+            enqueueContent(delta);
+          };
           try {
             while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split("\n");
-              buffer = lines.pop() || "";
-              for (const line of lines) {
+              // Process every complete line already in the buffer first — the
+              // peeked head may contain finished frames before any further
+              // read happens (e.g. a single-chunk response).
+              for (
+                let newline = buffer.indexOf("\n");
+                newline !== -1;
+                newline = buffer.indexOf("\n")
+              ) {
+                const line = buffer.slice(0, newline);
+                buffer = buffer.slice(newline + 1);
                 if (!line.startsWith("data: ")) {
                   controller.enqueue(encoder.encode(line + "\n"));
                   continue;
                 }
                 const data = line.slice(6).trim();
                 if (data === "[DONE]") {
-                  if (!isAnalysis) {
+                  if (!bufferOutput) {
                     controller.enqueue(encoder.encode("data: [DONE]\n\n"));
                   }
                   continue;
@@ -2637,25 +2739,29 @@ Never transpose tables, never leave a table cell blank, never invent section num
                     if (isAnalysis) {
                       analysisFullContent += content;
                     }
-                    const cleaned = stripThinkingTokens(content);
-                    if (cleaned) {
-                      emittedAny = true;
-                      controller.enqueue(
-                        encoder.encode(
-                          `data: ${JSON.stringify({ content: fixArticleSectionTerminology(cleaned) })}\n\n`,
-                        ),
-                      );
+                    rawContent += content;
+                    if (!bufferOutput) {
+                      emitVisibleDelta(false);
                     }
                   }
                 } catch {
                   controller.enqueue(encoder.encode(line + "\n"));
                 }
               }
+              const { done, value } = await reader.read();
+              if (done) break;
+              buffer += decoder.decode(value, { stream: true });
             }
             if (buffer.trim()) {
               controller.enqueue(encoder.encode(buffer));
             }
+            if (!bufferOutput) {
+              emitVisibleDelta(true);
+            }
 
+            // Buffered modes (analysis, talk-to-ai tables) post-process the
+            // full reply, then emit it exactly once — quality-checked, with
+            // no thinking tokens and no duplicated content.
             if (isAnalysis) {
               const effectiveContent =
                 analysisFullContent || analysisReasoningContent;
@@ -2668,10 +2774,11 @@ Never transpose tables, never leave a table cell blank, never invent section num
                   (r: string) => r.toUpperCase(),
                 );
                 const issues: string[] = [];
-                if (requestedRefs.length > 0) {
-                  const presentRefs = isAnalysisMultiRef
-                    ? extractTableRowRefs(analysis)
-                    : [];
+                // Ref-presence is only verifiable in multi-ref tables; for
+                // prose analyses every ref would look "missing" and each check
+                // would burn retry API calls that can never succeed.
+                if (requestedRefs.length > 0 && isAnalysisMultiRef) {
+                  const presentRefs = extractTableRowRefs(analysis);
                   const missingRefs = requestedRefs.filter(
                     (r: string) => !presentRefs.includes(r),
                   );
@@ -2697,10 +2804,8 @@ Never transpose tables, never leave a table cell blank, never invent section num
                       : text;
                     const blankCellsNow = findBlankTableCells(normalized);
                     if (blankCellsNow.length > 0) return false;
-                    if (requestedRefs.length > 0) {
-                      const presentNow = isAnalysisMultiRef
-                        ? extractTableRowRefs(normalized)
-                        : [];
+                    if (requestedRefs.length > 0 && isAnalysisMultiRef) {
+                      const presentNow = extractTableRowRefs(normalized);
                       if (
                         requestedRefs.some(
                           (r: string) => !presentNow.includes(r),
@@ -2717,48 +2822,119 @@ Never transpose tables, never leave a table cell blank, never invent section num
                   );
                   if (retried) {
                     const cleaned = stripThinkingTokens(retried).trim();
-                    if (cleaned) {
-                      emittedAny = true;
-                      controller.enqueue(
-                        encoder.encode(
-                          `data: ${JSON.stringify({ content: fixArticleSectionTerminology(cleaned) })}\n\n`,
-                        ),
-                      );
-                    }
+                    if (cleaned) analysis = cleaned;
                   }
+                }
+                if (analysis) {
+                  enqueueContent(analysis);
                 }
               }
             }
 
-            if (!emittedAny && !isAnalysis) {
-              const fallback = stripThinkingTokens(allReasoningContent).trim();
-              if (fallback) {
-                const truncated = isTalkToAi
-                  ? truncateToTwoSentences(fallback)
-                  : fallback;
-                if (truncated) {
-                  controller.enqueue(
-                    encoder.encode(
-                      `data: ${JSON.stringify({ content: fixArticleSectionTerminology(truncated) })}\n\n`,
-                    ),
-                  );
-                }
-              } else {
-                controller.enqueue(
-                  encoder.encode(
-                    `data: ${JSON.stringify({ content: "I apologize, but I couldn't generate a response. Please try again or ask a specific question about Indian law." })}\n\n`,
-                  ),
+            // Table replies in Talk to AI are buffered, then tightened and
+            // repaired (missing sections, blank cells) before a single emit.
+            if (isTalkToAi && bufferOutput && rawContent) {
+              const strippedFull = stripThinkingTokens(rawContent);
+              const cleaned = cleanTalkToAiContent(strippedFull);
+              let processed = tableAppropriate
+                ? tightenMultiRefTable(cleaned)
+                : explicitTableRequest && /^\s*\|/.test(cleaned)
+                  ? normalizeTableRows(cleaned)
+                  : cleaned;
+              if (processed && /^\s*\|/.test(processed)) {
+                const requestedRefs = [...refs.sections, ...refs.articles].map(
+                  (r: string) => r.toUpperCase(),
                 );
+                const presentRefs = extractTableRowRefs(processed);
+                const missingRefs = requestedRefs.filter(
+                  (r: string) => !presentRefs.includes(r),
+                );
+                const blankCells = findBlankTableCells(processed);
+                if (missingRefs.length > 0 || blankCells.length > 0) {
+                  console.log(
+                    `[ChatAPI] talk-to-ai table issues, retrying: missing=[${missingRefs.join(", ")}] blank=${blankCells.length}`,
+                  );
+                  if (tableAppropriate && missingRefs.length > 0) {
+                    const retried = await retryMultiRefTable(
+                      missingRefs,
+                      requestedRefs,
+                      strippedFull,
+                    );
+                    if (retried) processed = retried;
+                  } else {
+                    const check = (t: string) =>
+                      findBlankTableCells(normalizeTableRows(t)).length === 0;
+                    const issue =
+                      blankCells.length > 0
+                        ? `left table cells blank or as placeholders: ${blankCells.slice(0, 5).join(", ")}${blankCells.length > 5 ? ` (+${blankCells.length - 5} more)` : ""}`
+                        : "omitted requested item(s)";
+                    const retried = await retryAnalysisContent(
+                      issue,
+                      check,
+                      strippedFull,
+                    );
+                    if (retried) processed = normalizeTableRows(retried);
+                  }
+                }
+              }
+              if (processed) {
+                enqueueContent(processed);
+              }
+            }
+
+            if (!emittedAny) {
+              const reasoningFallback =
+                stripThinkingTokens(allReasoningContent).trim();
+              const truncated = reasoningFallback
+                ? isTalkToAi
+                  ? truncateToTwoSentences(reasoningFallback)
+                  : reasoningFallback
+                : "";
+              if (truncated) {
+                enqueueContent(truncated);
+              } else {
+                enqueueContent(
+                  "I apologize, but I couldn't generate a response. Please try again or ask a specific question about Indian law.",
+                );
+              }
+            }
+
+            if (citations.length > 0) {
+              try {
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({ citations })}\n\n`),
+                );
+              } catch {
+                /* controller may be closed */
               }
             }
           } catch (err) {
             console.warn("[ChatAPI] stream pipe error:", err);
+            try {
+              if (isAnalysis) {
+                const partial = stripThinkingTokens(
+                  analysisFullContent || analysisReasoningContent,
+                ).trim();
+                if (partial) enqueueContent(partial);
+              } else if (bufferOutput) {
+                const partial = cleanTalkToAiContent(
+                  stripThinkingTokens(rawContent),
+                ).trim();
+                if (partial) enqueueContent(partial);
+              } else {
+                emitVisibleDelta(true);
+              }
+            } catch {
+              /* controller may be closed */
+            }
             if (!emittedAny) {
-              controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify({ content: "I apologize, but I encountered an error while generating the response. Please try again." })}\n\n`,
-                ),
-              );
+              try {
+                enqueueContent(
+                  "I apologize, but I encountered an error while generating the response. Please try again.",
+                );
+              } catch {
+                /* controller closed */
+              }
             }
           } finally {
             try {
@@ -3394,7 +3570,7 @@ Never transpose tables, never leave a table cell blank, never invent section num
         try {
           controller.enqueue(
             encoder.encode(
-              `data: ${JSON.stringify({ choices: [{ delta: { content: fallbackMsg } }] })}\n\n`,
+              `data: ${JSON.stringify({ content: fallbackMsg })}\n\n`,
             ),
           );
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));

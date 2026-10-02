@@ -118,6 +118,13 @@ function saveConversations(convos: Conversation[]) {
   } catch {}
 }
 
+/** Text the user can actually read once thinking/control tokens are removed. */
+function visibleAssistantText(content: string): string {
+  return stripThinkingTokens(content)
+    .replace(/\[ADVICE_COMPLETE\]/g, "")
+    .trim();
+}
+
 const initialConversations: Conversation[] = [
   {
     id: "c-1",
@@ -1712,9 +1719,11 @@ export default function ChatApp({
             if (!data) continue;
             try {
               const parsed = JSON.parse(data);
-              if (parsed.content) {
-                assistantContent += parsed.content;
-                if (assistantContent.length === parsed.content.length) {
+              const chunk: unknown =
+                parsed.content ?? parsed.choices?.[0]?.delta?.content;
+              if (typeof chunk === "string" && chunk) {
+                assistantContent += chunk;
+                if (assistantContent.length === chunk.length) {
                   setIsThinking(false);
                 }
                 const content = assistantContent;
@@ -1753,8 +1762,10 @@ export default function ChatApp({
         }
       }
 
-      if (!assistantContent.trim()) {
-        const fallbackMsg = "Sorry, I encountered an error. Please try again.";
+      if (!visibleAssistantText(assistantContent)) {
+        const fallbackMsg = assistantContent.trim()
+          ? "I couldn't finish that response. Please try again."
+          : "Sorry, I encountered an error. Please try again.";
         setConversations((prev) =>
           prev.map((c) =>
             c.id === activeId
@@ -1770,7 +1781,7 @@ export default function ChatApp({
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
-        if (!assistantContent.trim()) {
+        if (!visibleAssistantText(assistantContent)) {
           const abortMsg = "Sorry, I encountered an error. Please try again.";
           setConversations((prev) =>
             prev.map((c) =>
@@ -1787,19 +1798,16 @@ export default function ChatApp({
         }
       } else {
         console.error("Chat error:", error);
+        const errorContent = visibleAssistantText(assistantContent)
+          ? assistantContent
+          : "Sorry, I encountered an error. Please try again.";
         setConversations((prev) =>
           prev.map((c) =>
             c.id === activeId
               ? {
                   ...c,
                   messages: c.messages.map((m) =>
-                    m.id === assistantId
-                      ? {
-                          ...m,
-                          content:
-                            "Sorry, I encountered an error. Please try again.",
-                        }
-                      : m,
+                    m.id === assistantId ? { ...m, content: errorContent } : m,
                   ),
                 }
               : c,
@@ -3210,6 +3218,17 @@ export default function ChatApp({
                 const hasAdviceComplete =
                   message.content.includes("[ADVICE_COMPLETE]");
                 const hasDelimiter = message.content.includes("---");
+
+                if (
+                  isThinking &&
+                  message.role === "assistant" &&
+                  !visibleAssistantText(message.content)
+                ) {
+                  // The reply is still streaming (the model may spend a long
+                  // time reasoning before the first visible token arrives).
+                  // Show the "Thinking…" indicator instead of an empty bubble.
+                  return null;
+                }
 
                 if (isGrillAssistant && !hasAdviceComplete) {
                   const cleaned = stripThinkingTokens(
