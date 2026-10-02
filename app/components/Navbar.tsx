@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useSession, signOut } from "@/lib/auth-client";
+import { handleSectionAnchor, isSectionHref } from "@/lib/section-nav";
 import LogoIcon from "./LogoIcon";
 
 const links = [
@@ -68,6 +69,11 @@ export default function Navbar() {
               <a
                 href={link.href}
                 className="relative inline-block rounded-full px-3.5 py-1.5 transition-colors duration-300 hover:text-white"
+                onClick={
+                  isSectionHref(link.href)
+                    ? (e) => handleSectionAnchor(e, link.href)
+                    : undefined
+                }
               >
                 <span className="relative z-10">{link.label}</span>
                 <span className="absolute inset-0 -z-0 scale-90 rounded-full bg-white/0 transition-all duration-300 group-hover:bg-white/10" />
@@ -261,7 +267,10 @@ export default function Navbar() {
               }`}
             >
               <a
-                onClick={() => setOpen(false)}
+                onClick={(e) => {
+                  setOpen(false);
+                  handleSectionAnchor(e, link.href);
+                }}
                 href={link.href}
                 className="block rounded-xl px-3 py-2.5 text-white/80 transition-colors hover:bg-white/5 hover:text-white"
               >

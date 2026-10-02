@@ -270,6 +270,10 @@ body {
   color: #000000;
 }
 
+section[id] {
+  scroll-margin-top: 6rem;
+}
+
 * {
   scrollbar-color: #2a2a2a #000;
   scrollbar-width: thin;

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { companyPages } from "../company/_data";
 import { legalPages } from "../legal/_data";
 import { resourceCategories } from "../resources/_data";
+import { handleSectionAnchor, isSectionHref } from "@/lib/section-nav";
 import LogoIcon from "./LogoIcon";
 
 const otherColumns: {
@@ -94,7 +95,15 @@ export default function Footer() {
                             {inner}
                           </Link>
                         ) : (
-                          <a href={link.href} className={anchorClass}>
+                          <a
+                            href={link.href}
+                            className={anchorClass}
+                            onClick={
+                              isSectionHref(link.href)
+                                ? (e) => handleSectionAnchor(e, link.href)
+                                : undefined
+                            }
+                          >
                             {inner}
                           </a>
                         )}
