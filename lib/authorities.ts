@@ -14,7 +14,6 @@ export const AUTHORITIES: Record<string, Authority> = {
   nch: {
     id: "nch",
     name: "National Consumer Helpline (NCH)",
-    email: "nch-ca@gov.in",
     portalUrl: "https://consumerhelpline.gov.in",
     portalName: "INGRAM Portal",
     phone: "1915 / 1800-11-4000",

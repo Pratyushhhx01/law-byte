@@ -93,4 +93,11 @@ export const templatePreviews: TemplatePreview[] = [
     category: "Document",
     description: "Right to Information application under the RTI Act, 2005.",
   },
+  {
+    id: "cyber-complaint",
+    name: "Cyber Crime Complaint",
+    category: "Document",
+    description:
+      "Written cyber crime complaint for the cybercrime.gov.in portal or the local cyber cell.",
+  },
 ];

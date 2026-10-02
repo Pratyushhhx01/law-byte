@@ -31,7 +31,7 @@ export const filingGuidePreviews: FilingGuidePreview[] = [
     id: "cybercrime",
     name: "Cyber Crime Complaint",
     description:
-      "Report a cybercrime to the National Cyber Crime Reporting Portal (cybercrime.gov.in).",
+      "Report online harassment, leaked or morphed intimate images, fake profiles, financial fraud and other cybercrimes on the National Cyber Crime Reporting Portal (cybercrime.gov.in).",
     estimatedTime: "15-20 minutes",
   },
   {
@@ -39,13 +39,6 @@ export const filingGuidePreviews: FilingGuidePreview[] = [
     name: "FIR Draft",
     description:
       "Draft a First Information Report (FIR) to lodge a police complaint for a cognizable offence.",
-    estimatedTime: "15-20 minutes",
-  },
-  {
-    id: "notice",
-    name: "Legal Notice",
-    description:
-      "Send a formal legal notice before initiating legal proceedings.",
     estimatedTime: "15-20 minutes",
   },
 ];

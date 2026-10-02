@@ -277,6 +277,24 @@ const TEMPLATES: Template[] = [
     generate: (d) =>
       `RTI APPLICATION\n\nDate: ${formatDate()}\n\nTo,\nThe CPIO,\n${d["Public Authority Name"] || "[Authority]"}\n\nSubject: Request for information under Section 6 of the RTI Act, 2005\n\nSir/Madam,\n\nI, ${d["Applicant Name"] || "[Name]"}, residing at ${d["Applicant Address"] || "[Address]"}, hereby request the following information:\n\n${d["Information Sought"] || "[Describe the information you seek]"}\n\nI am ready to pay the prescribed fee of Rs. 10.\n\nThanking you,\n${d["Applicant Name"] || "[Name]"}\n\n[DISCLAIMER: AI-generated draft for reference only.]`,
   },
+  {
+    id: "cyber-complaint",
+    name: "Cyber Crime Complaint",
+    category: "Document",
+    icon: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
+    iconBg: "bg-purple-500/10",
+    iconColor: "text-purple-400",
+    fields: [
+      { label: "Complainant Name", required: true },
+      { label: "Complainant Address", required: true },
+      { label: "Police/Cyber Cell", required: true },
+      { label: "Platform / URL", required: true },
+      { label: "Incident Date", type: "date", required: true },
+      { label: "Incident Details", type: "textarea", required: true },
+    ],
+    generate: (d) =>
+      `CYBER CRIME COMPLAINT\n\nDate: ${formatDate()}\n\nTo,\nThe Station House Officer / Investigating Officer\n${d["Police/Cyber Cell"] || "[Police Station or Cyber Cell]"}\n\nSubject: Complaint of cyber crime under the Information Technology Act, 2000 and the Bharatiya Nyaya Sanhita, 2023\n\nSir/Madam,\n\n1. I, ${d["Complainant Name"] || "[Name]"}, residing at ${d["Complainant Address"] || "[Address]"}, wish to report a cyber crime committed through ${d["Platform / URL"] || "[Platform / URL]"}.\n\n2. The incident occurred on ${d["Incident Date"] || "[Date]"}.\n\n3. Details: ${d["Incident Details"] || "[Describe what happened, including how the content was created, shared or used]"}\n\n4. I have preserved screenshots, links and other evidence of the above.\n\nI request you to register the complaint, preserve the digital evidence, remove the offending content or account and initiate investigation under the applicable provisions.\n\nYours faithfully,\n${d["Complainant Name"] || "[Name]"}\n\n[DISCLAIMER: AI-generated draft for reference only. Consult a practicing lawyer before filing.]`,
+  },
 ];
 
 export function TemplatesModal({
@@ -333,7 +351,9 @@ export function TemplatesModal({
               {selected ? selected.name : "Contract Templates"}
             </h3>
             <p className="text-[11px] text-white/40">
-              {selected ? selected.category : "13 ready-to-use templates"}
+              {selected
+                ? selected.category
+                : `${TEMPLATES.length} ready-to-use templates`}
             </p>
           </div>
           <button
@@ -592,38 +612,88 @@ const FILING_GUIDES: FilingGuide[] = [
       `FIR DRAFT\n\nDate: ${formatDate()}\n\nTo,\nThe SHO,\n${d["Police Station"] || "[Police Station]"}\n\nSubject: Information regarding offence under the Bharatiya Nyaya Sanhita, 2023\n\nSir/Madam,\n\n1. I, ${d["Complainant Name"] || "[Name]"}, wish to lodge this complaint regarding a cognizable offence on ${d["Incident Date"] || "[Date]"} at ${d["Incident Place"] || "[Place]"}.\n\n2. Details: ${d["Incident Details"] || "[Describe the incident]"}\n\n3. I request you to register an FIR under the relevant provisions of BNS 2023.\n\nYours faithfully,\n${d["Complainant Name"] || "[Name]"}\n\n[DISCLAIMER: AI-generated draft for reference only.]`,
   },
   {
-    id: "notice",
-    name: "Legal Notice",
-    icon: "M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z",
-    iconBg: "bg-pink-500/10",
-    iconColor: "text-pink-400",
+    id: "cybercrime",
+    authorityId: "cybercrime",
+    name: "Cyber Crime Complaint",
+    icon: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
+    iconBg: "bg-purple-500/10",
+    iconColor: "text-purple-400",
     steps: [
       {
-        title: "Identify Grounds",
-        detail: "What is the grievance? What law or right has been violated?",
-        tip: "Consult the relevant bare act for specific sections.",
-      },
-      {
-        title: "Draft the Notice",
-        detail: "Clear facts, legal grounds, and the demand/relief.",
-        tip: "Keep the tone formal. Avoid emotional language.",
-      },
-      {
-        title: "Send via Speed Post",
+        title: "Pick the Portal Category",
         detail:
-          "Send with acknowledgement due (AD card). Give 15-30 days for response.",
-        tip: "Keep the postal receipt as evidence.",
+          "On cybercrime.gov.in choose 'Crime Against Women and Children' for leaked or morphed intimate images, sexual harassment, stalking and fake profiles — or 'Other Cyber Crime' for fraud, hacking and impersonation.",
+        tip: "For financial fraud call 1930 immediately so the money can be frozen.",
+      },
+      {
+        title: "Preserve the Evidence",
+        detail:
+          "Capture screenshots with the URL, profile handle, message headers, dates and transaction IDs before anything is deleted.",
+        tip: "Do not delete chats or posts — investigators need the original trail.",
+      },
+      {
+        title: "Submit the Complaint",
+        detail:
+          "Create an OTP-based account on cybercrime.gov.in, fill the complaint form, upload the evidence and submit. You can also walk into the nearest cyber cell.",
+        tip: "The portal accepts complaints 24×7 from anywhere in India and assigns jurisdiction for you.",
+      },
+      {
+        title: "Track with the Acknowledgement Number",
+        detail:
+          "Note the complaint ID issued on submission, track its status on the portal and cooperate with the assigned investigating officer.",
+        tip: "No action? Escalate on the portal or file a Zero FIR at your local police station.",
       },
     ],
     docFields: [
-      { label: "Sender Name", required: true },
-      { label: "Recipient Name", required: true },
-      { label: "Subject", required: true },
-      { label: "Facts of the Case", required: true },
-      { label: "Demand/Relief", required: true },
+      { label: "Complainant Name", required: true },
+      { label: "Complainant Address", required: true },
+      {
+        label: "Platform / URL",
+        placeholder: "Profile, page or chat link",
+        required: true,
+      },
+      { label: "Incident Date", required: true },
+      { label: "Incident Details", required: true },
     ],
     generateDocument: (d) =>
-      `LEGAL NOTICE\n\nDate: ${formatDate()}\n\nFrom: ${d["Sender Name"] || "[Sender]"}\nTo: ${d["Recipient Name"] || "[Recipient]"}\n\nSubject: ${d["Subject"] || "[Subject]"}\n\nSir/Madam,\n\n1. I, ${d["Sender Name"] || "[Name]"}, hereby issue this legal notice regarding ${d["Subject"]}.\n\n2. Facts: ${d["Facts of the Case"] || "[State the facts]"}\n\n3. Through this notice, I call upon you to ${d["Demand/Relief"] || "[State your demand]"} within 15 days.\n\n4. Failure to comply will result in legal proceedings at your cost.\n\nYours faithfully,\n${d["Sender Name"] || "[Name]"}\n\n[DISCLAIMER: AI-generated draft for reference only.]`,
+      `CYBER CRIME COMPLAINT\n\nDate: ${formatDate()}\n\nTo,\nThe Investigating Officer\nNational Cyber Crime Reporting Portal (cybercrime.gov.in)\n\nSubject: Complaint of cyber crime under the Information Technology Act, 2000 and the Bharatiya Nyaya Sanhita, 2023\n\nSir/Madam,\n\n1. I, ${d["Complainant Name"] || "[Name]"}, residing at ${d["Complainant Address"] || "[Address]"}, wish to report a cyber crime committed through ${d["Platform / URL"] || "[Platform / URL]"}.\n\n2. The incident occurred on ${d["Incident Date"] || "[Date]"}.\n\n3. Details: ${d["Incident Details"] || "[Describe what happened, including how the content was created, shared or used]"}\n\n4. I have preserved screenshots, links and other evidence of the above.\n\nI request you to register the complaint, preserve the digital evidence, remove the offending content or account and initiate investigation under the applicable provisions.\n\nYours faithfully,\n${d["Complainant Name"] || "[Name]"}\n\n[DISCLAIMER: AI-generated draft for reference only.]`,
+  },
+  {
+    id: "nch-grievance",
+    authorityId: "nch",
+    name: "Consumer Grievance (NCH)",
+    icon: "M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z",
+    iconBg: "bg-orange-500/10",
+    iconColor: "text-orange-400",
+    steps: [
+      {
+        title: "Approach the Company First",
+        detail:
+          "Send your grievance to the seller's or brand's grievance officer and keep the ticket or reference number.",
+        tip: "Most companies must respond within 15 days of the complaint.",
+      },
+      {
+        title: "Register on the NCH Portal",
+        detail:
+          "File at consumerhelpline.gov.in or call 1915 with purchase proof, invoices and the company's reply, if any.",
+        tip: "Registration is free and covers products and services bought anywhere in India.",
+      },
+      {
+        title: "Escalate If Unresolved",
+        detail:
+          "If NCH conciliation fails, approach the Consumer Disputes Redressal Commission through e-Jagriti.",
+        tip: "Keep the NCH acknowledgement number — the forum will ask for it.",
+      },
+    ],
+    docFields: [
+      { label: "Complainant Name", required: true },
+      { label: "Mobile Number", required: true },
+      { label: "Seller / Brand Name", required: true },
+      { label: "Product/Service", required: true },
+      { label: "Grievance Details", required: true },
+    ],
+    generateDocument: (d) =>
+      `CONSUMER GRIEVANCE — NATIONAL CONSUMER HELPLINE\n\nDate: ${formatDate()}\n\nTo,\nThe Grievance Officer\nNational Consumer Helpline (consumerhelpline.gov.in)\n\nComplainant: ${d["Complainant Name"] || "[Name]"} | Mobile: ${d["Mobile Number"] || "[Number]"}\n\nSubject: Pre-litigation grievance against ${d["Seller / Brand Name"] || "[Seller/Brand]"} regarding ${d["Product/Service"] || "[Product/Service]"}\n\nSir/Madam,\n\n1. I purchased/availed ${d["Product/Service"] || "[Product/Service]"} from ${d["Seller / Brand Name"] || "[Seller/Brand]"}.\n\n2. Grievance: ${d["Grievance Details"] || "[Describe the deficiency in product, service or unfair trade practice]"}\n\n3. Despite representations, the matter remains unresolved.\n\nI request the NCH to take up conciliation with the opposite party and, failing that, to advise me on approaching the Consumer Disputes Redressal Commission.\n\nYours faithfully,\n${d["Complainant Name"] || "[Name]"}\n\n[DISCLAIMER: AI-generated draft for reference only.]`,
   },
 ];
 

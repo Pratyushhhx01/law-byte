@@ -4740,7 +4740,7 @@ export default function ChatApp({
                               Contract Templates
                             </span>
                             <span className="mt-0.5 block text-xs text-white/40">
-                              13 ready-to-use Indian legal templates
+                              14 ready-to-use Indian legal templates
                             </span>
                           </div>
                         </button>
@@ -4769,7 +4769,7 @@ export default function ChatApp({
                               Filing Assistance
                             </span>
                             <span className="mt-0.5 block text-xs text-white/40">
-                              Step-by-step guides for RTI, FIR, consumer
+                              Guides for cyber crime, RTI, FIR &amp; consumer
                               complaints
                             </span>
                           </div>
@@ -7147,7 +7147,7 @@ export default function ChatApp({
                     Contract Templates
                   </span>
                   <span className="mt-0.5 block text-xs text-white/40">
-                    6 ready-to-use Indian legal templates
+                    14 ready-to-use Indian legal templates
                   </span>
                 </div>
               </button>
@@ -7175,7 +7175,7 @@ export default function ChatApp({
                     Filing Assistance
                   </span>
                   <span className="mt-0.5 block text-xs text-white/40">
-                    Step-by-step guides for RTI, FIR, consumer complaints
+                    Guides for cyber crime, RTI, FIR &amp; consumer complaints
                   </span>
                 </div>
               </button>

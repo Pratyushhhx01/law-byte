@@ -78,6 +78,11 @@ export const resourceCategories: ResourceCategory[] = [
     href: "/filing",
     items: [
       {
+        label: "Cyber Crime Complaint",
+        href: "/filing#cybercrime",
+        description: "Harassment, leaked photos & online fraud",
+      },
+      {
         label: "RTI Application",
         href: "/filing#rti",
         description: "File RTI requests online",

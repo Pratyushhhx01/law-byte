@@ -23,6 +23,7 @@ export default function TemplatesPage() {
           {templatePreviews.map((template) => (
             <Link
               key={template.id}
+              id={template.id}
               href={`/chat?tool=templates&item=${template.id}`}
               className="group rounded-lg border border-white/10 bg-white/[0.03] p-4 transition-all hover:border-white/20 hover:bg-white/[0.06]"
             >

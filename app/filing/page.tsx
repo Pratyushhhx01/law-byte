@@ -6,14 +6,14 @@ import { filingGuidePreviews } from "./_data";
 export const metadata: Metadata = {
   title: "Filing Assistance — Lawbite",
   description:
-    "See the filing assistance features available on Lawbite — RTI, consumer complaints, FIRs, and more.",
+    "See the filing assistance features available on Lawbite — cyber crime complaints, RTI, consumer complaints, and FIRs.",
 };
 
 export default function FilingPage() {
   return (
     <ResourceLayout
       title="Filing Assistance"
-      description="Lawbite guides you through filing RTI applications, consumer complaints, FIRs, legal notices, and more."
+      description="Lawbite guides you through filing cyber crime complaints, RTI applications, consumer complaints, FIRs, and more — all online."
     >
       <section>
         <h2 className="text-xl font-semibold text-white">
@@ -23,6 +23,7 @@ export default function FilingPage() {
           {filingGuidePreviews.map((guide) => (
             <Link
               key={guide.id}
+              id={guide.id}
               href={`/chat?tool=filing&item=${guide.id}`}
               className="group rounded-lg border border-white/10 bg-white/[0.03] p-4 transition-all hover:border-white/20 hover:bg-white/[0.06]"
             >
